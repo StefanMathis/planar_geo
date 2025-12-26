@@ -1,17 +1,21 @@
 planar_geo
 ==========
 
-[`ArcSegment`]: https://docs.rs/planar_geo/0.1.0/planar_geo/segment/arc_segment/struct.ArcSegment.html
-[`LineSegment`]: https://docs.rs/planar_geo/0.1.0/planar_geo/segment/line_segment/struct.LineSegment.html
-[`Segment`]: https://docs.rs/planar_geo/0.1.0/planar_geo/segment/enum.Segment.html
-[`SegmentChain`]: https://docs.rs/planar_geo/0.1.0/planar_geo/segment_chain/struct.SegmentChain.html
-[`Contour`]: https://docs.rs/planar_geo/0.1.0/planar_geo/contour/struct.Contour.html
-[`Shape`]: https://docs.rs/planar_geo/0.1.0/planar_geo/shape/struct.Shape.html
-[`DEFAULT_EPSILON`]: https://docs.rs/planar_geo/0.1.0/planar_geo/constant.DEFAULT_EPSILON.html
-[`DEFAULT_MAX_ULPS`]: https://docs.rs/planar_geo/0.1.0/planar_geo/constant.DEFAULT_MAX_ULPS.html
+[`ArcSegment`]: https://docs.rs/planar_geo/0.1.1/planar_geo/segment/arc_segment/struct.ArcSegment.html
+[`LineSegment`]: https://docs.rs/planar_geo/0.1.1/planar_geo/segment/line_segment/struct.LineSegment.html
+[`Segment`]: https://docs.rs/planar_geo/0.1.1/planar_geo/segment/enum.Segment.html
+[`SegmentChain`]: https://docs.rs/planar_geo/0.1.1/planar_geo/segment_chain/struct.SegmentChain.html
+[`Contour`]: https://docs.rs/planar_geo/0.1.1/planar_geo/contour/struct.Contour.html
+[`Shape`]: https://docs.rs/planar_geo/0.1.1/planar_geo/shape/struct.Shape.html
+[`Primitive`]: https://docs.rs/planar_geo/0.1.1/planar_geo/primitive/trait.Primitive.html
+[`Composite`]: https://docs.rs/planar_geo/0.1.1/planar_geo/composite/trait.Composite.html
+[`Transformation`]: https://docs.rs/planar_geo/0.1.1/planar_geo/trait.Transformation.html
+[`DEFAULT_EPSILON`]: https://docs.rs/planar_geo/0.1.1/planar_geo/constant.DEFAULT_EPSILON.html
+[`DEFAULT_MAX_ULPS`]: https://docs.rs/planar_geo/0.1.1/planar_geo/constant.DEFAULT_MAX_ULPS.html
 [`Context`]: https://gtk-rs.org/gtk-rs-core/stable/latest/docs/cairo/struct.Context.html
 [gtk-rs]: https://gtk-rs.org/gtk-rs-core/stable/latest/docs/cairo
 [approxim]: https://docs.rs/approxim/latest/approxim/
+[serde]: https://serde.rs/
 [`ulps_eq`]: https://docs.rs/approxim/latest/approxim/macro.ulps_eq.html
 
 A Rust library for 2D geometry: geometric objects, algorithms and visualization.
@@ -24,6 +28,7 @@ Building upon this, a variety of [`Primitive`] and [`Composite`] types are
 defined:
 
 ![](https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/docs/type_overview.svg "Overview geometric types of the planar_geo crate")
+
 _This image was created with examples/type_overview.rs_
 
 The "segment" types are so-called [`Primitive`]s: Simple straight
@@ -50,7 +55,7 @@ written in the first place.
 Since the "point" type is defined using the floating-point type `f64`, a lot of
 operations (i.e. intersection calculation) are prone to rounding-errors. These
 operations therefore require specifying an absolute tolerance `epsilon` and a
-maximum units in last place tolerance `max_ulps`, which are usually as inputs
+maximum units in last place tolerance `max_ulps`, which are used as inputs
 for [`ulps_eq`] (from the [approxim] crate) to e.g. determine whether two points
 are approximately equal. It is recommended to use the "default" tolerances
 [`DEFAULT_EPSILON`] and [`DEFAULT_MAX_ULPS`] unless there is a good reason to
@@ -186,6 +191,7 @@ For example, the following code shows intersections between the segments shown
 in this image:
 
 ![](https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/docs/intersection_segments.svg "Point and segment intersection")
+
 _This image was created with examples/intersection_segments.rs_
 
 ```rust
@@ -256,4 +262,4 @@ in the documentation were created using this functionality.
 # Documentation
 
 The full API documentation is available at
-[https://docs.rs/planar_geo/0.1.0/planar_geo/](https://docs.rs/planar_geo/0.1.0/planar_geo/).
+[https://docs.rs/planar_geo/0.1.1/planar_geo/](https://docs.rs/planar_geo/0.1.1/planar_geo/).

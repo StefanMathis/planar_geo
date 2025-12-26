@@ -65,7 +65,7 @@ fn main() {
 
     let view = Viewport::from_bounding_box(&bb, SideLength::Long(600));
 
-    let fp = file_path("example_shape");
+    let fp = file_path("shape");
     view.write_to_file(&fp, |cr| {
         cr.set_source_rgb(1.0, 1.0, 1.0);
         cr.paint()?;

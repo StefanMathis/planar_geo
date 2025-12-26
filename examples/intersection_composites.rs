@@ -13,7 +13,7 @@ fn main() {
     let chain = SegmentChain::from_points(&[[-1.0, 1.0], [-0.5, 0.5], [1.5, 0.5], [2.0, 1.0]]);
 
     let view = Viewport::from_bounding_box(
-        &BoundingBox::new(-1.2, 2.2, -1.2, 2.2),
+        &BoundingBox::new(-1.2, 2.2, -0.1, 1.1),
         SideLength::Long(500),
     );
 
