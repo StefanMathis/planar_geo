@@ -160,8 +160,8 @@ assert_eq!(pt, [3.0, 4.0]);
 let mut ls = LineSegment::new([1.0, 0.0], [2.0, 0.0], e, m).expect("points are not equal");
 ls.rotate([1.0, 1.0], PI);
 
-approx::assert_abs_diff_eq!(ls.start(), [1.0, 3.0], epsilon = 1e-15);
-approx::assert_abs_diff_eq!(ls.start(), [0.0, 3.0], epsilon = 1e-15);
+approx::assert_abs_diff_eq!(ls.start(), [1.0, 2.0], epsilon = 1e-15);
+approx::assert_abs_diff_eq!(ls.stop(), [0.0, 2.0], epsilon = 1e-15);
 
 // Scale a segment chain
 let mut chain = SegmentChain::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]);
@@ -176,7 +176,7 @@ assert_eq!(pts.next(), Some([3.0, 3.0]));
 let mut contour = Contour::new(chain);
 contour.line_reflection([0.0, 0.0], [0.0, 1.0]);
 
-let mut pts = chain.points();
+let mut pts = contour.points();
 assert_eq!(pts.next(), Some([0.0, 0.0]));
 assert_eq!(pts.next(), Some([-3.0, 0.0]));
 assert_eq!(pts.next(), Some([-3.0, 3.0]));

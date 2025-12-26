@@ -1,17 +1,17 @@
 planar_geo
 ==========
 
-[`ArcSegment`]: https://docs.rs/planar_geo/0.1.1/planar_geo/segment/arc_segment/struct.ArcSegment.html
-[`LineSegment`]: https://docs.rs/planar_geo/0.1.1/planar_geo/segment/line_segment/struct.LineSegment.html
-[`Segment`]: https://docs.rs/planar_geo/0.1.1/planar_geo/segment/enum.Segment.html
-[`SegmentChain`]: https://docs.rs/planar_geo/0.1.1/planar_geo/segment_chain/struct.SegmentChain.html
-[`Contour`]: https://docs.rs/planar_geo/0.1.1/planar_geo/contour/struct.Contour.html
-[`Shape`]: https://docs.rs/planar_geo/0.1.1/planar_geo/shape/struct.Shape.html
-[`Primitive`]: https://docs.rs/planar_geo/0.1.1/planar_geo/primitive/trait.Primitive.html
-[`Composite`]: https://docs.rs/planar_geo/0.1.1/planar_geo/composite/trait.Composite.html
-[`Transformation`]: https://docs.rs/planar_geo/0.1.1/planar_geo/trait.Transformation.html
-[`DEFAULT_EPSILON`]: https://docs.rs/planar_geo/0.1.1/planar_geo/constant.DEFAULT_EPSILON.html
-[`DEFAULT_MAX_ULPS`]: https://docs.rs/planar_geo/0.1.1/planar_geo/constant.DEFAULT_MAX_ULPS.html
+[`ArcSegment`]: https://docs.rs/planar_geo/0.1.2/planar_geo/segment/arc_segment/struct.ArcSegment.html
+[`LineSegment`]: https://docs.rs/planar_geo/0.1.2/planar_geo/segment/line_segment/struct.LineSegment.html
+[`Segment`]: https://docs.rs/planar_geo/0.1.2/planar_geo/segment/enum.Segment.html
+[`SegmentChain`]: https://docs.rs/planar_geo/0.1.2/planar_geo/segment_chain/struct.SegmentChain.html
+[`Contour`]: https://docs.rs/planar_geo/0.1.2/planar_geo/contour/struct.Contour.html
+[`Shape`]: https://docs.rs/planar_geo/0.1.2/planar_geo/shape/struct.Shape.html
+[`Primitive`]: https://docs.rs/planar_geo/0.1.2/planar_geo/primitive/trait.Primitive.html
+[`Composite`]: https://docs.rs/planar_geo/0.1.2/planar_geo/composite/trait.Composite.html
+[`Transformation`]: https://docs.rs/planar_geo/0.1.2/planar_geo/trait.Transformation.html
+[`DEFAULT_EPSILON`]: https://docs.rs/planar_geo/0.1.2/planar_geo/constant.DEFAULT_EPSILON.html
+[`DEFAULT_MAX_ULPS`]: https://docs.rs/planar_geo/0.1.2/planar_geo/constant.DEFAULT_MAX_ULPS.html
 [`Context`]: https://gtk-rs.org/gtk-rs-core/stable/latest/docs/cairo/struct.Context.html
 [gtk-rs]: https://gtk-rs.org/gtk-rs-core/stable/latest/docs/cairo
 [approxim]: https://docs.rs/approxim/latest/approxim/
@@ -160,8 +160,8 @@ assert_eq!(pt, [3.0, 4.0]);
 let mut ls = LineSegment::new([1.0, 0.0], [2.0, 0.0], e, m).expect("points are not equal");
 ls.rotate([1.0, 1.0], PI);
 
-approx::assert_abs_diff_eq!(ls.start(), [1.0, 3.0], epsilon = 1e-15);
-approx::assert_abs_diff_eq!(ls.start(), [0.0, 3.0], epsilon = 1e-15);
+approx::assert_abs_diff_eq!(ls.start(), [1.0, 2.0], epsilon = 1e-15);
+approx::assert_abs_diff_eq!(ls.stop(), [0.0, 2.0], epsilon = 1e-15);
 
 // Scale a segment chain
 let mut chain = SegmentChain::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]);
@@ -176,7 +176,7 @@ assert_eq!(pts.next(), Some([3.0, 3.0]));
 let mut contour = Contour::new(chain);
 contour.line_reflection([0.0, 0.0], [0.0, 1.0]);
 
-let mut pts = chain.points();
+let mut pts = contour.points();
 assert_eq!(pts.next(), Some([0.0, 0.0]));
 assert_eq!(pts.next(), Some([-3.0, 0.0]));
 assert_eq!(pts.next(), Some([-3.0, 3.0]));
@@ -262,4 +262,4 @@ in the documentation were created using this functionality.
 # Documentation
 
 The full API documentation is available at
-[https://docs.rs/planar_geo/0.1.1/planar_geo/](https://docs.rs/planar_geo/0.1.1/planar_geo/).
+[https://docs.rs/planar_geo/0.1.2/planar_geo/](https://docs.rs/planar_geo/0.1.2/planar_geo/).
