@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="600" height="352" viewBox="0 0 600 352">
+<rect x="-60" y="-35.2" width="720" height="422.4" fill="rgb(100%, 100%, 100%)" fill-opacity="1"/>
+<path fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="miter" stroke="rgb(0%, 0%, 0%)" stroke-opacity="1" stroke-miterlimit="10" d="M 14.285156 106.410156 C 110.019531 10.675781 253.996094 -17.960938 379.078125 33.847656 C 504.160156 85.660156 585.714844 207.714844 585.714844 343.101562 "/>
+<path fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="miter" stroke="rgb(100%, 0%, 0%)" stroke-opacity="1" stroke-dasharray="4 4" stroke-miterlimit="10" d="M 14.285156 106.410156 L 585.714844 343.101562 "/>
+<path fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="miter" stroke="rgb(0%, 100%, 0%)" stroke-opacity="1" stroke-dasharray="4 4" stroke-miterlimit="10" d="M 14.285156 106.410156 L 379.078125 33.847656 L 585.714844 343.101562 "/>
+<path fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="miter" stroke="rgb(0%, 0%, 100%)" stroke-opacity="1" stroke-dasharray="4 4" stroke-miterlimit="10" d="M 14.285156 106.410156 L 250.980469 8.367188 L 487.671875 106.410156 L 585.714844 343.101562 "/>
+</svg>
