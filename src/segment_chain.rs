@@ -635,7 +635,7 @@ impl SegmentChain {
     assert_eq!(iter.next(), None);
     ```
      */
-    pub fn points(&self) -> PointIterator {
+    pub fn points(&self) -> PointIterator<'_> {
         return PointIterator::new(self, false, Polygonizer::default());
     }
 
@@ -645,7 +645,7 @@ impl SegmentChain {
     an [`SegmentPolygonizer`] specified within [`Polygonizer`]. See the
     docstring of the latter fore more.
      */
-    pub fn polygonize(&self, polygonizer: Polygonizer) -> PointIterator {
+    pub fn polygonize(&self, polygonizer: Polygonizer) -> PointIterator<'_> {
         return PointIterator::new(self, false, polygonizer);
     }
 

@@ -341,7 +341,7 @@ impl Contour {
     assert_eq!(iter.next(), None);
     ```
      */
-    pub fn points(&self) -> PointIterator {
+    pub fn points(&self) -> PointIterator<'_> {
         return PointIterator::new(self.segment_chain(), true, Polygonizer::default());
     }
 
@@ -351,7 +351,7 @@ impl Contour {
     an [`SegmentPolygonizer`] specified within [`Polygonizer`]. See the
     docstring of the latter fore more.
      */
-    pub fn polygonize(&self, polygonizer: Polygonizer) -> PointIterator {
+    pub fn polygonize(&self, polygonizer: Polygonizer) -> PointIterator<'_> {
         return PointIterator::new(self.segment_chain(), true, polygonizer);
     }
 
