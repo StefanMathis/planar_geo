@@ -579,8 +579,8 @@ pub trait Composite {
     Returns the intersection between `self` and another type implementing
     [`Composite`].
 
-    This is a generalized interface to all the special intersection functions.
-    For example, if `other` is a [`SegmentChain`], the implementation of this
+    This is a generalized interface to all specialized intersection functions.
+    For example, if `self` is a [`SegmentChain`], the implementation of this
     function boils down to:
 
     ```ignore
