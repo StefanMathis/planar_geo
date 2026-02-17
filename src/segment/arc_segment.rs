@@ -716,7 +716,7 @@ impl ArcSegment {
 
     let arc = ArcSegment::circle([0.0, 0.0], 2.0).unwrap();
 
-    let mut iter = arc.polygonize(SegmentPolygonizer::NumberSegments(4));
+    let mut iter = arc.polygonize(SegmentPolygonizer::InnerSegments(4));
 
     approx::assert_abs_diff_eq!(iter.next(), Some(arc.segment_point(0.0)), epsilon = 1e-15);
     approx::assert_abs_diff_eq!(iter.next(), Some(arc.segment_point(0.25)), epsilon = 1e-15);
@@ -733,7 +733,7 @@ impl ArcSegment {
         let radius = self.radius();
 
         let num_segs = match polygonizer {
-            super::SegmentPolygonizer::NumberSegments(segs) => segs,
+            super::SegmentPolygonizer::InnerSegments(segs) => segs,
             super::SegmentPolygonizer::MaximumSegmentLength(max_len) => {
                 if max_len <= 0.0 {
                     0
@@ -761,7 +761,7 @@ impl ArcSegment {
     /**
     Returns an iterator over the start and stop point of `self`.
 
-    This is a shorthand for `self.polygonize( Polygonizer::NumberSegments(1))`.
+    This is a shorthand for `self.polygonize( Polygonizer::InnerSegments(1))`.
 
     # Examples
 
@@ -778,7 +778,7 @@ impl ArcSegment {
     ```
      */
     pub fn points<'a>(&'a self) -> super::PolygonPointsIterator<'a> {
-        return self.polygonize(super::SegmentPolygonizer::NumberSegments(1));
+        return self.polygonize(super::SegmentPolygonizer::InnerSegments(1));
     }
 
     /// Algorithm from https://cp-algorithms.com/geometry/circle-line-intersection.html

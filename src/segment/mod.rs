@@ -212,7 +212,7 @@ impl Segment {
         )
         .unwrap();
     let s = Segment::from(arc);
-    let mut iter = s.polygonize(SegmentPolygonizer::NumberSegments(4));
+    let mut iter = s.polygonize(SegmentPolygonizer::InnerSegments(4));
 
     assert_eq!(iter.next(), Some(s.segment_point(0.0)));
     assert_eq!(iter.next(), Some(s.segment_point(0.25)));
@@ -402,7 +402,7 @@ let iter = s.polygonize(SegmentPolygonizer::MaximumAngle(0.5 * PI));
 assert_eq!(iter.count(), 3);
 
 // Three segments (blue line in the image below this code snippet)
-let iter = s.polygonize(SegmentPolygonizer::NumberSegments(3));
+let iter = s.polygonize(SegmentPolygonizer::InnerSegments(3));
 assert_eq!(iter.count(), 4);
 ```
 */
@@ -417,12 +417,12 @@ assert_eq!(iter.count(), 4);
 #[derive(Debug, Clone, Copy)]
 pub enum SegmentPolygonizer {
     /**
-    Number of line segments of the polygon chains given explicitly
-    -> Number of points is equal to this plus one (end point of the last
+    Inner of line segments of the polygon chains given explicitly
+    -> Inner of points is equal to this plus one (end point of the last
     segment). If the number of line segments is specified to be 0, only the
     start point of the input is returned.
      */
-    NumberSegments(usize),
+    InnerSegments(usize),
     /**
     The given number is the upper limit for the allowed length of the line
     segments. The algorithm then calculates the fewest number of line segments
@@ -444,7 +444,7 @@ pub enum SegmentPolygonizer {
 
 impl Default for SegmentPolygonizer {
     fn default() -> Self {
-        return SegmentPolygonizer::NumberSegments(1);
+        return SegmentPolygonizer::InnerSegments(1);
     }
 }
 

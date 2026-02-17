@@ -455,7 +455,7 @@ impl LineSegment {
 
     let line = LineSegment::new([0.0, 0.0], [2.0, 0.0], 0.0, 0).unwrap();
 
-    let mut iter = line.polygonize(SegmentPolygonizer::NumberSegments(4));
+    let mut iter = line.polygonize(SegmentPolygonizer::InnerSegments(4));
 
     assert_eq!(iter.next(), Some(line.segment_point(0.0)));
     assert_eq!(iter.next(), Some(line.segment_point(0.25)));
@@ -470,7 +470,7 @@ impl LineSegment {
         polygonizer: super::SegmentPolygonizer,
     ) -> super::PolygonPointsIterator<'a> {
         let num_segs = match polygonizer {
-            super::SegmentPolygonizer::NumberSegments(segs) => segs,
+            super::SegmentPolygonizer::InnerSegments(segs) => segs,
             super::SegmentPolygonizer::MaximumSegmentLength(max_len) => {
                 if max_len <= 0.0 {
                     0
@@ -490,7 +490,7 @@ impl LineSegment {
     /**
     Returns an iterator over the start and stop point of `self`
 
-    This is a shorthand for `self.polygonize( Polygonizer::NumberSegments(1))`.
+    This is a shorthand for `self.polygonize( Polygonizer::InnerSegments(1))`.
 
     # Examples
 
@@ -507,7 +507,7 @@ impl LineSegment {
     ```
      */
     pub fn points<'a>(&'a self) -> super::PolygonPointsIterator<'a> {
-        return self.polygonize(super::SegmentPolygonizer::NumberSegments(1));
+        return self.polygonize(super::SegmentPolygonizer::InnerSegments(1));
     }
 
     /**

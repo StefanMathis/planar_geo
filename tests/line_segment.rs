@@ -7,7 +7,7 @@ fn test_polygonize_number_segments() {
     let start = [0.0, 0.0];
     let stop = [1.0, -1.0];
     let line = LineSegment::new(start, stop, DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap();
-    let option = SegmentPolygonizer::NumberSegments(4);
+    let option = SegmentPolygonizer::InnerSegments(4);
     let pts: Vec<[f64; 2]> = line.polygonize(option).collect();
     assert_eq!(pts.len(), 5);
     approx::assert_abs_diff_eq!(&pts[0], &[0.0, 0.0]);
@@ -20,7 +20,7 @@ fn test_polygonize_number_segments() {
     let start = [0.0, 0.0];
     let stop = [0.0, -1.0];
     let line = LineSegment::new(start, stop, DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap();
-    let option = SegmentPolygonizer::NumberSegments(4);
+    let option = SegmentPolygonizer::InnerSegments(4);
     let pts: Vec<[f64; 2]> = line.polygonize(option).collect();
     assert_eq!(pts.len(), 5);
     approx::assert_abs_diff_eq!(&pts[0], &[0.0, 0.0]);
@@ -141,7 +141,7 @@ fn test_polygonize_points() {
             LineSegment::new([0.0, 0.0], [1.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS)
                 .unwrap()
                 .into();
-        let mut iter = line.polygonize(SegmentPolygonizer::NumberSegments(1));
+        let mut iter = line.polygonize(SegmentPolygonizer::InnerSegments(1));
         assert_eq!(iter.next(), Some([0.0, 0.0]));
         assert_eq!(iter.next(), Some([1.0, 0.0]));
         assert_eq!(iter.next(), None);
@@ -185,10 +185,10 @@ fn test_polygonize_iter_count() {
         assert_eq!(iter.count(), 1);
     }
     {
-        let iter = line.polygonize(SegmentPolygonizer::NumberSegments(3));
+        let iter = line.polygonize(SegmentPolygonizer::InnerSegments(3));
         assert_eq!(iter.count(), 4);
 
-        let iter = line.polygonize(SegmentPolygonizer::NumberSegments(0));
+        let iter = line.polygonize(SegmentPolygonizer::InnerSegments(0));
         assert_eq!(iter.count(), 1);
     }
 }
@@ -208,7 +208,7 @@ fn test_polygonize_segment_length() {
         approx::assert_abs_diff_eq!(segments[0].length(), segments[1].length(), epsilon = 1e-14);
     }
 
-    let iter = line.polygonize(SegmentPolygonizer::NumberSegments(8));
+    let iter = line.polygonize(SegmentPolygonizer::InnerSegments(8));
     let pts: Vec<_> = iter.collect();
     let chain = SegmentChain::from_points(&pts);
     for segments in chain.as_slices().0.windows(2) {

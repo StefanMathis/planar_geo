@@ -18,7 +18,7 @@ numbers.
 The following links taken directly from the [`approxim`](approx) crate contain
 more information regarding the behaviour of floating point numbers, particulary
 when comparing them:
-- [Comparing Floating Point Numbers, 2012 Edition](https://randomascii.wordpress.com/2012/02/25/comparing-floating-point-numbers-2012-edition/)
+- [Comparing Floating Point Inners, 2012 Edition](https://randomascii.wordpress.com/2012/02/25/comparing-floating-point-numbers-2012-edition/)
 - [The Floating Point Guide - Comparison](https://floating-point-gui.de/errors/comparison/)
 - [What Every Computer Scientist Should Know About Floating-Point Arithmetic](https://docs.oracle.com/cd/E19957-01/806-3568/ncg_goldberg.html)
 

@@ -30,7 +30,7 @@ fn main() {
     let poly_two_seg = SegmentChain::from_points(&pts);
 
     // Approximation by three segments
-    let iter = s.polygonize(SegmentPolygonizer::NumberSegments(3));
+    let iter = s.polygonize(SegmentPolygonizer::InnerSegments(3));
     let pts: Vec<_> = iter.collect();
     let poly_three_seg = SegmentChain::from_points(&pts);
 

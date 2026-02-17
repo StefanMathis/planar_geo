@@ -297,10 +297,10 @@ fn test_polygonize_iter_count() {
         assert_eq!(iter.count(), 1);
     }
     {
-        let iter = arc.polygonize(SegmentPolygonizer::NumberSegments(3));
+        let iter = arc.polygonize(SegmentPolygonizer::InnerSegments(3));
         assert_eq!(iter.count(), 4);
 
-        let iter = arc.polygonize(SegmentPolygonizer::NumberSegments(0));
+        let iter = arc.polygonize(SegmentPolygonizer::InnerSegments(0));
         assert_eq!(iter.count(), 1);
     }
 }
@@ -326,7 +326,7 @@ fn test_polygonize_segment_length() {
         assert_abs_diff_eq!(segments[0].length(), segments[1].length(), epsilon = 1e-14);
     }
 
-    let iter = arc.polygonize(SegmentPolygonizer::NumberSegments(8));
+    let iter = arc.polygonize(SegmentPolygonizer::InnerSegments(8));
     let pts: Vec<_> = iter.collect();
     let chain = SegmentChain::from_points(&pts);
     for segments in chain.as_slices().0.windows(2) {
@@ -357,7 +357,7 @@ fn test_polygonize_number_segments() {
     )
     .unwrap();
 
-    let option = SegmentPolygonizer::NumberSegments(3);
+    let option = SegmentPolygonizer::InnerSegments(3);
     let pts: Vec<[f64; 2]> = arc.polygonize(option).collect();
     assert_eq!(pts.len(), 4);
     assert_abs_diff_eq!(&pts[0], &[1.0, 0.0], epsilon = 1e-6);
