@@ -20,6 +20,10 @@ planar_geo
 
 A Rust library for 2D geometry: geometric objects, algorithms and visualization.
 
+> **Feedback welcome!**  
+> Found a bug, missing docs, or have a feature request?  
+> Please open an issue on GitHub.
+
 # Overview
 
 This library is based on the basic "point" `[f64; 2]` type, whose first element
