@@ -264,7 +264,8 @@ impl Shape {
         };
         let fill_contour = style.background_color.a != 0.0;
 
-        // Skip the entire evaluation in case no border and no background color has been given
+        // Skip the entire evaluation in case no border and no background color has been
+        // given
         if draw_contour || fill_contour {
             self.contour()
                 .segment_chain()
@@ -276,7 +277,8 @@ impl Shape {
                     .draw_without_stroking::<true>(style, context)?;
             }
 
-            // Substract the holes regardless of the direction of the segment_chain (clockwise or counter-clockwise)
+            // Substract the holes regardless of the direction of the segment_chain
+            // (clockwise or counter-clockwise)
             if fill_contour {
                 context.set_fill_rule(cairo::FillRule::EvenOdd);
                 let fc = &style.background_color;
@@ -326,7 +328,7 @@ to 255.
 The alpha value defines the translucency of the color. 0 means that the color
 is invisible, while 1 means the color is opaque.
  */
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Color {
     /// Red component.
     pub r: f32,
@@ -366,16 +368,16 @@ from the CSS standard, see links in field descriptions.
 */
 #[derive(Debug, Clone)]
 pub struct Style {
-    /// Color of all lines of the geometric object. Corresponds to "border-color"
-    /// as defined in <https://www.w3.org/TR/css-backgrounds-3/#border-color>.
+    /// Color of all lines of the geometric object. Corresponds to
+    /// "border-color" as defined in <https://www.w3.org/TR/css-backgrounds-3/#border-color>.
     pub line_color: Color,
     /// Fill color for closed surface, e.g. as they appear in a [`Shape`].
     /// For other geometric objects, this property is meaningless.
     /// Corresponds to "background-color" as defined in
     /// <https://www.w3.org/TR/css-backgrounds-3/#background-color>.
     pub background_color: Color,
-    /// Width of all lines of the geometric object in . Corresponds to "border-width"
-    /// as defined in <https://www.w3.org/TR/css-backgrounds-3/#the-border-width>.
+    /// Width of all lines of the geometric object in . Corresponds to
+    /// "border-width" as defined in <https://www.w3.org/TR/css-backgrounds-3/#the-border-width>.
     pub line_width: f64,
     /// Style of all lines of the geometric object. See docstring of
     /// [`LineStyle`] for an example. Corresponds to "border-style" as defined
@@ -388,11 +390,11 @@ pub struct Style {
     /// <https://www.cairographics.org/manual/cairo-cairo-t.html#cairo-line-cap-t>.
     pub line_join: cairo::LineJoin,
     /// Specifies a [`Text`] which is displayed next to the geometric object.
-    /// The location is defined by [`Text::anchor`], [`Text::fixed_anchor_offset`]
-    /// and [`Text::scaled_anchor_offset`]. See the docstring of [`Text`].
-    /// The [`Text`] is boxed to minimize the size of [`Style`] in the common
-    /// case that no text is used in the visual representation of a geometric
-    /// type.
+    /// The location is defined by [`Text::anchor`],
+    /// [`Text::fixed_anchor_offset`] and [`Text::scaled_anchor_offset`].
+    /// See the docstring of [`Text`]. The [`Text`] is boxed to minimize the
+    /// size of [`Style`] in the common case that no text is used in the
+    /// visual representation of a geometric type.
     pub text: Option<Box<Text>>,
 }
 
@@ -1029,20 +1031,20 @@ pub enum Anchor {
     /// Top middle of the text extents is placed in the middle of the top edge
     /// of the bounding box / at the top of the reference point.
     Top,
-    /// Top right corner of text extents is placed in the top right corner of the
-    /// bounding box / reference point.
+    /// Top right corner of text extents is placed in the top right corner of
+    /// the bounding box / reference point.
     TopRight,
-    /// Right middle of the text extents is placed in the middle of the right edge
-    /// of the bounding box / right to the reference point.
+    /// Right middle of the text extents is placed in the middle of the right
+    /// edge of the bounding box / right to the reference point.
     Right,
-    /// Bottom right corner of text extents is placed in the bottom right corner of the
-    /// bounding box / reference point.
+    /// Bottom right corner of text extents is placed in the bottom right corner
+    /// of the bounding box / reference point.
     BottomRight,
-    /// Top middle of the text extents is placed in the middle of the bottom edge
-    /// of the bounding box / at the bottom of the reference point.
+    /// Top middle of the text extents is placed in the middle of the bottom
+    /// edge of the bounding box / at the bottom of the reference point.
     Bottom,
-    /// Bottom left corner of text extents is placed in the bottom left corner of the
-    /// bounding box / reference point.
+    /// Bottom left corner of text extents is placed in the bottom left corner
+    /// of the bounding box / reference point.
     BottomLeft,
     /// Left middle of the text extents is placed in the middle of the left edge
     /// of the bounding box / left to the reference point.

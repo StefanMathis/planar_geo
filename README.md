@@ -1,17 +1,17 @@
 planar_geo
 ==========
 
-[`ArcSegment`]: https://docs.rs/planar_geo/0.1.3/planar_geo/segment/arc_segment/struct.ArcSegment.html
-[`LineSegment`]: https://docs.rs/planar_geo/0.1.3/planar_geo/segment/line_segment/struct.LineSegment.html
-[`Segment`]: https://docs.rs/planar_geo/0.1.3/planar_geo/segment/enum.Segment.html
-[`SegmentChain`]: https://docs.rs/planar_geo/0.1.3/planar_geo/segment_chain/struct.SegmentChain.html
-[`Contour`]: https://docs.rs/planar_geo/0.1.3/planar_geo/contour/struct.Contour.html
-[`Shape`]: https://docs.rs/planar_geo/0.1.3/planar_geo/shape/struct.Shape.html
-[`Primitive`]: https://docs.rs/planar_geo/0.1.3/planar_geo/primitive/trait.Primitive.html
-[`Composite`]: https://docs.rs/planar_geo/0.1.3/planar_geo/composite/trait.Composite.html
-[`Transformation`]: https://docs.rs/planar_geo/0.1.3/planar_geo/trait.Transformation.html
-[`DEFAULT_EPSILON`]: https://docs.rs/planar_geo/0.1.3/planar_geo/constant.DEFAULT_EPSILON.html
-[`DEFAULT_MAX_ULPS`]: https://docs.rs/planar_geo/0.1.3/planar_geo/constant.DEFAULT_MAX_ULPS.html
+[`ArcSegment`]: https://docs.rs/planar_geo/0.1.4/planar_geo/segment/arc_segment/struct.ArcSegment.html
+[`LineSegment`]: https://docs.rs/planar_geo/0.1.4/planar_geo/segment/line_segment/struct.LineSegment.html
+[`Segment`]: https://docs.rs/planar_geo/0.1.4/planar_geo/segment/enum.Segment.html
+[`SegmentChain`]: https://docs.rs/planar_geo/0.1.4/planar_geo/segment_chain/struct.SegmentChain.html
+[`Contour`]: https://docs.rs/planar_geo/0.1.4/planar_geo/contour/struct.Contour.html
+[`Shape`]: https://docs.rs/planar_geo/0.1.4/planar_geo/shape/struct.Shape.html
+[`Primitive`]: https://docs.rs/planar_geo/0.1.4/planar_geo/primitive/trait.Primitive.html
+[`Composite`]: https://docs.rs/planar_geo/0.1.4/planar_geo/composite/trait.Composite.html
+[`Transformation`]: https://docs.rs/planar_geo/0.1.4/planar_geo/trait.Transformation.html
+[`DEFAULT_EPSILON`]: https://docs.rs/planar_geo/0.1.4/planar_geo/constant.DEFAULT_EPSILON.html
+[`DEFAULT_MAX_ULPS`]: https://docs.rs/planar_geo/0.1.4/planar_geo/constant.DEFAULT_MAX_ULPS.html
 [`Context`]: https://gtk-rs.org/gtk-rs-core/stable/latest/docs/cairo/struct.Context.html
 [gtk-rs]: https://gtk-rs.org/gtk-rs-core/stable/latest/docs/cairo
 [approxim]: https://docs.rs/approxim/latest/approxim/
@@ -19,6 +19,10 @@ planar_geo
 [`ulps_eq`]: https://docs.rs/approxim/latest/approxim/macro.ulps_eq.html
 
 A Rust library for 2D geometry: geometric objects, algorithms and visualization.
+
+> **Feedback welcome!**  
+> Found a bug, missing docs, or have a feature request?  
+> Please open an issue on GitHub.
 
 # Overview
 
@@ -256,10 +260,11 @@ deserialized using the [serde](https://crates.io/crates/serde) crate.
 When the `cairo` feature is enabled, all geometric objects have a `draw`
 method which can be used to draw them onto a 
 [cairo](https://gtk-rs.org/gtk-rs-core/stable/latest/docs/cairo/) [`Context`].
-See the [module-level documentation](link to module) for more. All images used
-in the documentation were created using this functionality.
+See the [module-level documentation](https://docs.rs/planar_geo/0.1.4/planar_geo/visualize/index.html)
+for more. All images used in the documentation were created using this
+functionality.
 
 # Documentation
 
 The full API documentation is available at
-[https://docs.rs/planar_geo/0.1.3/planar_geo/](https://docs.rs/planar_geo/0.1.3/planar_geo/).
+[https://docs.rs/planar_geo/0.1.4/planar_geo/](https://docs.rs/planar_geo/0.1.4/planar_geo/).
