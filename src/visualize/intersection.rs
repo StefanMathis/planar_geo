@@ -49,21 +49,22 @@ fn draw(&self, style: &IntersectionStyle,
 
 # Examples
 
+![Intersection example][intersection_example]
+
 "#]
 #![cfg_attr(feature = "doc-images",
 cfg_attr(all(),
-doc = ::embed_doc_image::embed_image!("intersection_example_2", "images/intersection_example_2.svg"),
+doc = ::embed_doc_image::embed_image!("intersection_example", "images/intersection_example.svg"),
 ))]
 #![cfg_attr(
     not(feature = "doc-images"),
-    doc = "**Doc images not enabled**. Compile with feature `doc-images` and Rust version >= 1.54 \
-        to enable."
+    doc = "**Doc images not enabled**. Compile docs with `cargo doc --features 'doc-images'` and Rust version >= 1.54."
 )]
 #![doc = r#"
 
 This image from the [lib](crate) module documentation was created using the
 following code:
-````
+```
 use cairo_viewport::{SideLength, Viewport};
 use planar_geo::prelude::*;
 
@@ -79,7 +80,7 @@ let chain =
     SegmentChain::from_points(&[[-1.0, 1.0], [-0.5, 0.5], [1.5, 0.5], [2.0, 1.0]]);
 
 let view = Viewport::from_bounding_box(
-    &BoundingBox::new(-1.2, 2.2, -1.2, 2.2),
+    &BoundingBox::new(-1.2, 2.2, -0.1, 1.1),
     SideLength::Long(500),
 );
 
@@ -116,7 +117,7 @@ let draw_fn = |cr: &cairo::Context| {
 };
 
 // Comment this in to actually create the shown image
-// view.write_to_file("docs/intersection_example_2.svg", draw_fn).expect("image could not be created");
+// view.write_to_file("images/intersection_example.svg", draw_fn).expect("image could not be created");
 # assert!(
 #     view.compare_or_create(
 #         std::path::Path::new("tests/img/intersection_segment_chain_shape.png"),

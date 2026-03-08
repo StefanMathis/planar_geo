@@ -32,13 +32,19 @@ use bounding_box::BoundingBox;
 A straight, directed connection between a start and an end / stop point.
 
 */
-#[cfg_attr(feature = "doc-images",
-cfg_attr(all(),
-doc = ::embed_doc_image::embed_image!("example_line_segment", "images/example_line_segment.svg")))]
+#[doc = ""]
+#[cfg_attr(
+    feature = "doc-images",
+    doc = "![Line segment example][example_line_segment]"
+)]
+#[cfg_attr(
+    feature = "doc-images",
+    embed_doc_image::embed_doc_image("example_line_segment", "images/example_line_segment.svg")
+)]
 #[cfg_attr(
     not(feature = "doc-images"),
-    doc = "**Doc images not enabled**. Compile with feature `doc-images` and Rust version >= 1.54 \
-        to enable."
+    doc = "**Doc images not enabled**. Compile docs with
+    `cargo doc --features 'doc-images'` and Rust version >= 1.54."
 )]
 /**
 
@@ -445,9 +451,11 @@ impl LineSegment {
 
     /**
     Returns the points of a polygon chain which approximates `self`. The number
-    of points is defined by the [`SegmentPolygonizer`] (see its docstring). The
-    points are regularily distributed over the segment, which means that two
-    subsequent points always have the same euclidian distance from each other.
+    of points is defined by the
+    [`SegmentPolygonizer`](crate::segment::SegmentPolygonizer) (see its
+    docstring). The points are regularily distributed over the segment, which
+    means that two subsequent points always have the same euclidian distance
+    from each other.
 
     # Examples
 

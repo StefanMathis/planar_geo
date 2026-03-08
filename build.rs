@@ -1,26 +1,4 @@
-use std::{fs, path::Path};
-
-struct Image {
-    placeholder: String,
-    filename: String,
-    remote_url: String,
-}
-
-impl Image {
-    fn new(filename: &str) -> Self {
-        let placeholder = format!("{{{{{}}}}}", filename); // e.g., "{{relative_permeability.svg}}"
-        let remote_url = format!(
-            "https://raw.githubusercontent.com/StefanMathis/stem_material/refs/heads/main/images/{}",
-            filename
-        );
-
-        Self {
-            placeholder,
-            filename: filename.to_string(),
-            remote_url,
-        }
-    }
-}
+use std::fs;
 
 fn main() {
     // Skip README generation on docs.rs
@@ -28,41 +6,44 @@ fn main() {
         return;
     }
 
-    let readme_template =
-        fs::read_to_string("README.template.md").expect("Failed to read README template");
+    /*
+    Compose README.md from the building blocks in docs/readme_parts,
+    interleaving image links in between. Finally, all {{VERSION}} placeholders
+    are replaced by the actual version read from Cargo.toml.
+     */
 
-    let versioned_readme = readme_template.replace(
+    let mut readme =
+        fs::read_to_string("docs/readme_parts/links.md").expect("Failed to read template");
+    readme.push_str(
+        &fs::read_to_string("docs/readme_parts/type_overview.svg.md")
+            .expect("Failed to read template"),
+    );
+    readme.push_str("\n\n![](https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/images/type_overview.svg \"Overview geometric types of the planar_geo crate\")\n\n");
+
+    readme.push_str(
+        &fs::read_to_string("docs/readme_parts/shape.svg.md").expect("Failed to read template"),
+    );
+    readme.push_str("\n\n![](https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/images/shape.svg \"Example shape\")\n\n");
+
+    readme.push_str(
+        &fs::read_to_string("docs/readme_parts/intersection_segments.svg.md")
+            .expect("Failed to read template"),
+    );
+    readme.push_str("\n\n![](https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/images/intersection_segments.svg \"Point and segment intersection\")\n\n");
+
+    readme.push_str(
+        &fs::read_to_string("docs/readme_parts/intersection_composites.svg.md")
+            .expect("Failed to read template"),
+    );
+    readme.push_str("\n\n![](https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/images/intersection_composites.svg \"Intersection between contours and a segment chain\")\n\n");
+
+    readme.push_str(
+        &fs::read_to_string("docs/readme_parts/end.md").expect("Failed to read template"),
+    );
+
+    let readme = readme.replace(
         "{{VERSION}}",
         &std::env::var("CARGO_PKG_VERSION").expect("version is available in build.rs"),
     );
-
-    let images = [
-        Image::new("type_overview.svg"),
-        Image::new("shape.svg"),
-        Image::new("intersection_segments.svg"),
-        Image::new("intersection_composites.svg"),
-    ];
-
-    let out_dir = std::env::var("CARGO_MANIFEST_DIR").expect("manifest is available in build.rs");
-    let doc_dir = format!("{}/target/doc/stem_material", out_dir);
-    let _ = fs::create_dir_all(&doc_dir);
-
-    // Generate README_local.md
-    let mut local_readme = versioned_readme.clone();
-    for img in &images {
-        let local_path = format!("docs/{}", img.filename);
-        local_readme = local_readme.replace(&img.placeholder, &local_path);
-
-        let img_src = Path::new(&out_dir).join(&local_path);
-        let img_dst = Path::new(&doc_dir).join(&local_path);
-        let _ = fs::copy(img_src, img_dst);
-    }
-    let _ = fs::write("README_local.md", local_readme);
-
-    // Generate README.md for docs.rs with remote images
-    let mut docsrs_readme = versioned_readme.clone();
-    for img in &images {
-        docsrs_readme = docsrs_readme.replace(&img.placeholder, &img.remote_url);
-    }
-    let _ = fs::write("README.md", docsrs_readme);
+    let _ = fs::write("README.md", readme);
 }

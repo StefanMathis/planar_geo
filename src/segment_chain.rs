@@ -34,13 +34,18 @@ A sequence of [`Segment`]s where each segment is "connected" to its successor
 successor).
 
 */
-#[cfg_attr(feature = "doc-images",
-cfg_attr(all(),
-doc = ::embed_doc_image::embed_image!("example_segment_chain", "images/example_segment_chain.svg")))]
+#[doc = ""]
+#[cfg_attr(
+    feature = "doc-images",
+    doc = "![Segment chain example][example_segment_chain]"
+)]
+#[cfg_attr(
+    feature = "doc-images",
+    embed_doc_image::embed_doc_image("example_segment_chain", "images/example_segment_chain.svg")
+)]
 #[cfg_attr(
     not(feature = "doc-images"),
-    doc = "**Doc images not enabled**. Compile with feature `doc-images` and Rust version >= 1.54 \
-           to enable."
+    doc = "**Doc images not enabled**. Compile docs with `cargo doc --features 'doc-images'` and Rust version >= 1.54."
 )]
 /**
 

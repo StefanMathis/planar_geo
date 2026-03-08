@@ -27,6 +27,20 @@ use serde::{Deserialize, Serialize};
 A collection of [`Contour`]s which describe the boundaries / extents of a
 geometric body in 2D space.
 
+*/
+#[doc = ""]
+#[cfg_attr(feature = "doc-images", doc = "![Shape example][example_shape]")]
+#[cfg_attr(
+    feature = "doc-images",
+    embed_doc_image::embed_doc_image("example_shape", "images/example_shape.svg")
+)]
+#[cfg_attr(
+    not(feature = "doc-images"),
+    doc = "**Doc images not enabled**. Compile docs with
+    `cargo doc --features 'doc-images'` and Rust version >= 1.54."
+)]
+/**
+
 A [`Shape`] always has at least one [`Contour`] which describes the outer
 extents of the body represented by it. Any additional contours are interpreted
 as "holes" within the "outer" contour. These contours need to fulfill the
@@ -72,17 +86,6 @@ impl Shape {
     Creates a new [`Shape`] out of the given `contours`. The first element is
     interpreted as the outer contour of the shape, the other elements are
     interpreted as holes.
-
-    */
-    #[cfg_attr(feature = "doc-images",
-    cfg_attr(all(),
-    doc = ::embed_doc_image::embed_image!("example_shape", "images/example_shape.svg")))]
-    #[cfg_attr(
-        not(feature = "doc-images"),
-        doc = "**Doc images not enabled**. Compile with feature `doc-images` and Rust version >= 1.54 \
-           to enable."
-    )]
-    /**
 
     The given vector of [`Contour`]s must fulfill the following conditions:
     - It must not be empty.

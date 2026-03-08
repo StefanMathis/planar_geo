@@ -1,5 +1,80 @@
-#![cfg_attr(docsrs, doc = include_str!("../README.md"))]
-#![cfg_attr(not(docsrs), doc = include_str!("../README_local.md"))]
+/*!
+[`ArcSegment`]: crate::segment::ArcSegment
+[`LineSegment`]: crate::segment::LineSegment
+[`Segment`]: crate::segment::Segment
+[`SegmentChain`]: crate::segment_chain::SegmentChain
+[`Contour`]: crate::contour::Contour
+[`Shape`]: crate::shape::Shape
+[`Primitive`]: crate::primitive::Primitive
+[`Composite`]: crate::composite::Composite
+[`Transformation`]: crate::Transformation
+[`DEFAULT_EPSILON`]: crate::DEFAULT_EPSILON
+[`DEFAULT_MAX_ULPS`]: crate::DEFAULT_MAX_ULPS
+[crate_index]: crate
+[visualize]: crate::visualize
+[`Context`]: cairo::Context
+[cairo]: cairo
+[approxim]: approx
+[serde]: serde
+[`ulps_eq`]: approx::ulps_eq
+ */
+#![doc = include_str!("../docs/readme_parts/type_overview.svg.md")]
+#![doc = r#"
+
+![Overview geometric types of the planar_geo crate][type_overview]
+
+"#]
+#![cfg_attr(feature = "doc-images",
+cfg_attr(all(),
+doc = ::embed_doc_image::embed_image!("type_overview", "images/type_overview.svg"),
+))]
+#![cfg_attr(
+    not(feature = "doc-images"),
+    doc = "**Doc images not enabled**. Compile docs with `cargo doc --features 'doc-images'` and Rust version >= 1.54."
+)]
+#![doc = include_str!("../docs/readme_parts/shape.svg.md")]
+#![doc = r#"
+
+![Example shape][shape]
+
+"#]
+#![cfg_attr(feature = "doc-images",
+cfg_attr(all(),
+doc = ::embed_doc_image::embed_image!("shape", "images/shape.svg"),
+))]
+#![cfg_attr(
+    not(feature = "doc-images"),
+    doc = "**Doc images not enabled**. Compile docs with `cargo doc --features 'doc-images'` and Rust version >= 1.54."
+)]
+#![doc = include_str!("../docs/readme_parts/intersection_segments.svg.md")]
+#![doc = r#"
+
+![Point and segment intersection][intersection_segments]
+
+"#]
+#![cfg_attr(feature = "doc-images",
+cfg_attr(all(),
+doc = ::embed_doc_image::embed_image!("intersection_segments", "images/intersection_segments.svg"),
+))]
+#![cfg_attr(
+    not(feature = "doc-images"),
+    doc = "**Doc images not enabled**. Compile docs with `cargo doc --features 'doc-images'` and Rust version >= 1.54."
+)]
+#![doc = include_str!("../docs/readme_parts/intersection_composites.svg.md")]
+#![doc = r#"
+
+![Intersection between contours and a segment chain][intersection_composites]
+
+"#]
+#![cfg_attr(feature = "doc-images",
+cfg_attr(all(),
+doc = ::embed_doc_image::embed_image!("intersection_composites", "images/intersection_composites.svg"),
+))]
+#![cfg_attr(
+    not(feature = "doc-images"),
+    doc = "**Doc images not enabled**. Compile docs with `cargo doc --features 'doc-images'` and Rust version >= 1.54."
+)]
+#![doc = include_str!("../docs/readme_parts/end.md")]
 #![deny(missing_docs)]
 
 /**

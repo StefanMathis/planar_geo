@@ -442,13 +442,16 @@ impl Default for Style {
 /**
 Definition of the line style.
 */
-#[cfg_attr(feature = "doc-images",
-cfg_attr(all(),
-doc = ::embed_doc_image::embed_image!("line_styles", "images/line_styles.svg")))]
+#[doc = ""]
+#[cfg_attr(feature = "doc-images", doc = "![Line styles][line_styles]")]
+#[cfg_attr(
+    feature = "doc-images",
+    embed_doc_image::embed_doc_image("line_styles", "images/line_styles.svg")
+)]
 #[cfg_attr(
     not(feature = "doc-images"),
-    doc = "**Doc images not enabled**. Compile with feature `doc-images` and Rust version >= 1.54 \
-        to enable."
+    doc = "**Doc images not enabled**. Compile docs with
+    `cargo doc --features 'doc-images'` and Rust version >= 1.54."
 )]
 /**
 ```rust
@@ -578,15 +581,23 @@ the contour). If a [`Text`] is drawn on its own, the offset is applied to the
 origin of the [`cairo::Context`] coordinates. See docstring of [`Anchor`] for
 an example.
 */
-#[cfg_attr(feature = "doc-images",
-cfg_attr(all(),
-doc = ::embed_doc_image::embed_image!("anchor_offset_scale_1", "images/anchor_offset_scale_1.svg"),
-doc = ::embed_doc_image::embed_image!("anchor_offset_scale_2", "images/anchor_offset_scale_2.svg"),
-))]
+#[doc = ""]
+#[cfg_attr(
+    feature = "doc-images",
+    doc = "![Unscaled][anchor_offset_scale_1] ![Scaled][anchor_offset_scale_2]"
+)]
+#[cfg_attr(
+    feature = "doc-images",
+    embed_doc_image::embed_doc_image("anchor_offset_scale_1", "images/anchor_offset_scale_1.svg")
+)]
+#[cfg_attr(
+    feature = "doc-images",
+    embed_doc_image::embed_doc_image("anchor_offset_scale_2", "images/anchor_offset_scale_2.svg")
+)]
 #[cfg_attr(
     not(feature = "doc-images"),
-    doc = "**Doc images not enabled**. Compile with feature `doc-images` and Rust version >= 1.54 \
-        to enable."
+    doc = "**Doc images not enabled**. Compile docs with
+    `cargo doc --features 'doc-images'` and Rust version >= 1.54."
 )]
 /**
 
@@ -649,7 +660,7 @@ let mut view =
     Viewport::from_bounding_box(&BoundingBox::new(0.0, 3.0, 0.0, 1.0), SideLength::Long(600));
 
 // Comment this in to create the first image
-// view.write_to_file("docs/anchor_offset_scale_1.svg", draw_fn()).unwrap();
+view.write_to_file("images/anchor_offset_scale_1.svg", draw_fn()).unwrap();
 #
 # assert!(
 #     view.compare_or_create(
@@ -664,7 +675,7 @@ let mut view =
 view.scale *= 2.0;
 
 // Comment this in to create the second image
-// view.write_to_file("docs/anchor_offset_scale_2.svg", draw_fn()).unwrap();
+view.write_to_file("images/anchor_offset_scale_2.svg", draw_fn()).unwrap();
 #
 # assert!(
 #    view.compare_or_create(
@@ -891,14 +902,19 @@ geometric object and the associated text placement options are shown. On the
 right side, the [`Text`] has been drawn "standalone" (the text placement point
 is visualized as a red cross).
 */
-#[cfg_attr(feature = "doc-images",
-cfg_attr(all(),
-doc = ::embed_doc_image::embed_image!("text_placement", "images/text_placement.svg"),
-))]
+#[doc = ""]
+#[cfg_attr(
+    feature = "doc-images",
+    doc = "![Text placement options][text_placement]"
+)]
+#[cfg_attr(
+    feature = "doc-images",
+    embed_doc_image::embed_doc_image("text_placement", "images/text_placement.svg")
+)]
 #[cfg_attr(
     not(feature = "doc-images"),
-    doc = "**Doc images not enabled**. Compile with feature `doc-images` and Rust version >= 1.54 \
-        to enable."
+    doc = "**Doc images not enabled**. Compile docs with
+    `cargo doc --features 'doc-images'` and Rust version >= 1.54."
 )]
 /**
 
@@ -1000,7 +1016,7 @@ let draw_fn = |cr: &cairo::Context| {
 };
 
 // Comment this in to actually create the shown image
-// view.write_to_file("docs/text_placement.svg", draw_fn).expect("image could not be created");
+// view.write_to_file("images/text_placement.svg", draw_fn).expect("image could not be created");
 # assert!(
 #     view.compare_or_create(
 #         std::path::Path::new("tests/img/text_placement.png"),

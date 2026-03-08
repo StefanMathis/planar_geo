@@ -41,13 +41,16 @@ paths depending on the variant. All methods of [`Segment`] delegate to the
 corresponding function of the underlying variant.
 
 */
-#[cfg_attr(feature = "doc-images",
-cfg_attr(all(),
-doc = ::embed_doc_image::embed_image!("example_segments", "images/example_segments.svg")))]
+#[doc = ""]
+#[cfg_attr(feature = "doc-images", doc = "![Segments example][example_segments]")]
+#[cfg_attr(
+    feature = "doc-images",
+    embed_doc_image::embed_doc_image("example_segments", "images/example_segments.svg")
+)]
 #[cfg_attr(
     not(feature = "doc-images"),
-    doc = "**Doc images not enabled**. Compile with feature `doc-images` and Rust version >= 1.54 \
-        to enable."
+    doc = "**Doc images not enabled**. Compile docs with
+    `cargo doc --features 'doc-images'` and Rust version >= 1.54."
 )]
 /**
 
@@ -406,13 +409,16 @@ let iter = s.polygonize(SegmentPolygonizer::InnerSegments(3));
 assert_eq!(iter.count(), 4);
 ```
 */
-#[cfg_attr(feature = "doc-images",
-cfg_attr(all(),
-doc = ::embed_doc_image::embed_image!("polygonized_arc", "images/polygonized_arc.svg")))]
+#[doc = ""]
+#[cfg_attr(feature = "doc-images", doc = "![Polygonized arc][polygonized_arc]")]
+#[cfg_attr(
+    feature = "doc-images",
+    embed_doc_image::embed_doc_image("polygonized_arc", "images/polygonized_arc.svg")
+)]
 #[cfg_attr(
     not(feature = "doc-images"),
-    doc = "**Doc images not enabled**. Compile with feature `doc-images` and Rust version >= 1.54 \
-        to enable."
+    doc = "**Doc images not enabled**. Compile docs with
+    `cargo doc --features 'doc-images'` and Rust version >= 1.54."
 )]
 #[derive(Debug, Clone, Copy)]
 pub enum SegmentPolygonizer {

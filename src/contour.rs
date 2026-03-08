@@ -38,6 +38,7 @@ A closed [`SegmentChain`] whose last segment is guaranteed to connect back to
 the first.
 */
 #[doc = ""]
+#[cfg_attr(feature = "doc-images", doc = "![Contour example][example_contour]")]
 #[cfg_attr(
     feature = "doc-images",
     embed_doc_image::embed_doc_image("example_contour", "images/example_contour.svg")
@@ -349,8 +350,8 @@ impl Contour {
     /**
     Returns the points of a polygon chain which approximates `self`. The
     individual segments are "polygonized" via [`Segment::polygonize`] and
-    an [`SegmentPolygonizer`] specified within [`Polygonizer`]. See the
-    docstring of the latter fore more.
+    an [`SegmentPolygonizer`](crate::segment::SegmentPolygonizer) specified
+    within [`Polygonizer`]. See the docstring of the latter fore more.
      */
     pub fn polygonize(&self, polygonizer: Polygonizer) -> PointIterator<'_> {
         return PointIterator::new(self.segment_chain(), true, polygonizer);
