@@ -41,13 +41,13 @@ paths depending on the variant. All methods of [`Segment`] delegate to the
 corresponding function of the underlying variant.
 
 */
+#[cfg_attr(feature = "doc-images",
+cfg_attr(all(),
+doc = ::embed_doc_image::embed_image!("example_segments", "images/example_segments.svg")))]
 #[cfg_attr(
-    docsrs,
-    doc = "\n\n![](https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/docs/example_segments.svg \"Different segment types\")"
-)]
-#[cfg_attr(
-    not(docsrs),
-    doc = "\n\n![>> Example image missing, copy folder docs from crate root to doc root folder (where index.html is) to display the image <<](../../docs/example_segments.svg)"
+    not(feature = "doc-images"),
+    doc = "**Doc images not enabled**. Compile with feature `doc-images` and Rust version >= 1.54 \
+        to enable."
 )]
 /**
 
@@ -406,13 +406,13 @@ let iter = s.polygonize(SegmentPolygonizer::InnerSegments(3));
 assert_eq!(iter.count(), 4);
 ```
 */
+#[cfg_attr(feature = "doc-images",
+cfg_attr(all(),
+doc = ::embed_doc_image::embed_image!("polygonized_arc", "images/polygonized_arc.svg")))]
 #[cfg_attr(
-    docsrs,
-    doc = "\n\n![](https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/docs/polygonized_arc.svg \"Line style comparison\")"
-)]
-#[cfg_attr(
-    not(docsrs),
-    doc = "\n\n![>> Example image missing, copy folder docs from crate root to doc root folder (where index.html is) to display the image <<](../../docs/polygonized_arc.svg)"
+    not(feature = "doc-images"),
+    doc = "**Doc images not enabled**. Compile with feature `doc-images` and Rust version >= 1.54 \
+        to enable."
 )]
 #[derive(Debug, Clone, Copy)]
 pub enum SegmentPolygonizer {

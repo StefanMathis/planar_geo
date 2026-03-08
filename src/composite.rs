@@ -4,8 +4,7 @@ This module contains the definition of the [`Composite`] trait and the
 
 The geometric types in this crate are either "primitives" (which implement the
 [`Primitive`] trait) or "composites" (which are defined from multiple primitives
-and implement the [`Composite`](crate::composite::Composite) trait). See the
-trait documentation for details.
+and implement the [`Composite`] trait). See the trait documentation for details.
  */
 
 use rayon::prelude::ParallelIterator;
@@ -71,10 +70,10 @@ impl From<[f64; 2]> for Intersection<(), ()> {
 A key to access a segment from a [`SegmentChain`] or a [`Contour`].
 
 This is just a wrapper around an [`usize`] used to index into the underlying
-vector of [`Segment`](crate::segment::Segment)s which stores the data of the
-aforementioned [`Composite`] types. Its main function is to provide type safety
-when used e.g. as part of an [`Intersection`] or when accessing segments via the
-[`Composite::segment`] method.
+vector of [`Segment`]s which stores the data of the aforementioned [`Composite`]
+types. Its main function is to provide type safety when used e.g. as part of an
+[`Intersection`] or when accessing segments via the [`Composite::segment`]
+method.
 
 # Examples
 
@@ -105,10 +104,9 @@ impl From<SegmentIdx> for usize {
 A key to access a segment from a [`Shape`].
 
 A [`Shape`] is composed of multiple [`Contour`]s, which in turn are composed of
-multiple [`Segment`](crate::segment::Segment)s. The field
-[`ShapeIdx::contour_idx`] specifies the contour where the adressed segment is
-located, while [`ShapeIdx::segment_idx`] retrieves the segment itself from the
-corresponding contour.
+multiple [`Segment`]s. The field [`ShapeIdx::contour_idx`] specifies the contour
+where the adressed segment is located, while [`ShapeIdx::segment_idx`] retrieves
+the segment itself from the corresponding contour.
 
 # Examples
 
@@ -778,7 +776,8 @@ impl<'a> Iterator for PointIterator<'a> {
                 let mut sub_iterator = segment.polygonize(sub_polygonizer);
                 sub_iterator.start_at_second_point();
 
-                // If the final vertex of the segment_chain should be skipped, adjust the new sub iterator here
+                // If the final vertex of the segment_chain should be skipped, adjust the new
+                // sub iterator here
                 if self.index + 1 == self.segment_chain.len() && self.skip_last_vertex {
                     sub_iterator.skip_last_vertex();
                 }

@@ -105,7 +105,7 @@ fn main() {
     };
 
     let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join(&format!("docs/intersection_segments.svg"));
+        .join(&format!("images/intersection_segments.svg"));
 
     view.write_to_file(path, draw_fn)
         .expect("image could not be created");

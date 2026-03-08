@@ -40,7 +40,7 @@ following invariants:
 # Constructing and modifying a shape
 
 The standard constructor which checks all the aforementioned invariants is
-[`new`](Shape::new), which takes a [`Vec<Contour`], interprets the first
+[`new`](Shape::new), which takes a [`Vec<Contour`](Contour), interprets the first
 element as the outer contour and all other elements as holes. Alternatively, a
 shape can be constructed from its outer contour via
 [`from_outer`](Shape::from_outer) and holes can be added incrementally with
@@ -54,12 +54,13 @@ contour is available with [`contour`](Shape::contour) method, while a slice
 of all holes can be accessed with [`holes`](Shape::holes). The
 [`contours`](Shape::contours) method returns a slice where the first element is
 the outer contour and all other elements are the holes. A shape can also be
-converted into the underlying [`Vec<Contour>`] with the [`From`] implementation.
+converted into the underlying [`Vec<Contour>`](Contour) with its [`From`]
+implementation.
 
 # Serialization and deserialization
 
 When the `serde` feature is enabled, a shape can be serialized and
-deserialized using the [`serde`] crate. It uses the same serialized
+deserialized using the [serde] crate. It uses the same serialized
 representation as a [`Vec<Contour>`].
  */
 #[derive(Debug, Clone)]
@@ -73,13 +74,13 @@ impl Shape {
     interpreted as holes.
 
     */
+    #[cfg_attr(feature = "doc-images",
+    cfg_attr(all(),
+    doc = ::embed_doc_image::embed_image!("example_shape", "images/example_shape.svg")))]
     #[cfg_attr(
-        docsrs,
-        doc = "\n\n![](https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/docs/example_shape.svg \"Shape\")"
-    )]
-    #[cfg_attr(
-        not(docsrs),
-        doc = "\n\n![>> Example image missing, copy folder docs from crate root to doc root folder (where index.html is) to display the image <<](../../docs/example_shape.svg)"
+        not(feature = "doc-images"),
+        doc = "**Doc images not enabled**. Compile with feature `doc-images` and Rust version >= 1.54 \
+           to enable."
     )]
     /**
 
@@ -445,14 +446,14 @@ impl Shape {
     }
 
     /**
-    Returns an iterator over all [`Contours`]s of `self`.
+    Returns an iterator over all [`Contour`]s of `self`.
      */
     pub fn iter(&self) -> std::slice::Iter<'_, Contour> {
         return self.0.iter();
     }
 
     /**
-    Returns a parallel iterator over all [`Contours`]s of `self`.
+    Returns a parallel iterator over all [`Contour`]s of `self`.
      */
     pub fn par_iter(&self) -> rayon::slice::Iter<'_, Contour> {
         return self.0.par_iter();

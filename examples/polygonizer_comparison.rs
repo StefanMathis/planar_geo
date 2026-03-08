@@ -4,7 +4,7 @@ use std::f64::consts::PI;
 use std::path::PathBuf;
 
 fn file_path(filename: &str) -> PathBuf {
-    return PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(&format!("docs/{filename}.svg"));
+    return PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(&format!("images/{filename}.svg"));
 }
 
 fn main() {

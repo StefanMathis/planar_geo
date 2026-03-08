@@ -50,13 +50,14 @@ fn draw(&self, style: &IntersectionStyle,
 # Examples
 
 "#]
+#![cfg_attr(feature = "doc-images",
+cfg_attr(all(),
+doc = ::embed_doc_image::embed_image!("intersection_example_2", "images/intersection_example_2.svg"),
+))]
 #![cfg_attr(
-    docsrs,
-    doc = "![](https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/docs/intersection_example_2.svg \"All geometric types\")"
-)]
-#![cfg_attr(
-    not(docsrs),
-    doc = "![>> Example image missing, copy folder docs from crate root to doc root folder (where index.html is) to display the image <<](../../docs/intersection_example_2.svg \"All geometric types\")"
+    not(feature = "doc-images"),
+    doc = "**Doc images not enabled**. Compile with feature `doc-images` and Rust version >= 1.54 \
+        to enable."
 )]
 #![doc = r#"
 
@@ -137,11 +138,11 @@ this struct. See the [module documentation](crate::visualize::intersection) for
 an example.
  */
 pub struct IntersectionStyle {
-    /// Color of all lines of the geometric object. Corresponds to "border-color"
-    /// as defined in <https://www.w3.org/TR/css-backgrounds-3/#border-color>.
+    /// Color of all lines of the geometric object. Corresponds to
+    /// "border-color" as defined in <https://www.w3.org/TR/css-backgrounds-3/#border-color>.
     pub line_color: Color,
-    /// Width of all lines of the geometric object. Corresponds to "border-color"
-    /// as defined in <https://www.w3.org/TR/css-backgrounds-3/#the-border-width>.
+    /// Width of all lines of the geometric object. Corresponds to
+    /// "border-color" as defined in <https://www.w3.org/TR/css-backgrounds-3/#the-border-width>.
     pub line_width: f64,
     /// How the end points of lines are rendered. See
     /// <https://www.cairographics.org/manual/cairo-cairo-t.html#cairo-line-cap-t>.

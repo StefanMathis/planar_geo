@@ -34,13 +34,13 @@ A circular, directed arc between two points with a positive radius and a center
 point.
 
 */
+#[cfg_attr(feature = "doc-images",
+cfg_attr(all(),
+doc = ::embed_doc_image::embed_image!("example_arc_segment", "images/example_arc_segment.svg")))]
 #[cfg_attr(
-    docsrs,
-    doc = "\n\n![](https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/docs/example_arc_segment.svg \"Arc segment\")"
-)]
-#[cfg_attr(
-    not(docsrs),
-    doc = "\n\n![>> Example image missing, copy folder docs from crate root to doc root folder (where index.html is) to display the image <<](../../docs/example_arc_segment.svg)"
+    not(feature = "doc-images"),
+    doc = "**Doc images not enabled**. Compile with feature `doc-images` and Rust version >= 1.54 \
+        to enable."
 )]
 /**
 
@@ -458,7 +458,8 @@ impl ArcSegment {
             radius
         };
 
-        // Distance between cornerent point and intersections of the normals at fillet start and end point
+        // Distance between cornerent point and intersections of the normals at fillet
+        // start and end point
         let delta_ci = (radius.powi(2) + segment_len.powi(2)).sqrt();
 
         // Fillet start and end point coordinates
@@ -801,7 +802,8 @@ impl ArcSegment {
         if arg < 0.0 {
             // If the argument is negative, no intersection exists
         } else if arg == 0.0 {
-            // Special case: Argument of the sqrt-function is exactly zero => point equals center + (x0, y0)
+            // Special case: Argument of the sqrt-function is exactly zero => point equals
+            // center + (x0, y0)
             let mut pt = self.center();
             pt.translate([x0, y0]);
             if self.contains_point(pt, epsilon, max_ulps) {
@@ -850,7 +852,8 @@ impl Primitive for ArcSegment {
             return true;
         }
 
-        // Quick first check: If point p is outside the segment bounding box, it can't be part of the arc segment.
+        // Quick first check: If point p is outside the segment bounding box, it can't
+        // be part of the arc segment.
         if !BoundingBox::from(self).approx_contains_point(point, epsilon, max_ulps) {
             return false;
         }
@@ -905,8 +908,9 @@ impl Primitive for ArcSegment {
         let center_arc1 = self.center();
         let center_arc2 = arc_segment.center();
 
-        // Assume the first circle is in the origin and shift the second circle accordingly.
-        // The new center coordinates of arc 2 / circle 2 therefore are:
+        // Assume the first circle is in the origin and shift the second circle
+        // accordingly. The new center coordinates of arc 2 / circle 2 therefore
+        // are:
         let x2 = center_arc2[0] - center_arc1[0];
         let y2 = center_arc2[1] - center_arc1[1];
 

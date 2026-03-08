@@ -37,10 +37,9 @@ assert_eq!(
 )
 ```
 - The [`AbsDiffEq`](approx::AbsDiffEq), [`RelativeEq`](approx::RelativeEq) and
-[`UlpsEq`](approx::UlpsEq) traits from the [approx] crate to allow for
-approximate equality comparison. This should generally be preferred over
-comparing for exact equality via the [`PartialEq`] trait when dealing with
-floating point values.
+[`UlpsEq`] traits from the [approx] crate to allow for approximate equality
+comparison. This should generally be preferred over comparing for exact equality
+via the [`PartialEq`] trait when dealing with floating point values.
  */
 #[derive(Clone, Copy, Debug)]
 pub enum PrimitiveIntersections {

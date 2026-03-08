@@ -264,6 +264,10 @@ See the [module-level documentation](https://docs.rs/planar_geo/0.1.4/planar_geo
 for more. All images used in the documentation were created using this
 functionality.
 
+## Embedded images in documentation
+
+"doc-images
+
 # Documentation
 
 The full API documentation is available at

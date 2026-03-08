@@ -24,7 +24,7 @@ when comparing them:
 
 This constant and [`DEFAULT_MAX_ULPS`] provide sane defaults which will work
 well in most cases and are recommeded to be used in the various functions
-requiring an `epsilon` and a [`max_ulps`] argument. The reason they need to be
+requiring an `epsilon` and a `max_ulps` argument. The reason they need to be
 provided as explicit arguments and are not simply used by default is that expert
 users can modify the comparison behaviour of e.g. the intersection algorithms
 if required for a particular use case.

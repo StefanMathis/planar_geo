@@ -34,13 +34,13 @@ A sequence of [`Segment`]s where each segment is "connected" to its successor
 successor).
 
 */
+#[cfg_attr(feature = "doc-images",
+cfg_attr(all(),
+doc = ::embed_doc_image::embed_image!("example_segment_chain", "images/example_segment_chain.svg")))]
 #[cfg_attr(
-    docsrs,
-    doc = "\n\n![](https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/docs/example_segment_chain.svg \"Segment chain\")"
-)]
-#[cfg_attr(
-    not(docsrs),
-    doc = "\n\n![>> Example image missing, copy folder docs from crate root to doc root folder (where index.html is) to display the image <<](../../docs/example_segment_chain.svg)"
+    not(feature = "doc-images"),
+    doc = "**Doc images not enabled**. Compile with feature `doc-images` and Rust version >= 1.54 \
+           to enable."
 )]
 /**
 
@@ -642,8 +642,8 @@ impl SegmentChain {
     /**
     Returns the points of a polygon chain which approximates `self`. The
     individual segments are "polygonized" via [`Segment::polygonize`] and
-    an [`SegmentPolygonizer`] specified within [`Polygonizer`]. See the
-    docstring of the latter fore more.
+    an [`SegmentPolygonizer`](crate::segment::SegmentPolygonizer) specified
+    within [`Polygonizer`]. See the docstring of the latter fore more.
      */
     pub fn polygonize(&self, polygonizer: Polygonizer) -> PointIterator<'_> {
         return PointIterator::new(self, false, polygonizer);
@@ -760,7 +760,8 @@ impl SegmentChain {
         let mut lines: Vec<SegmentChain> = Vec::new();
         let mut segments_of_current_line: Vec<Segment> = Vec::new();
 
-        // Temporary variables. The values themselves are dummy values to satisfy the borrow checker.
+        // Temporary variables. The values themselves are dummy values to satisfy the
+        // borrow checker.
         let mut center: [f64; 2] = [0.0, 0.0];
 
         // Storage for intersections
@@ -789,15 +790,18 @@ impl SegmentChain {
             }
 
             if intersections.is_empty() {
-                // No intersections could be found -> add segment_self to the list of segments forming the current line
+                // No intersections could be found -> add segment_self to the list of segments
+                // forming the current line
                 segments_of_current_line.push(segment_self.clone())
             } else {
-                // Sort the intersections depending on their distance from the start of segment_self (smalles first)
+                // Sort the intersections depending on their distance from the start of
+                // segment_self (smalles first)
                 intersections.sort_unstable_by(|a, b| {
                     let start = segment_self.start();
 
-                    // Calculate the distance of a from segment_self.start and compare it to the distance of b from segment_self.
-                    // Since we are only interested in the order, it is not necessary to normalize the distance.
+                    // Calculate the distance of a from segment_self.start and compare it to the
+                    // distance of b from segment_self. Since we are only
+                    // interested in the order, it is not necessary to normalize the distance.
                     // Do the same for b.
                     let dist_a = (start[0] - a[0]).powi(2) + (start[1] - a[1]).powi(2);
                     let dist_b = (start[0] - b[0]).powi(2) + (start[1] - b[1]).powi(2);
@@ -1101,8 +1105,9 @@ impl Composite for SegmentChain {
             None
         };
 
-        // Naive implementation: Loop over all segments of segments_self. Check each segment of self
-        // for an intersection with all segments of segments_other.
+        // Naive implementation: Loop over all segments of segments_self. Check each
+        // segment of self for an intersection with all segments of
+        // segments_other.
         return other
             .0
             .iter()
@@ -1131,8 +1136,9 @@ impl Composite for SegmentChain {
             None
         };
 
-        // Naive implementation: Loop over all segments of segments_self. Check each segment of self
-        // for an intersection with all segments of segments_other. The outer iteration is done in parallel,
+        // Naive implementation: Loop over all segments of segments_self. Check each
+        // segment of self for an intersection with all segments of
+        // segments_other. The outer iteration is done in parallel,
         // therefore the intersections are out of order.
         return other
             .0
@@ -1484,7 +1490,7 @@ If the polygon orientation is mathematically positive (points are given
 counterclockwise), then the result is also positive. Otherwise, it is negative.
 
 This implementation uses the "Shoelace formula", as e.g. described here:
-https://en.wikipedia.org/wiki/Shoelace_formula
+<https://en.wikipedia.org/wiki/Shoelace_formula>.
 
 ```
 use planar_geo::segment_chain::area_signed;
@@ -1515,7 +1521,8 @@ where
 
     let mut area = 0.0;
 
-    // The chained element covers the end value x_n*y_0 - x_0*y_n, where n equals the last iterator element
+    // The chained element covers the end value x_n*y_0 - x_0*y_n, where n equals
+    // the last iterator element
     for current_vertex in points.chain(std::iter::once(first_vertex)) {
         area += (previous_vertex[1] + current_vertex[1]) * (previous_vertex[0] - current_vertex[0]);
         previous_vertex = current_vertex.clone();

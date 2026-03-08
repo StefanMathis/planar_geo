@@ -36,15 +36,16 @@ use bounding_box::BoundingBox;
 /**
 A closed [`SegmentChain`] whose last segment is guaranteed to connect back to
 the first.
-
 */
+#[doc = ""]
 #[cfg_attr(
-    docsrs,
-    doc = "\n\n![](https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/docs/example_contour.svg \"Contour\")"
+    feature = "doc-images",
+    embed_doc_image::embed_doc_image("example_contour", "images/example_contour.svg")
 )]
 #[cfg_attr(
-    not(docsrs),
-    doc = "\n\n![>> Example image missing, copy folder docs from crate root to doc root folder (where index.html is) to display the image <<](../../docs/example_contour.svg)"
+    not(feature = "doc-images"),
+    doc = "**Doc images not enabled**. Compile docs with
+    `cargo doc --features 'doc-images'` and Rust version >= 1.54."
 )]
 /**
 

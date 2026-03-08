@@ -442,13 +442,13 @@ impl Default for Style {
 /**
 Definition of the line style.
 */
+#[cfg_attr(feature = "doc-images",
+cfg_attr(all(),
+doc = ::embed_doc_image::embed_image!("line_styles", "images/line_styles.svg")))]
 #[cfg_attr(
-    docsrs,
-    doc = "\n\n![](https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/docs/line_styles.svg \"Line style comparison\")"
-)]
-#[cfg_attr(
-    not(docsrs),
-    doc = "\n\n![>> Example image missing, copy folder docs from crate root to doc root folder (where index.html is) to display the image <<](../../docs/line_styles.svg)"
+    not(feature = "doc-images"),
+    doc = "**Doc images not enabled**. Compile with feature `doc-images` and Rust version >= 1.54 \
+        to enable."
 )]
 /**
 ```rust
@@ -578,21 +578,15 @@ the contour). If a [`Text`] is drawn on its own, the offset is applied to the
 origin of the [`cairo::Context`] coordinates. See docstring of [`Anchor`] for
 an example.
 */
+#[cfg_attr(feature = "doc-images",
+cfg_attr(all(),
+doc = ::embed_doc_image::embed_image!("anchor_offset_scale_1", "images/anchor_offset_scale_1.svg"),
+doc = ::embed_doc_image::embed_image!("anchor_offset_scale_2", "images/anchor_offset_scale_2.svg"),
+))]
 #[cfg_attr(
-    docsrs,
-    doc = "\n\nNormal image:\n\n![](https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/docs/anchor_offset_scale_1.svg)"
-)]
-#[cfg_attr(
-    not(docsrs),
-    doc = "\n\nNormal image:\n\n![>> Example image missing, copy folder docs from crate root to doc root folder (where index.html is) to display the image <<](../../docs/anchor_offset_scale_1.svg)"
-)]
-#[cfg_attr(
-    docsrs,
-    doc = "\n\nZoomed in view:\n\n![](https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/docs/anchor_offset_scale_2.svg)"
-)]
-#[cfg_attr(
-    not(docsrs),
-    doc = "\n\nZoomed in view:\n\n![>> Example image missing, copy folder docs from crate root to doc root folder (where index.html is) to display the image <<](../../docs/anchor_offset_scale_2.svg)"
+    not(feature = "doc-images"),
+    doc = "**Doc images not enabled**. Compile with feature `doc-images` and Rust version >= 1.54 \
+        to enable."
 )]
 /**
 
@@ -897,13 +891,14 @@ geometric object and the associated text placement options are shown. On the
 right side, the [`Text`] has been drawn "standalone" (the text placement point
 is visualized as a red cross).
 */
+#[cfg_attr(feature = "doc-images",
+cfg_attr(all(),
+doc = ::embed_doc_image::embed_image!("text_placement", "images/text_placement.svg"),
+))]
 #[cfg_attr(
-    docsrs,
-    doc = "\n\n![](https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/docs/text_placement.svg \"Text placement with and without associated geometric object\")"
-)]
-#[cfg_attr(
-    not(docsrs),
-    doc = "\n\n![>> Example image missing, copy folder docs from crate root to doc root folder (where index.html is) to display the image <<](../../docs/text_placement.svg)"
+    not(feature = "doc-images"),
+    doc = "**Doc images not enabled**. Compile with feature `doc-images` and Rust version >= 1.54 \
+        to enable."
 )]
 /**
 

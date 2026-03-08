@@ -32,13 +32,13 @@ use bounding_box::BoundingBox;
 A straight, directed connection between a start and an end / stop point.
 
 */
+#[cfg_attr(feature = "doc-images",
+cfg_attr(all(),
+doc = ::embed_doc_image::embed_image!("example_line_segment", "images/example_line_segment.svg")))]
 #[cfg_attr(
-    docsrs,
-    doc = "\n\n![](https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/docs/example_line_segment.svg \"Line segment\")"
-)]
-#[cfg_attr(
-    not(docsrs),
-    doc = "\n\n![>> Example image missing, copy folder docs from crate root to doc root folder (where index.html is) to display the image <<](../../docs/example_line_segment.svg)"
+    not(feature = "doc-images"),
+    doc = "**Doc images not enabled**. Compile with feature `doc-images` and Rust version >= 1.54 \
+        to enable."
 )]
 /**
 
@@ -296,8 +296,9 @@ impl LineSegment {
         let dx = stop[0] - start[0];
         let dy = stop[1] - start[1];
 
-        // r is the ratio of the projection of point onto self. If it is between 0.0 and 1.0, the shortest distance
-        // from self to point is not from the end point
+        // r is the ratio of the projection of point onto self. If it is between 0.0 and
+        // 1.0, the shortest distance from self to point is not from the end
+        // point
         let r =
             ((point[0] - start[0]) * dx + (point[1] - start[1]) * dy) / (dx.powi(2) + dy.powi(2));
         if r <= 0.0 {
@@ -617,9 +618,10 @@ impl LineSegment {
             .raw_line_intersection(line_segment)
             .unwrap_or_else(|| self.nearest_endpoint(line_segment));
 
-        // NOTE: At this point, JTS does a `Envelope::contains(coord)` check, but confusingly,
-        // Envelope::contains(coord) in JTS is actually an *intersection* check, not a true SFS
-        // `contains`, because it includes the boundary of the rect.
+        // NOTE: At this point, JTS does a `Envelope::contains(coord)` check, but
+        // confusingly, Envelope::contains(coord) in JTS is actually an
+        // *intersection* check, not a true SFS `contains`, because it includes
+        // the boundary of the rect.
         if !(BoundingBox::from(self).approx_contains_point(int_pt, epsilon, max_ulps)
             && BoundingBox::from(line_segment).approx_contains_point(int_pt, epsilon, max_ulps))
         {
@@ -718,13 +720,15 @@ impl crate::primitive::private::Sealed for LineSegment {}
 
 impl Primitive for LineSegment {
     fn contains_point(&self, p: [f64; 2], epsilon: f64, max_ulps: u32) -> bool {
-        // Quick first check: If point p is outside the segment bounding box, it can't be contained.
+        // Quick first check: If point p is outside the segment bounding box, it can't
+        // be contained.
         if !BoundingBox::from(self).approx_contains_point(p, epsilon, max_ulps) {
             return false;
         }
 
-        // Check if the points of the segment and p are collinear. If they aren't, p can't be contained.
-        // If they are, p is contained, since it is also inside the segment bounding box.
+        // Check if the points of the segment and p are collinear. If they aren't, p
+        // can't be contained. If they are, p is contained, since it is also
+        // inside the segment bounding box.
         if epsilon == 0.0 && max_ulps == 0 {
             return geometry_predicates::orient2d(self.start.into(), self.stop.into(), p.into())
                 == 0.0;
@@ -788,7 +792,8 @@ impl Primitive for LineSegment {
             return PrimitiveIntersections::Zero;
         }
 
-        // If the bounding boxes of the line segments don't interact with each other, then the segments cannot intersect at all.
+        // If the bounding boxes of the line segments don't interact with each other,
+        // then the segments cannot intersect at all.
         let bb1 = BoundingBox::from(self);
         let bb2 = BoundingBox::from(line_segment);
         if !bb1.intersects(&bb2) && !bb1.touches(&bb2) {
@@ -877,13 +882,14 @@ impl Primitive for LineSegment {
             };
         }
 
-        // At this point we know that there is a single intersection point (since the lines are not
-        // collinear).
+        // At this point we know that there is a single intersection point (since the
+        // lines are not collinear).
         //
         // Check if the intersection is an endpoint. If it is, copy the endpoint as the
-        // intersection point. Copying the point rather than computing it ensures the point has the
-        // exact value, which is important for robustness. It is sufficient to simply check for an
-        // endpoint which is on the other line, since at this point we know that the input lines
+        // intersection point. Copying the point rather than computing it ensures the
+        // point has the exact value, which is important for robustness. It is
+        // sufficient to simply check for an endpoint which is on the other
+        // line, since at this point we know that the input lines
         // must intersect.
         if self_start == Orientation::Collinear
             || self_stop == Orientation::Collinear
@@ -891,14 +897,15 @@ impl Primitive for LineSegment {
             || line_segment_stop == Orientation::Collinear
         {
             // Check for two equal endpoints.
-            // This is done explicitly rather than by the orientation tests below in order to improve
-            // robustness.
+            // This is done explicitly rather than by the orientation tests below in order
+            // to improve robustness.
             let intersection =
                 if self.start == line_segment.start || self.start == line_segment.stop {
                     self.start
                 } else if self.stop == line_segment.start || self.stop == line_segment.stop {
                     self.stop
-                    // Now check to see if any endpoint lies on the interior of the other segment.
+                    // Now check to see if any endpoint lies on the interior of
+                    // the other segment.
                 } else if self_start == Orientation::Collinear {
                     line_segment.start
                 } else if self_stop == Orientation::Collinear {
@@ -935,8 +942,8 @@ impl Primitive for LineSegment {
         let a = y1 - y2;
         let b = x2 - x1;
 
-        // Multiply C by -1 to account for the different definitions of the Wikipedia and the
-        // cp-algorithms.com approach
+        // Multiply C by -1 to account for the different definitions of the Wikipedia
+        // and the cp-algorithms.com approach
         let c = -(x2 * y1 - x1 * y2);
 
         let mut intersections = PrimitiveIntersections::Zero;
