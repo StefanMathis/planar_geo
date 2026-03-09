@@ -45,7 +45,7 @@ corresponding function of the underlying variant.
 #[cfg_attr(feature = "doc-images", doc = "![Segments example][example_segments]")]
 #[cfg_attr(
     feature = "doc-images",
-    embed_doc_image::embed_doc_image("example_segments", "images/example_segments.svg")
+    embed_doc_image::embed_doc_image("example_segments", "docs/img/example_segments.svg")
 )]
 #[cfg_attr(
     not(feature = "doc-images"),
@@ -413,7 +413,7 @@ assert_eq!(iter.count(), 4);
 #[cfg_attr(feature = "doc-images", doc = "![Polygonized arc][polygonized_arc]")]
 #[cfg_attr(
     feature = "doc-images",
-    embed_doc_image::embed_doc_image("polygonized_arc", "images/polygonized_arc.svg")
+    embed_doc_image::embed_doc_image("polygonized_arc", "docs/img/polygonized_arc.svg")
 )]
 #[cfg_attr(
     not(feature = "doc-images"),

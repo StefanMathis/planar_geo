@@ -32,7 +32,7 @@ geometric body in 2D space.
 #[cfg_attr(feature = "doc-images", doc = "![Shape example][example_shape]")]
 #[cfg_attr(
     feature = "doc-images",
-    embed_doc_image::embed_doc_image("example_shape", "images/example_shape.svg")
+    embed_doc_image::embed_doc_image("example_shape", "docs/img/example_shape.svg")
 )]
 #[cfg_attr(
     not(feature = "doc-images"),
@@ -175,6 +175,7 @@ impl Shape {
             }
         }
 
+        // Check if the shape intersects itself
         if let Some(intersection) = this
             .intersections_shape_par(&this, DEFAULT_EPSILON, DEFAULT_MAX_ULPS)
             .find_map_any(|v| Some(v))

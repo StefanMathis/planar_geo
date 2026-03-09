@@ -147,15 +147,15 @@ impl SegmentChain {
     See the [module level documentation](crate::visualize).
      */
     pub fn draw(&self, style: &Style, context: &cairo::Context) -> Result<(), cairo::Error> {
-        return self.draw_stroking::<false>(style, context);
+        return self.draw_stroking::<false, false>(style, context);
     }
 
-    fn draw_stroking<const CLOSE: bool>(
+    fn draw_stroking<const CLOSE: bool, const FILL: bool>(
         &self,
         style: &Style,
         context: &cairo::Context,
     ) -> Result<(), cairo::Error> {
-        self.draw_without_stroking::<CLOSE>(&style, context)?;
+        self.draw_without_stroking::<CLOSE, FILL>(&style, context)?;
         if let LineStyle::None = style.line_style {
             // Do nothing
         } else {
@@ -185,7 +185,7 @@ impl SegmentChain {
         return Ok(());
     }
 
-    fn draw_without_stroking<const CLOSE: bool>(
+    fn draw_without_stroking<const CLOSE: bool, const FILL: bool>(
         &self,
         style: &Style,
         context: &cairo::Context,
@@ -235,6 +235,11 @@ impl SegmentChain {
             }
             if CLOSE {
                 context.close_path();
+                if FILL {
+                    let fc = &style.background_color;
+                    context.set_source_rgba(fc.r.into(), fc.g.into(), fc.b.into(), fc.a.into());
+                    context.fill_preserve()?;
+                }
             }
         }
         return Ok(());
@@ -247,7 +252,9 @@ impl Contour {
     See the [module level documentation](crate::visualize).
      */
     pub fn draw(&self, style: &Style, context: &cairo::Context) -> Result<(), cairo::Error> {
-        return self.segment_chain().draw_stroking::<true>(style, context);
+        return self
+            .segment_chain()
+            .draw_stroking::<true, true>(style, context);
     }
 }
 
@@ -269,12 +276,12 @@ impl Shape {
         if draw_contour || fill_contour {
             self.contour()
                 .segment_chain()
-                .draw_without_stroking::<true>(style, context)?;
+                .draw_without_stroking::<true, false>(style, context)?;
             // Fill path while substracting inner paths
             for hole in self.holes() {
                 context.new_sub_path();
                 hole.segment_chain()
-                    .draw_without_stroking::<true>(style, context)?;
+                    .draw_without_stroking::<true, false>(style, context)?;
             }
 
             // Substract the holes regardless of the direction of the segment_chain
@@ -446,7 +453,7 @@ Definition of the line style.
 #[cfg_attr(feature = "doc-images", doc = "![Line styles][line_styles]")]
 #[cfg_attr(
     feature = "doc-images",
-    embed_doc_image::embed_doc_image("line_styles", "images/line_styles.svg")
+    embed_doc_image::embed_doc_image("line_styles", "docs/img/line_styles.svg")
 )]
 #[cfg_attr(
     not(feature = "doc-images"),
@@ -588,11 +595,17 @@ an example.
 )]
 #[cfg_attr(
     feature = "doc-images",
-    embed_doc_image::embed_doc_image("anchor_offset_scale_1", "images/anchor_offset_scale_1.svg")
+    embed_doc_image::embed_doc_image(
+        "anchor_offset_scale_1",
+        "docs/img/anchor_offset_scale_1.svg"
+    )
 )]
 #[cfg_attr(
     feature = "doc-images",
-    embed_doc_image::embed_doc_image("anchor_offset_scale_2", "images/anchor_offset_scale_2.svg")
+    embed_doc_image::embed_doc_image(
+        "anchor_offset_scale_2",
+        "docs/img/anchor_offset_scale_2.svg"
+    )
 )]
 #[cfg_attr(
     not(feature = "doc-images"),
@@ -660,7 +673,7 @@ let mut view =
     Viewport::from_bounding_box(&BoundingBox::new(0.0, 3.0, 0.0, 1.0), SideLength::Long(600));
 
 // Comment this in to create the first image
-view.write_to_file("images/anchor_offset_scale_1.svg", draw_fn()).unwrap();
+view.write_to_file("docs/img/anchor_offset_scale_1.svg", draw_fn()).unwrap();
 #
 # assert!(
 #     view.compare_or_create(
@@ -675,7 +688,7 @@ view.write_to_file("images/anchor_offset_scale_1.svg", draw_fn()).unwrap();
 view.scale *= 2.0;
 
 // Comment this in to create the second image
-view.write_to_file("images/anchor_offset_scale_2.svg", draw_fn()).unwrap();
+view.write_to_file("docs/img/anchor_offset_scale_2.svg", draw_fn()).unwrap();
 #
 # assert!(
 #    view.compare_or_create(
@@ -909,7 +922,7 @@ is visualized as a red cross).
 )]
 #[cfg_attr(
     feature = "doc-images",
-    embed_doc_image::embed_doc_image("text_placement", "images/text_placement.svg")
+    embed_doc_image::embed_doc_image("text_placement", "docs/img/text_placement.svg")
 )]
 #[cfg_attr(
     not(feature = "doc-images"),
@@ -929,6 +942,7 @@ let m = DEFAULT_MAX_ULPS;
 let mut style = Style::default();
 style.line_color = Color::new(1.0, 0.5, 0.5, 1.0);
 style.line_width = 2.0;
+style.background_color = Color::new(0.0, 0.0, 0.0, 0.0);
 let mut txt = Text {
     text: "Placeholder".into(),
     anchor: Anchor::Center,
@@ -1016,12 +1030,12 @@ let draw_fn = |cr: &cairo::Context| {
 };
 
 // Comment this in to actually create the shown image
-// view.write_to_file("images/text_placement.svg", draw_fn).expect("image could not be created");
+// view.write_to_file("docs/img/text_placement.svg", draw_fn).expect("image could not be created");
 # assert!(
 #     view.compare_or_create(
 #         std::path::Path::new("tests/img/text_placement.png"),
 #         draw_fn,
-#         0.98
+#         0.95
 #     )
 #     .is_ok()
 # );

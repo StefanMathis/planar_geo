@@ -3,6 +3,26 @@ use std::f64::consts::FRAC_PI_2;
 
 #[test]
 fn test_new() {
+    // Shape with fillets
+    {
+        let e = planar_geo::DEFAULT_EPSILON;
+        let m = planar_geo::DEFAULT_MAX_ULPS;
+
+        let mut chain = SegmentChain::new();
+        chain.push_back(
+            ArcSegment::fillet([0.0, 100.0], [0.0, 0.0], [100.0, 0.0], 50.0, e, m)
+                .unwrap()
+                .into(),
+        );
+        chain.extend_back([100.0, 0.0]);
+        chain.push_back(
+            ArcSegment::fillet([100.0, 0.0], [0.0, 100.0], [0.0, 0.0], 10.0, e, m)
+                .unwrap()
+                .into(),
+        );
+        assert!(Shape::new(vec![chain.into()]).is_ok());
+    }
+
     // Shape without any hole
     {
         let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];

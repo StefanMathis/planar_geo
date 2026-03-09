@@ -6,7 +6,8 @@ use planar_geo::prelude::*;
 #[test]
 fn test_contains_point() {
     {
-        // Check for rounding error: Point [0.5, 0.0] is almost identical to the start point of the arc
+        // Check for rounding error: Point [0.5, 0.0] is almost identical to the start
+        // point of the arc
         let arc = ArcSegment::from_start_middle_stop(
             [0.49999999999999967, 0.0],
             [0.8535533905932736, 0.14644660940672583],
@@ -87,7 +88,14 @@ fn test_arc_arc_intersection() {
         )
         .unwrap();
 
-        let intersections = arc1.intersections_primitive(&arc2, 0.0, 0);
+        let intersections = arc1.intersections_primitive(&arc2, DEFAULT_EPSILON, DEFAULT_MAX_ULPS);
+        assert_eq!(intersections.len(), 1);
+        assert_abs_diff_eq!(
+            PrimitiveIntersections::One([3.0_f64.sqrt() / 2.0, 0.5]),
+            intersections,
+        );
+
+        let intersections = arc2.intersections_primitive(&arc1, DEFAULT_EPSILON, DEFAULT_MAX_ULPS);
         assert_eq!(intersections.len(), 1);
         assert_abs_diff_eq!(
             PrimitiveIntersections::One([3.0_f64.sqrt() / 2.0, 0.5]),
@@ -123,7 +131,7 @@ fn test_arc_arc_intersection() {
         )
         .unwrap();
 
-        let intersections = arc1.intersections_primitive(&arc2, 0.0, 0);
+        let intersections = arc1.intersections_primitive(&arc2, DEFAULT_EPSILON, DEFAULT_MAX_ULPS);
         assert_eq!(intersections.len(), 2);
         assert_abs_diff_eq!(
             PrimitiveIntersections::Two([
@@ -165,6 +173,43 @@ fn test_arc_arc_intersection() {
             arc1.intersections_arc_segment(&arc2, DEFAULT_EPSILON, DEFAULT_MAX_ULPS),
             PrimitiveIntersections::Two([[0.0, 2.0], [-2.0, 0.0]]),
             epsilon = DEFAULT_EPSILON
+        );
+    }
+    {
+        // Regression test
+        let arc1 = ArcSegment::from_center_radius_start_offset_angle(
+            [50.0, 50.00000000000001],
+            50.0,
+            3.141592653589793,
+            1.5707963267948966,
+            0.0,
+            0,
+        )
+        .unwrap();
+        let arc2 = ArcSegment::from_center_radius_start_offset_angle(
+            [10.000000000000298, 75.857864376269],
+            9.999999999999819,
+            0.7853981633974725,
+            2.3561944901923164,
+            0.0,
+            0,
+        )
+        .unwrap();
+        assert_eq!(
+            arc1.intersections_arc_segment(&arc2, DEFAULT_EPSILON, DEFAULT_MAX_ULPS),
+            PrimitiveIntersections::Zero
+        );
+        assert_eq!(
+            arc2.intersections_arc_segment(&arc1, DEFAULT_EPSILON, DEFAULT_MAX_ULPS),
+            PrimitiveIntersections::Zero
+        );
+        assert_eq!(
+            arc1.intersections_primitive(&arc2, DEFAULT_EPSILON, DEFAULT_MAX_ULPS),
+            PrimitiveIntersections::Zero
+        );
+        assert_eq!(
+            arc2.intersections_primitive(&arc1, DEFAULT_EPSILON, DEFAULT_MAX_ULPS),
+            PrimitiveIntersections::Zero
         );
     }
 }
@@ -236,6 +281,26 @@ fn test_line_segment_arc_intersection() {
         .into();
         let intersections = arc.intersections_primitive(&line, DEFAULT_EPSILON, DEFAULT_MAX_ULPS);
         assert_eq!(intersections.len(), 1);
+    }
+}
+
+#[test]
+fn test_arc_line_intersection() {
+    {
+        let arc = ArcSegment::from_center_radius_start_offset_angle(
+            [50.0, 50.00000000000001],
+            50.0,
+            3.141592653589793,
+            1.5707963267948966,
+            0.0,
+            0,
+        )
+        .unwrap();
+        let line = Line::new(79.9999999999994, -51.715728752538, 4668.629150101501);
+        assert_eq!(
+            arc.intersections_primitive(&line, DEFAULT_EPSILON, DEFAULT_MAX_ULPS),
+            PrimitiveIntersections::Zero
+        );
     }
 }
 

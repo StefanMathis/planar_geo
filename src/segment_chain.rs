@@ -41,7 +41,10 @@ successor).
 )]
 #[cfg_attr(
     feature = "doc-images",
-    embed_doc_image::embed_doc_image("example_segment_chain", "images/example_segment_chain.svg")
+    embed_doc_image::embed_doc_image(
+        "example_segment_chain",
+        "docs/img/example_segment_chain.svg"
+    )
 )]
 #[cfg_attr(
     not(feature = "doc-images"),

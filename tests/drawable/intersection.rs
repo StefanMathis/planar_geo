@@ -4,25 +4,21 @@ use planar_geo::prelude::*;
 #[test]
 fn test_intersection_visualization() {
     let vertices = vec![[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
-    let contour = Contour::new(SegmentChain::from_points(&vertices, 0.0, 0));
+    let mut contours = vec![Contour::new(SegmentChain::from_points(&vertices))];
 
     let vertices = vec![[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
-    let holes = vec![Contour::new(SegmentChain::from_points(&vertices, 0.0, 0))];
+    contours.push(Contour::new(SegmentChain::from_points(&vertices)));
 
-    let shape = Shape::from_contour_and_holes(contour.clone(), Some(holes));
+    let shape = Shape::new(contours).unwrap();
 
-    let chain = SegmentChain::from_points(
-        &[
-            [-1.0, 1.0],
-            [-1.0, 0.5],
-            [2.0, 0.5],
-            [0.5, -1.0],
-            [0.5, 2.0],
-            [0.0, 2.0],
-        ],
-        0.0,
-        0,
-    );
+    let chain = SegmentChain::from_points(&[
+        [-1.0, 1.0],
+        [-1.0, 0.5],
+        [2.0, 0.5],
+        [0.5, -1.0],
+        [0.5, 2.0],
+        [0.0, 2.0],
+    ]);
 
     let view = Viewport::from_bounding_box(
         &BoundingBox::new(-1.2, 2.2, -1.2, 2.2),

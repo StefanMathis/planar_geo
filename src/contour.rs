@@ -41,7 +41,7 @@ the first.
 #[cfg_attr(feature = "doc-images", doc = "![Contour example][example_contour]")]
 #[cfg_attr(
     feature = "doc-images",
-    embed_doc_image::embed_doc_image("example_contour", "images/example_contour.svg")
+    embed_doc_image::embed_doc_image("example_contour", "docs/img/example_contour.svg")
 )]
 #[cfg_attr(
     not(feature = "doc-images"),

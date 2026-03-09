@@ -14,9 +14,8 @@ itself; see its documentation for details on construction, invariants, and
 usage.
 */
 
-use compare_variables::compare_variables;
-
 use approx::ulps_eq;
+use compare_variables::compare_variables;
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -41,7 +40,7 @@ point.
 )]
 #[cfg_attr(
     feature = "doc-images",
-    embed_doc_image::embed_doc_image("example_arc_segment", "images/example_arc_segment.svg")
+    embed_doc_image::embed_doc_image("example_arc_segment", "docs/img/example_arc_segment.svg")
 )]
 #[cfg_attr(
     not(feature = "doc-images"),
@@ -799,17 +798,19 @@ impl ArcSegment {
         epsilon: f64,
         max_ulps: u32,
     ) -> PrimitiveIntersections {
-        let x0 = -a * c / (a.powi(2) + b.powi(2));
-        let y0 = -b * c / (a.powi(2) + b.powi(2));
+        let denom = a * a + b * b;
+
+        let x0 = -a * c / denom;
+        let y0 = -b * c / denom;
 
         // Argument for the sqrt function
-        let arg = self.radius().powi(2) - c.powi(2) / (a.powi(2) + b.powi(2));
+        let arg = self.radius().powi(2) - c.powi(2) / denom;
 
         let mut intersections = PrimitiveIntersections::Zero;
 
         if arg < 0.0 {
             // If the argument is negative, no intersection exists
-        } else if arg == 0.0 {
+        } else if ulps_eq!(arg, 0.0, epsilon = epsilon, max_ulps = max_ulps) {
             // Special case: Argument of the sqrt-function is exactly zero => point equals
             // center + (x0, y0)
             let mut pt = self.center();
@@ -819,7 +820,7 @@ impl ArcSegment {
             }
         } else {
             // Intersects exist
-            let m = (arg / (a.powi(2) + b.powi(2))).sqrt();
+            let m = (arg / denom).sqrt();
 
             // Calculate the two possible points
             let xa = x0 + b * m;
@@ -922,7 +923,7 @@ impl Primitive for ArcSegment {
         let x2 = center_arc2[0] - center_arc1[0];
         let y2 = center_arc2[1] - center_arc1[1];
 
-        // Represent the first circle as a line
+        // Represent the second circle as a line
         let a = -2.0 * x2;
         let b = -2.0 * y2;
         let c = x2.powi(2) + y2.powi(2) + (radius_arc1).powi(2) - (radius_arc2).powi(2);
@@ -952,7 +953,18 @@ impl Primitive for ArcSegment {
             }
             return intersections;
         } else {
-            return self.intersections_line_circle(a, b, c, epsilon, max_ulps);
+            /*
+            Filter the found intersections by checking if they are actually part
+            of the "other" arc segment. This is necessary because the algorithm
+            is designed to find circle-circle intersections.
+             */
+            let mut intersections = PrimitiveIntersections::Zero;
+            for i in self.intersections_line_circle(a, b, c, epsilon, max_ulps) {
+                if arc_segment.contains_point(i, epsilon, max_ulps) {
+                    intersections.push(i);
+                }
+            }
+            return intersections;
         }
     }
 

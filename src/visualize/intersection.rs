@@ -54,7 +54,7 @@ fn draw(&self, style: &IntersectionStyle,
 "#]
 #![cfg_attr(feature = "doc-images",
 cfg_attr(all(),
-doc = ::embed_doc_image::embed_image!("intersection_example", "images/intersection_example.svg"),
+doc = ::embed_doc_image::embed_image!("intersection_example", "docs/img/intersection_example.svg"),
 ))]
 #![cfg_attr(
     not(feature = "doc-images"),
@@ -117,7 +117,7 @@ let draw_fn = |cr: &cairo::Context| {
 };
 
 // Comment this in to actually create the shown image
-// view.write_to_file("images/intersection_example.svg", draw_fn).expect("image could not be created");
+// view.write_to_file("docs/img/intersection_example.svg", draw_fn).expect("image could not be created");
 # assert!(
 #     view.compare_or_create(
 #         std::path::Path::new("tests/img/intersection_segment_chain_shape.png"),

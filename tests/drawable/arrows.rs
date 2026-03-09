@@ -9,15 +9,14 @@ use planar_geo::{
 
 #[test]
 fn test_horizontal_arrow() {
-    let path =
+    let arrow =
         Contour::arrow_from_head_length_angle([0.0, 0.0], 1.0, 0.0, ArrowHeadSize::Height(0.5))
             .unwrap();
     let mut style = Style::default();
     style.line_style = LineStyle::Solid;
-    style.background_color = Color::new(0.0, 0.0, 0.0, 1.0);
-    let arrow = Shape::new(vec![path]);
+    style.background_color = Color::new(1.0, 1.0, 1.0, 1.0);
 
-    let view = Viewport::from_bounding_box(&(&arrow).into(), SideLength::Long(500));
+    let view = Viewport::from_bounding_box(&arrow.bounding_box(), SideLength::Long(500));
 
     assert!(
         view.compare_or_create(
@@ -37,15 +36,14 @@ fn test_horizontal_arrow() {
 #[test]
 fn test_arrow_with_dashed_tail() {
     let angle = 20.0 / 180.0 * PI;
-    let path =
+    let arrow =
         Contour::arrow_from_head_length_angle([0.0, 0.0], 1.0, angle, ArrowHeadSize::Height(0.1))
             .unwrap();
     let mut style = Style::default();
     style.line_style = LineStyle::default_dashed();
-    let arrow = Shape::new(vec![path]);
 
     let segment_chain = Contour::rectangle([0.0, 0.0], [1.0, 1.0]);
-    let rectangle = Shape::new(vec![segment_chain]);
+    let rectangle = Shape::new(vec![segment_chain]).unwrap();
 
     let view = Viewport::from_bounded_entities(
         [BoundingBox::from(&arrow), BoundingBox::from(&rectangle)].into_iter(),

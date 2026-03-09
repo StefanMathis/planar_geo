@@ -18,7 +18,8 @@ An enum representing all errors which can occur when constructing / modifying a
  */
 #[derive(Clone, Debug, PartialEq)]
 pub enum ShapeConstructorError<T, I> {
-    /// Contour vector used in [`Shape::new`](crate::shape::Shape::new) is empty.
+    /// Contour vector used in [`Shape::new`](crate::shape::Shape::new) is
+    /// empty.
     EmptyVec,
     /**
     A shape can only consists of non-empty contours. If [`Contour::is_empty`]
@@ -106,11 +107,13 @@ impl<T> std::fmt::Display for ShapeConstructorError<T, ShapeIdx> {
             } => {
                 write!(
                     f,
-                    "segment {} of contour {} intersects segment {} of contour {}",
+                    "segment {} of contour {} intersects segment {} of contour {} at point x = {}, y = {}",
                     intersection.left.segment_idx.0,
                     intersection.left.contour_idx,
                     intersection.right.segment_idx.0,
-                    intersection.right.contour_idx
+                    intersection.right.contour_idx,
+                    intersection.point[0],
+                    intersection.point[1]
                 )
             }
         }
@@ -219,7 +222,8 @@ pub enum ErrorType {
         /// Stop / end point of the failed segment construction attempt.
         stop: [f64; 2],
     },
-    /// Creating a new shape failed because of the contained [`ShapeConstructorError].
+    /// Creating a new shape failed because of the contained
+    /// [`ShapeConstructorError].
     NewShape(ShapeConstructorError<Vec<Contour>, ShapeIdx>),
     /// Adding a new hole to an existing shape failed because of the contained
     /// [`ShapeConstructorError].

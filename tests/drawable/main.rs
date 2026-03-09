@@ -1,4 +1,4 @@
-// pub mod arrows;
-pub mod drawable;
-// pub mod intersection;
-// pub mod text_placement;
+pub mod arrows;
+pub mod geometry_types;
+pub mod intersection;
+pub mod text_placement;

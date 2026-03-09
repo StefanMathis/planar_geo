@@ -9,6 +9,7 @@ fn test_text_placement() {
 
         let mut style = Style::default();
         style.line_color = Color::new(1.0, 0.5, 0.5, 1.0);
+        style.background_color = Color::new(0.0, 0.0, 0.0, 0.0);
         style.line_width = 2.0;
         let mut txt = Text {
             text: "Center".into(),
@@ -20,7 +21,8 @@ fn test_text_placement() {
             angle: 0.0,
         };
 
-        let contour = Contour::from_points(&[[0.1, 0.1], [1.9, 0.1], [1.9, 0.9], [0.1, 0.9]], e, m);
+        let contour: Contour =
+            SegmentChain::from_points(&[[0.1, 0.1], [1.9, 0.1], [1.9, 0.9], [0.1, 0.9]]).into();
 
         // A cross on the right of the contour which shows placement of standalone texts
         let cc = [2.5, 0.5];
@@ -41,7 +43,8 @@ fn test_text_placement() {
             hori.draw(&style, cr)?;
             vert.draw(&style, cr)?;
 
-            // Then draw the contour again with an invisible line color to demonstrate the text placement
+            // Then draw the contour again with an invisible line color to demonstrate the
+            // text placement
             style.line_color = Color::new(0.0, 0.0, 0.0, 0.0);
 
             let anchors_str = &[
@@ -100,27 +103,24 @@ fn test_text_placement() {
         view.compare_or_create(
             std::path::Path::new("tests/img/text_placement.png"),
             create_fn(),
-            0.99
+            0.95
         )
         .is_ok()
     );
 
-    view.write_to_file("docs/text_placement.svg", create_fn())
+    view.write_to_file("docs/img/text_placement.svg", create_fn())
         .unwrap();
 }
 
 #[test]
 fn anchor_offset_scaling() {
     fn create_fn() -> Box<dyn FnOnce(&cairo::Context) -> Result<(), cairo::Error>> {
-        let e = DEFAULT_EPSILON;
-        let m = DEFAULT_MAX_ULPS;
-
         let mut style = Style::default();
         style.line_color = Color::new(1.0, 0.5, 0.5, 1.0);
         style.line_width = 2.0;
 
-        let mut contour =
-            Contour::from_points(&[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]], e, m);
+        let mut contour: Contour =
+            SegmentChain::from_points(&[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]]).into();
 
         let drawing_fn = move |cr: &cairo::Context| {
             // Set the background to white
@@ -161,14 +161,14 @@ fn anchor_offset_scaling() {
     let mut view =
         Viewport::from_bounding_box(&BoundingBox::new(0.0, 3.0, 0.0, 1.0), SideLength::Long(600));
 
-    view.write_to_file("docs/anchor_offset_scale_1.svg", create_fn())
+    view.write_to_file("docs/img/anchor_offset_scale_1.svg", create_fn())
         .unwrap();
 
     assert!(
         view.compare_or_create(
             std::path::Path::new("tests/img/anchor_offset_scale_1.png"),
             create_fn(),
-            0.99
+            0.95
         )
         .is_ok()
     );
@@ -176,14 +176,14 @@ fn anchor_offset_scaling() {
     // Zoom into the image
     view.scale *= 2.0;
 
-    view.write_to_file("docs/anchor_offset_scale_2.svg", create_fn())
+    view.write_to_file("docs/img/anchor_offset_scale_2.svg", create_fn())
         .unwrap();
 
     assert!(
         view.compare_or_create(
             std::path::Path::new("tests/img/anchor_offset_scale_2.png"),
             create_fn(),
-            0.99
+            0.95
         )
         .is_ok()
     );

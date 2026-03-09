@@ -39,7 +39,7 @@ A straight, directed connection between a start and an end / stop point.
 )]
 #[cfg_attr(
     feature = "doc-images",
-    embed_doc_image::embed_doc_image("example_line_segment", "images/example_line_segment.svg")
+    embed_doc_image::embed_doc_image("example_line_segment", "docs/img/example_line_segment.svg")
 )]
 #[cfg_attr(
     not(feature = "doc-images"),

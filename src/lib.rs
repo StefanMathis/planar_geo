@@ -26,7 +26,7 @@
 "#]
 #![cfg_attr(feature = "doc-images",
 cfg_attr(all(),
-doc = ::embed_doc_image::embed_image!("type_overview", "images/type_overview.svg"),
+doc = ::embed_doc_image::embed_image!("type_overview", "docs/img/type_overview.svg"),
 ))]
 #![cfg_attr(
     not(feature = "doc-images"),
@@ -40,7 +40,7 @@ doc = ::embed_doc_image::embed_image!("type_overview", "images/type_overview.svg
 "#]
 #![cfg_attr(feature = "doc-images",
 cfg_attr(all(),
-doc = ::embed_doc_image::embed_image!("shape", "images/shape.svg"),
+doc = ::embed_doc_image::embed_image!("shape", "docs/img/shape.svg"),
 ))]
 #![cfg_attr(
     not(feature = "doc-images"),
@@ -54,7 +54,7 @@ doc = ::embed_doc_image::embed_image!("shape", "images/shape.svg"),
 "#]
 #![cfg_attr(feature = "doc-images",
 cfg_attr(all(),
-doc = ::embed_doc_image::embed_image!("intersection_segments", "images/intersection_segments.svg"),
+doc = ::embed_doc_image::embed_image!("intersection_segments", "docs/img/intersection_segments.svg"),
 ))]
 #![cfg_attr(
     not(feature = "doc-images"),
@@ -68,7 +68,7 @@ doc = ::embed_doc_image::embed_image!("intersection_segments", "images/intersect
 "#]
 #![cfg_attr(feature = "doc-images",
 cfg_attr(all(),
-doc = ::embed_doc_image::embed_image!("intersection_composites", "images/intersection_composites.svg"),
+doc = ::embed_doc_image::embed_image!("intersection_composites", "docs/img/intersection_composites.svg"),
 ))]
 #![cfg_attr(
     not(feature = "doc-images"),
