@@ -14,28 +14,29 @@ fn main() {
 
     let mut readme =
         fs::read_to_string("docs/readme_parts/links.md").expect("Failed to read template");
+    readme.push('\n');
     readme.push_str(
         &fs::read_to_string("docs/readme_parts/type_overview.svg.md")
             .expect("Failed to read template"),
     );
-    readme.push_str("\n\n![](https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/images/type_overview.svg \"Overview geometric types of the planar_geo crate\")\n\n");
+    readme.push_str("\n\n![](https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/docs/img/type_overview.svg \"Overview geometric types of the planar_geo crate\")\n\n");
 
     readme.push_str(
         &fs::read_to_string("docs/readme_parts/shape.svg.md").expect("Failed to read template"),
     );
-    readme.push_str("\n\n![](https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/images/shape.svg \"Example shape\")\n\n");
+    readme.push_str("\n\n![](https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/docs/img/shape.svg \"Example shape\")\n\n");
 
     readme.push_str(
         &fs::read_to_string("docs/readme_parts/intersection_segments.svg.md")
             .expect("Failed to read template"),
     );
-    readme.push_str("\n\n![](https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/images/intersection_segments.svg \"Point and segment intersection\")\n\n");
+    readme.push_str("\n\n![](https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/docs/img/intersection_segments.svg \"Point and segment intersection\")\n\n");
 
     readme.push_str(
         &fs::read_to_string("docs/readme_parts/intersection_composites.svg.md")
             .expect("Failed to read template"),
     );
-    readme.push_str("\n\n![](https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/images/intersection_composites.svg \"Intersection between contours and a segment chain\")\n\n");
+    readme.push_str("\n\n![](https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/docs/img/intersection_composites.svg \"Intersection between contours and a segment chain\")\n\n");
 
     readme.push_str(
         &fs::read_to_string("docs/readme_parts/end.md").expect("Failed to read template"),

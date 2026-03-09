@@ -1,24 +1,26 @@
 planar_geo
 ==========
 
-[`ArcSegment`]: https://docs.rs/planar_geo/0.1.5/planar_geo/segment/arc_segment/struct.ArcSegment.html
-[`LineSegment`]: https://docs.rs/planar_geo/0.1.5/planar_geo/segment/line_segment/struct.LineSegment.html
-[`Segment`]: https://docs.rs/planar_geo/0.1.5/planar_geo/segment/enum.Segment.html
-[`SegmentChain`]: https://docs.rs/planar_geo/0.1.5/planar_geo/segment_chain/struct.SegmentChain.html
-[`Contour`]: https://docs.rs/planar_geo/0.1.5/planar_geo/contour/struct.Contour.html
-[`Shape`]: https://docs.rs/planar_geo/0.1.5/planar_geo/shape/struct.Shape.html
-[`Primitive`]: https://docs.rs/planar_geo/0.1.5/planar_geo/primitive/trait.Primitive.html
-[`Composite`]: https://docs.rs/planar_geo/0.1.5/planar_geo/composite/trait.Composite.html
-[`Transformation`]: https://docs.rs/planar_geo/0.1.5/planar_geo/trait.Transformation.html
-[`DEFAULT_EPSILON`]: https://docs.rs/planar_geo/0.1.5/planar_geo/constant.DEFAULT_EPSILON.html
-[`DEFAULT_MAX_ULPS`]: https://docs.rs/planar_geo/0.1.5/planar_geo/constant.DEFAULT_MAX_ULPS.html
-[crate_index]: https://docs.rs/planar_geo/0.1.5/planar_geo/.
-[visualize]: https://docs.rs/planar_geo/0.1.5/planar_geo/visualize/index.html.
+[`ArcSegment`]: https://docs.rs/planar_geo/0.1.6/planar_geo/segment/arc_segment/struct.ArcSegment.html
+[`LineSegment`]: https://docs.rs/planar_geo/0.1.6/planar_geo/segment/line_segment/struct.LineSegment.html
+[`Segment`]: https://docs.rs/planar_geo/0.1.6/planar_geo/segment/enum.Segment.html
+[`SegmentChain`]: https://docs.rs/planar_geo/0.1.6/planar_geo/segment_chain/struct.SegmentChain.html
+[`Contour`]: https://docs.rs/planar_geo/0.1.6/planar_geo/contour/struct.Contour.html
+[`Shape`]: https://docs.rs/planar_geo/0.1.6/planar_geo/shape/struct.Shape.html
+[`Primitive`]: https://docs.rs/planar_geo/0.1.6/planar_geo/primitive/trait.Primitive.html
+[`Composite`]: https://docs.rs/planar_geo/0.1.6/planar_geo/composite/trait.Composite.html
+[`Transformation`]: https://docs.rs/planar_geo/0.1.6/planar_geo/trait.Transformation.html
+[`DEFAULT_EPSILON`]: https://docs.rs/planar_geo/0.1.6/planar_geo/constant.DEFAULT_EPSILON.html
+[`DEFAULT_MAX_ULPS`]: https://docs.rs/planar_geo/0.1.6/planar_geo/constant.DEFAULT_MAX_ULPS.html
+[crate_index]: https://docs.rs/planar_geo/0.1.6/planar_geo/.
+[visualize]: https://docs.rs/planar_geo/0.1.6/planar_geo/visualize/index.html.
 [`Context`]: https://gtk-rs.org/gtk-rs-core/stable/latest/docs/cairo/struct.Context.html
 [gtk-rs]: https://gtk-rs.org/gtk-rs-core/stable/latest/docs/cairo
 [approxim]: https://docs.rs/approxim/latest/approxim/
 [serde]: https://serde.rs/
-[`ulps_eq`]: https://docs.rs/approxim/latest/approxim/macro.ulps_eq.htmlA Rust library for 2D geometry: geometric objects, algorithms and visualization.
+[`ulps_eq`]: https://docs.rs/approxim/latest/approxim/macro.ulps_eq.html
+
+A Rust library for 2D geometry: geometric objects, algorithms and visualization.
 
 > **Feedback welcome!**  
 > Found a bug, missing docs, or have a feature request?  
@@ -31,7 +33,7 @@ represents its x-coordinate and the second element represents its y-coordinate.
 Building upon this, a variety of [`Primitive`] and [`Composite`] types are
 defined:
 
-![](https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/images/type_overview.svg "Overview geometric types of the planar_geo crate")
+![](https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/docs/img/type_overview.svg "Overview geometric types of the planar_geo crate")
 
 _This image was created with examples/type_overview.rs_
 
@@ -74,7 +76,7 @@ The following code snippet shows how to construct the shape shown in the image
 below and calculate some of its properties, e.g. centroid and surface area. The
 image itself has been created by running `examples/shape.rs`.
 
-![](https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/images/shape.svg "Example shape")
+![](https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/docs/img/shape.svg "Example shape")
 
 ```rust
 use planar_geo::prelude::*;
@@ -194,7 +196,7 @@ collisions and intersections between different geometric types.
 For example, the following code shows intersections between the segments shown
 in this image:
 
-![](https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/images/intersection_segments.svg "Point and segment intersection")
+![](https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/docs/img/intersection_segments.svg "Point and segment intersection")
 
 _This image was created with examples/intersection_segments.rs_
 
@@ -246,7 +248,7 @@ assert_eq!(line_2.intersections_primitive(&arc, e, m), PrimitiveIntersections::Z
 It is also possible to calculate the intersections between composite types, as
 shown in `examples/intersection_composites.rs`:
 
-![](https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/images/intersection_composites.svg "Intersection between contours and a segment chain")
+![](https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/docs/img/intersection_composites.svg "Intersection between contours and a segment chain")
 
 # Features
 
