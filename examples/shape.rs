@@ -6,7 +6,7 @@ use std::path::PathBuf;
 pub const UNSCALED_FONT_SIZE: f64 = 16.0;
 
 fn file_path(filename: &str) -> PathBuf {
-    return PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(&format!("images/{filename}.svg"));
+    return PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(&format!("docs/img/{filename}.svg"));
 }
 
 fn main() {

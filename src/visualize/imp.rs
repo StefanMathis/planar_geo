@@ -378,8 +378,8 @@ pub struct Style {
     /// Color of all lines of the geometric object. Corresponds to
     /// "border-color" as defined in <https://www.w3.org/TR/css-backgrounds-3/#border-color>.
     pub line_color: Color,
-    /// Fill color for closed surface, e.g. as they appear in a [`Shape`].
-    /// For other geometric objects, this property is meaningless.
+    /// Fill color for a closed surface, e.g. as they appear in a [`Contour`] or
+    /// a [`Shape`]. For segments, this property is meaningless.
     /// Corresponds to "background-color" as defined in
     /// <https://www.w3.org/TR/css-backgrounds-3/#background-color>.
     pub background_color: Color,
