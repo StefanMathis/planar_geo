@@ -1,4 +1,4 @@
-use std::f64::consts::PI;
+use std::f64::consts::{FRAC_PI_2, FRAC_PI_4, PI};
 
 use cairo_viewport::{SideLength, Viewport};
 use planar_geo::{
@@ -9,36 +9,201 @@ use planar_geo::{
 
 #[test]
 fn test_horizontal_arrow() {
-    let arrow =
-        Contour::arrow_from_head_length_angle([0.0, 0.0], 1.0, 0.0, ArrowHeadSize::Height(0.5))
-            .unwrap();
-    let mut style = Style::default();
-    style.line_style = LineStyle::Solid;
-    style.background_color = Color::new(1.0, 1.0, 1.0, 1.0);
-
-    let view = Viewport::from_bounding_box(&arrow.bounding_box(), SideLength::Long(500));
-
-    assert!(
-        view.compare_or_create(
-            std::path::Path::new("tests/img/horizontal_arrow.png"),
-            |cr| {
-                // Set the background to white
-                cr.set_source_rgb(1.0, 1.0, 1.0);
-                cr.paint()?;
-                arrow.draw(&style, cr)
-            },
-            0.99
+    {
+        let arrow = Contour::arrow_from_head_length_angle(
+            [0.0, 0.0],
+            1.0,
+            0.0,
+            0.0,
+            ArrowHeadSize::Height(0.5),
         )
-        .is_ok()
-    );
+        .unwrap();
+        let mut style = Style::default();
+        style.line_style = LineStyle::Solid;
+        style.background_color = Color::new(1.0, 1.0, 1.0, 1.0);
+
+        let view = Viewport::from_bounding_box(&arrow.bounding_box(), SideLength::Long(500));
+
+        assert!(
+            view.compare_or_create(
+                std::path::Path::new("tests/img/horizontal_arrow.png"),
+                |cr| {
+                    // Set the background to white
+                    cr.set_source_rgb(1.0, 1.0, 1.0);
+                    cr.paint()?;
+                    arrow.draw(&style, cr)
+                },
+                0.99
+            )
+            .is_ok()
+        );
+    }
+    {
+        let arrow = Contour::arrow_from_head_length_angle(
+            [0.0, 0.0],
+            1.0,
+            0.0,
+            0.2,
+            ArrowHeadSize::Height(0.5),
+        )
+        .unwrap();
+        let mut style = Style::default();
+        style.line_style = LineStyle::Solid;
+        style.background_color = Color::new(1.0, 1.0, 1.0, 1.0);
+
+        let view = Viewport::from_bounding_box(&arrow.bounding_box(), SideLength::Long(500));
+
+        assert!(
+            view.compare_or_create(
+                std::path::Path::new("tests/img/horizontal_arrow_with_stem.png"),
+                |cr| {
+                    // Set the background to white
+                    cr.set_source_rgb(1.0, 1.0, 1.0);
+                    cr.paint()?;
+                    arrow.draw(&style, cr)
+                },
+                0.99
+            )
+            .is_ok()
+        );
+    }
+}
+
+#[test]
+fn test_vertical_arrow() {
+    {
+        let arrow = Contour::arrow_from_head_length_angle(
+            [0.0, 0.0],
+            1.0,
+            FRAC_PI_2,
+            0.0,
+            ArrowHeadSize::Height(0.5),
+        )
+        .unwrap();
+        let mut style = Style::default();
+        style.line_style = LineStyle::Solid;
+        style.background_color = Color::new(1.0, 1.0, 1.0, 1.0);
+
+        let view = Viewport::from_bounding_box(&arrow.bounding_box(), SideLength::Long(500));
+
+        assert!(
+            view.compare_or_create(
+                std::path::Path::new("tests/img/vertical_arrow.png"),
+                |cr| {
+                    // Set the background to white
+                    cr.set_source_rgb(1.0, 1.0, 1.0);
+                    cr.paint()?;
+                    arrow.draw(&style, cr)
+                },
+                0.99
+            )
+            .is_ok()
+        );
+    }
+    {
+        let arrow = Contour::arrow_from_head_length_angle(
+            [0.0, 0.0],
+            1.0,
+            FRAC_PI_2,
+            0.2,
+            ArrowHeadSize::Height(0.5),
+        )
+        .unwrap();
+        let mut style = Style::default();
+        style.line_style = LineStyle::Solid;
+        style.background_color = Color::new(1.0, 1.0, 1.0, 1.0);
+
+        let view = Viewport::from_bounding_box(&arrow.bounding_box(), SideLength::Long(500));
+
+        assert!(
+            view.compare_or_create(
+                std::path::Path::new("tests/img/vertical_arrow_with_stem.png"),
+                |cr| {
+                    // Set the background to white
+                    cr.set_source_rgb(1.0, 1.0, 1.0);
+                    cr.paint()?;
+                    arrow.draw(&style, cr)
+                },
+                0.99
+            )
+            .is_ok()
+        );
+    }
+}
+
+#[test]
+fn test_diagonal_arrow() {
+    {
+        let arrow = Contour::arrow_from_head_length_angle(
+            [0.0, 0.0],
+            1.0,
+            FRAC_PI_4,
+            0.0,
+            ArrowHeadSize::Height(0.5),
+        )
+        .unwrap();
+        let mut style = Style::default();
+        style.line_style = LineStyle::Solid;
+        style.background_color = Color::new(1.0, 1.0, 1.0, 1.0);
+
+        let view = Viewport::from_bounding_box(&arrow.bounding_box(), SideLength::Long(500));
+
+        assert!(
+            view.compare_or_create(
+                std::path::Path::new("tests/img/diagonal_arrow.png"),
+                |cr| {
+                    // Set the background to white
+                    cr.set_source_rgb(1.0, 1.0, 1.0);
+                    cr.paint()?;
+                    arrow.draw(&style, cr)
+                },
+                0.99
+            )
+            .is_ok()
+        );
+    }
+    {
+        let arrow = Contour::arrow_from_head_length_angle(
+            [0.0, 0.0],
+            1.0,
+            FRAC_PI_4,
+            0.2,
+            ArrowHeadSize::Height(0.5),
+        )
+        .unwrap();
+        let mut style = Style::default();
+        style.line_style = LineStyle::Solid;
+        style.background_color = Color::new(1.0, 1.0, 1.0, 1.0);
+
+        let view = Viewport::from_bounding_box(&arrow.bounding_box(), SideLength::Long(500));
+
+        assert!(
+            view.compare_or_create(
+                std::path::Path::new("tests/img/diagonal_arrow_with_stem.png"),
+                |cr| {
+                    // Set the background to white
+                    cr.set_source_rgb(1.0, 1.0, 1.0);
+                    cr.paint()?;
+                    arrow.draw(&style, cr)
+                },
+                0.99
+            )
+            .is_ok()
+        );
+    }
 }
 
 #[test]
 fn test_arrow_with_dashed_tail() {
     let angle = 20.0 / 180.0 * PI;
-    let arrow =
-        Contour::arrow_from_head_length_angle([0.0, 0.0], 1.0, angle, ArrowHeadSize::Height(0.1))
-            .unwrap();
+    let arrow = Contour::arrow_from_head_length_angle(
+        [0.0, 0.0],
+        1.0,
+        angle,
+        0.0,
+        ArrowHeadSize::Height(0.1),
+    )
+    .unwrap();
     let mut style = Style::default();
     style.line_style = LineStyle::default_dashed();
 

@@ -624,10 +624,10 @@ impl Contour {
     }
 
     /**
-    Creates a contour forming an arrow from the `tail`, the arrow `length` and
-    the arrow `angle` (in radians). The arrow head is an equilateral triangle
-    whose length can be given optionally as well. If it is not given, the
-    triangle side length is one quarter of the total arrow length.
+    Creates a contour forming an arrow from the `tail`, the arrow `length`, the
+    `stem_width` and the arrow `angle` (in radians). The `head_size` is
+    specified with the [`ArrowHeadSize`] enum (either as head height or side
+    length).
 
     # Examples
 
@@ -638,7 +638,8 @@ impl Contour {
     let tail = [0.0, 0.0];
     let length = 2.0;
     let angle = 0.0;
-    let arrow = Contour::arrow_from_tail_length_angle(tail, length, angle, ArrowHeadSize::Height(1.0)).unwrap();
+    let stem_width = 0.0;
+    let arrow = Contour::arrow_from_tail_length_angle(tail, length, angle, stem_width, ArrowHeadSize::Height(1.0)).unwrap();
     let verts: Vec<[f64; 2]> = arrow.points().collect();
 
     assert_eq!(verts.len(), 6);
@@ -654,6 +655,7 @@ impl Contour {
         tail: [f64; 2],
         length: f64,
         angle: f64,
+        stem_width: f64,
         head_size: ArrowHeadSize,
     ) -> crate::error::Result<Self> {
         let height = head_size.height();
@@ -661,29 +663,42 @@ impl Contour {
         // Sanity checks
         compare_variables!(0.0 <= length)?;
         compare_variables!(0.0 <= height)?;
+        compare_variables!(0.0 <= stem_width)?;
 
         let sin = angle.sin();
         let cos = angle.cos();
 
         // Calculate the points defining the path
         let triangle_side_length = head_size.side_length();
-        let x_flat_end = tail[0] + (length - height) * cos;
-        let y_flat_end = tail[1] + (length - height) * sin;
-        let x_left = x_flat_end - 0.5 * triangle_side_length * sin;
-        let y_left = y_flat_end + 0.5 * triangle_side_length * cos;
+
+        let x_flat_end_center = tail[0] + (length - height) * cos;
+        let y_flat_end_center = tail[1] + (length - height) * sin;
+
+        let x_tail_l = tail[0] - 0.5 * stem_width * sin;
+        let y_tail_l = tail[1] + 0.5 * stem_width * cos;
+        let x_tail_to_head_l = x_tail_l + (length - height) * cos;
+        let y_tail_to_head_l = y_tail_l + (length - height) * sin;
+        let x_head_outer_l = x_flat_end_center - 0.5 * triangle_side_length * sin;
+        let y_head_outer_l = y_flat_end_center + 0.5 * triangle_side_length * cos;
+
         let x_pointed_end = tail[0] + length * cos;
         let y_pointed_end = tail[1] + length * sin;
-        let x_right = x_flat_end + 0.5 * triangle_side_length * sin;
-        let y_right = y_flat_end - 0.5 * triangle_side_length * cos;
+
+        let x_tail_r = tail[0] + 0.5 * stem_width * sin;
+        let y_tail_r = tail[1] - 0.5 * stem_width * cos;
+        let x_tail_to_head_r = x_tail_r + (length - height) * cos;
+        let y_tail_to_head_r = y_tail_r + (length - height) * sin;
+        let x_head_outer_r = x_flat_end_center + 0.5 * triangle_side_length * sin;
+        let y_head_outer_r = y_flat_end_center - 0.5 * triangle_side_length * cos;
 
         let mut vertices: Vec<[f64; 2]> = Vec::with_capacity(7);
-        vertices.push(tail);
-        vertices.push([x_flat_end, y_flat_end]);
-        vertices.push([x_left, y_left]);
+        vertices.push([x_tail_l, y_tail_l]);
+        vertices.push([x_tail_to_head_l, y_tail_to_head_l]);
+        vertices.push([x_head_outer_l, y_head_outer_l]);
         vertices.push([x_pointed_end, y_pointed_end]);
-        vertices.push([x_right, y_right]);
-        vertices.push([x_flat_end, y_flat_end]);
-        vertices.push(tail);
+        vertices.push([x_head_outer_r, y_head_outer_r]);
+        vertices.push([x_tail_to_head_r, y_tail_to_head_r]);
+        vertices.push([x_tail_r, y_tail_r]);
 
         return Ok(SegmentChain::from_points(&vertices).into());
     }
@@ -698,7 +713,8 @@ impl Contour {
 
     let tail = [0.0, 0.0];
     let head = [2.0, 0.0];
-    let arrow = Contour::arrow_from_tail_head(tail, head, ArrowHeadSize::Height(1.0)).unwrap();
+    let stem_width = 0.0;
+    let arrow = Contour::arrow_from_tail_head(tail, head, stem_width, ArrowHeadSize::Height(1.0)).unwrap();
     let verts: Vec<[f64; 2]> = arrow.points().collect();
 
     approx::assert_abs_diff_eq!(verts[0], [0.0, 0.0], epsilon = 1e-5);
@@ -712,11 +728,12 @@ impl Contour {
     pub fn arrow_from_tail_head(
         tail: [f64; 2],
         head: [f64; 2],
+        stem_width: f64,
         head_size: ArrowHeadSize,
     ) -> crate::error::Result<Self> {
         let length = ((head[0] - tail[0]).powi(2) + (head[1] - tail[1]).powi(2)).sqrt();
         let angle = (head[1] - tail[1]).atan2(head[0] - tail[0]);
-        return Contour::arrow_from_tail_length_angle(tail, length, angle, head_size);
+        return Contour::arrow_from_tail_length_angle(tail, length, angle, stem_width, head_size);
     }
 
     /**
@@ -732,7 +749,8 @@ impl Contour {
     let tail = [0.0, 0.0];
     let length = 2.0;
     let angle = 0.0;
-    let arrow = Contour::arrow_from_head_length_angle(tail, length, angle, ArrowHeadSize::Height(1.0)).unwrap();
+    let stem_width = 0.0;
+    let arrow = Contour::arrow_from_head_length_angle(tail, length, angle, stem_width, ArrowHeadSize::Height(1.0)).unwrap();
     let verts: Vec<[f64; 2]> = arrow.points().collect();
 
     assert_eq!(verts.len(), 6);
@@ -748,12 +766,13 @@ impl Contour {
         head: [f64; 2],
         length: f64,
         angle: f64,
+        stem_width: f64,
         head_size: ArrowHeadSize,
     ) -> crate::error::Result<Self> {
         let x_tail = head[0] - length * angle.cos();
         let y_tail = head[1] - length * angle.sin();
         let tail = [x_tail, y_tail];
-        return Contour::arrow_from_tail_length_angle(tail, length, angle, head_size);
+        return Contour::arrow_from_tail_length_angle(tail, length, angle, stem_width, head_size);
     }
 }
 
