@@ -1,6 +1,6 @@
 [package]
 name = "planar_geo"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
 description = "A Rust library for 2D geometry: geometric objects, algorithms and visualization"
 readme = "README.md"
@@ -12,13 +12,13 @@ cairo-rs = {version = "0.21", optional = true}
 bounding_box = { version = "0.4", features = ["approx"]}
 rayon = "1.5"
 num = "0.4.0"
-ordered-float = "3.6.0"
+ordered-float = "^3.6.0"
 serde = { version = "1", features = ["derive"], optional = true }
-deserialize_untagged_verbose_error = { version = "0.1.5", optional = true }
+deserialize_untagged_verbose_error = { version = "^0.1.5", optional = true }
 geometry-predicates = "0.3"
 approx = { package = "approxim", version = "0.6", features = ["array_impl"] }
-compare_variables = { version = "0.2.0" }
-embed-doc-image = { version = "0.1.4", optional = true }
+compare_variables = { version = "^0.2.0" }
+embed-doc-image = { version = "^0.1.4", optional = true }
 
 [features]
 default = []
@@ -27,7 +27,7 @@ visualize = ["dep:cairo-rs"]
 doc-images = ["dep:embed-doc-image"]
 
 [dev-dependencies]
-cairo_viewport = { version = "0.2.2", features = ["image-compare"] }
+cairo_viewport = { version = "^0.2.2", features = ["image-compare"] }
 planar_geo = { path = ".", features = ["serde", "visualize"] }
 
 [package.metadata.docs.rs]
