@@ -6,7 +6,7 @@ The [`LineSegment`] is one of the "primitive" geometric types defined in this
 crate (implementing the [`Primitive`] type). Wrapped in the
 [`Segment`](crate::segment::Segment) enum, it serves as a fundamental building
 block of composite geometric types such as the
-[`SegmentChain`](crate::segment_chain::SegmentChain).
+[`Polysegment`](crate::polysegment::Polysegment).
 See the module documentation of [segment](crate::segment) for more.
 
 Most users should interact with this module through the [`LineSegment`] type

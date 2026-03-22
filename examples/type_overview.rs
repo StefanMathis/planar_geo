@@ -45,26 +45,26 @@ fn main() {
 
     // =========================================================================
 
-    let mut segment_chain = SegmentChain::new();
-    segment_chain.push_back(
+    let mut polysegment = Polysegment::new();
+    polysegment.push_back(
         LineSegment::new([0.0, -4.0], [-1.0, -4.0], e, m)
             .unwrap()
             .into(),
     );
-    segment_chain.push_back(
+    polysegment.push_back(
         ArcSegment::from_start_center_angle([-1.0, -4.0], [0.0, -4.0], 0.5 * PI, e, m)
             .unwrap()
             .into(),
     );
-    segment_chain.push_back(
+    polysegment.push_back(
         LineSegment::new([1.0, -4.0], [0.0, -3.0], e, m)
             .unwrap()
             .into(),
     );
-    segment_chain.translate([5.0, 0.0]);
+    polysegment.translate([5.0, 0.0]);
 
-    let segment_chain_text = Text::new(
-        "SegmentChain".into(),
+    let polysegment_text = Text::new(
+        "Polysegment".into(),
         Anchor::Bottom,
         [0.0, 0.0],
         [5.0, -2.5],
@@ -73,7 +73,7 @@ fn main() {
         0.0,
     );
 
-    let mut c_chain = SegmentChain::new();
+    let mut c_chain = Polysegment::new();
     c_chain.push_back(
         LineSegment::new([0.0, -4.0], [0.0, -5.2], e, m)
             .unwrap()
@@ -98,7 +98,7 @@ fn main() {
     );
 
     // Define the shape
-    let mut s_chain = SegmentChain::new();
+    let mut s_chain = Polysegment::new();
     s_chain.push_back(
         ArcSegment::from_start_center_angle([1.0, -4.0], [0.0, -4.0], 0.5 * PI, e, m)
             .unwrap()
@@ -109,8 +109,7 @@ fn main() {
     s_chain.extend_back([1.0, -5.0]);
 
     let outer: Contour = s_chain.into();
-    let hole: Contour =
-        SegmentChain::from_points(&[[-0.5, -3.5], [-0.5, -4.5], [0.5, -4.5]]).into();
+    let hole: Contour = Polysegment::from_points(&[[-0.5, -3.5], [-0.5, -4.5], [0.5, -4.5]]).into();
     let mut shape = Shape::new(vec![outer, hole]).expect("valid inputs");
     shape.translate([13.0, 0.0]);
 
@@ -141,8 +140,8 @@ fn main() {
         arc.draw(&style, cr)?;
         arc_text.draw(cr)?;
 
-        segment_chain.draw(&style, cr)?;
-        segment_chain_text.draw(cr)?;
+        polysegment.draw(&style, cr)?;
+        polysegment_text.draw(cr)?;
 
         contour.draw(&style, cr)?;
         contour_text.draw(cr)?;

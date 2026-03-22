@@ -10,9 +10,9 @@ and implement the [`Composite`] trait). See the trait documentation for details.
 use rayon::prelude::ParallelIterator;
 
 use crate::contour::Contour;
+use crate::polysegment::Polysegment;
 use crate::primitive::Primitive;
 use crate::segment::{Segment, SegmentPolygonizer};
-use crate::segment_chain::SegmentChain;
 use crate::shape::Shape;
 
 /**
@@ -67,7 +67,7 @@ impl From<[f64; 2]> for Intersection<(), ()> {
 }
 
 /**
-A key to access a segment from a [`SegmentChain`] or a [`Contour`].
+A key to access a segment from a [`Polysegment`] or a [`Contour`].
 
 This is just a wrapper around an [`usize`] used to index into the underlying
 vector of [`Segment`]s which stores the data of the aforementioned [`Composite`]
@@ -81,7 +81,7 @@ method.
 use planar_geo::prelude::*;
 
 let raw_idx = 2;
-let chain = SegmentChain::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]);
+let chain = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]);
 assert_eq!(chain.segment(SegmentIdx(2)), chain.get(raw_idx));
 ```
  */
@@ -114,15 +114,15 @@ the segment itself from the corresponding contour.
 use planar_geo::prelude::*;
 
 let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
-let contour = Contour::new(SegmentChain::from_points(vertices));
+let contour = Contour::new(Polysegment::from_points(vertices));
 let vertices = &[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
-let hole = Contour::new(SegmentChain::from_points(vertices));
+let hole = Contour::new(Polysegment::from_points(vertices));
 let shape = Shape::new(vec![contour, hole]).expect("valid inputs");
 
 // Comparison of using the key vs. manual retrieval
 let contour_idx = 1;
 let segment_idx = 2;
-let manually_retrieved = shape.contours().get(contour_idx).map(|c|c.segment_chain().get(segment_idx)).flatten();
+let manually_retrieved = shape.contours().get(contour_idx).map(|c|c.polysegment().get(segment_idx)).flatten();
 
 let key = ShapeIdx {
     contour_idx,
@@ -207,7 +207,7 @@ impl<L: PartialEq, R: PartialEq> approx::UlpsEq for Intersection<L, R> {
 }
 
 /**
-A trait for "composite" types: [`SegmentChain`]s, [`Contour`]s and [`Shape`]s.
+A trait for "composite" types: [`Polysegment`]s, [`Contour`]s and [`Shape`]s.
 
 This [`Composite`] trait provides a common innterface for intersection
 calculation between a composite and a primitive or other composites.
@@ -231,9 +231,9 @@ points can be calculated by using `self` also as the second argument `other`:
 ```
 use planar_geo::prelude::*;
 
-let sc = SegmentChain::from_points(&[[0.0, 0.0], [1.0, 1.0], [1.0, 0.0], [0.0, 1.0], [0.0, 0.0]]);
+let sc = Polysegment::from_points(&[[0.0, 0.0], [1.0, 1.0], [1.0, 0.0], [0.0, 1.0], [0.0, 0.0]]);
 
-let mut iter = sc.intersections_segment_chain(&sc, DEFAULT_EPSILON, DEFAULT_MAX_ULPS);
+let mut iter = sc.intersections_polysegment(&sc, DEFAULT_EPSILON, DEFAULT_MAX_ULPS);
 
 // Intersection in the "cross" middle
 assert_eq!(iter.next().unwrap().point, [0.5, 0.5]);
@@ -282,10 +282,10 @@ pub trait Composite {
     use planar_geo::prelude::*;
 
     let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
-    let contour = Contour::new(SegmentChain::from_points(vertices));
+    let contour = Contour::new(Polysegment::from_points(vertices));
 
     let vertices = &[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
-    let hole = Contour::new(SegmentChain::from_points(vertices));
+    let hole = Contour::new(Polysegment::from_points(vertices));
 
     // Drop the reference before reusing contour later
     {
@@ -306,7 +306,7 @@ pub trait Composite {
     /**
     Returns the number of segments in the composite type.
 
-    For a [`SegmentChain`] and a [`Contour`], this is equal to the length
+    For a [`Polysegment`] and a [`Contour`], this is equal to the length
     of the underlying [`Vec<Segment>`], whereas for a [`Shape`], this is equal
     to the number of all segments of all underlying [`Contour`]s.
 
@@ -316,11 +316,11 @@ pub trait Composite {
     use planar_geo::prelude::*;
 
     let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
-    let contour = Contour::new(SegmentChain::from_points(vertices));
+    let contour = Contour::new(Polysegment::from_points(vertices));
     assert_eq!(contour.num_segments(), 4);
 
     let vertices = &[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
-    let hole = Contour::new(SegmentChain::from_points(vertices));
+    let hole = Contour::new(Polysegment::from_points(vertices));
     assert_eq!(hole.num_segments(), 4);
 
     let shape = Shape::new(vec![contour, hole]).expect("valid inputs");
@@ -334,7 +334,7 @@ pub trait Composite {
 
     The implementation of this function relies on the fact that the centroids
     of simple geometric bodies (such as the [`Segment`]s making up a
-    [`SegmentChain`]) can be calculated from simple formulae. Those centroids
+    [`Polysegment`]) can be calculated from simple formulae. Those centroids
     can then be combined into that of a complex structure using the following
     formulae:
     `x = ∑ (xi * Ai) / ∑ Ai`
@@ -389,7 +389,7 @@ pub trait Composite {
     use planar_geo::prelude::*;
 
     let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0], [0.0, 0.0]];
-    let chain = SegmentChain::from_points(vertices);
+    let chain = Polysegment::from_points(vertices);
 
     let line = Line::from_point_angle([0.5, 0.5], 0.0);
     let mut intersections = chain.intersections_primitive(&line, 0.0, 0);
@@ -405,7 +405,7 @@ pub trait Composite {
     assert!(intersections.next().is_none());
     ```
      */
-    fn intersections_primitive<'a, T: Primitive + std::marker::Sync>(
+    fn intersections_primitive<'a, T: Primitive>(
         &'a self,
         primitive: &'a T,
         epsilon: f64,
@@ -427,7 +427,7 @@ pub trait Composite {
     ) -> impl ParallelIterator<Item = Intersection<Self::SegmentKey, ()>> + 'a;
 
     /**
-    Returns a iterator over all intersections of `self` with the `segment_chain`.
+    Returns a iterator over all intersections of `self` with the `polysegment`.
 
     # Examples
 
@@ -435,12 +435,12 @@ pub trait Composite {
     use planar_geo::prelude::*;
 
     let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0], [0.0, 0.0]];
-    let left = SegmentChain::from_points(vertices);
+    let left = Polysegment::from_points(vertices);
 
     let vertices = &[[2.0, 1.0], [2.0, 0.5], [0.0, 0.5]];
-    let right = SegmentChain::from_points(vertices);
+    let right = Polysegment::from_points(vertices);
 
-    let mut intersections = left.intersections_segment_chain(&right, 0.0, 0);
+    let mut intersections = left.intersections_polysegment(&right, 0.0, 0);
 
     approx::assert_abs_diff_eq!(
         intersections.next(),
@@ -453,23 +453,23 @@ pub trait Composite {
     assert!(intersections.next().is_none());
     ```
     */
-    fn intersections_segment_chain<'a>(
+    fn intersections_polysegment<'a>(
         &'a self,
-        segment_chain: &'a SegmentChain,
+        polysegment: &'a Polysegment,
         epsilon: f64,
         max_ulps: u32,
     ) -> impl Iterator<Item = Intersection<Self::SegmentKey, SegmentIdx>> + 'a;
 
     /**
     Returns a parallelized iterator over all intersections of `self` with the
-    `segment_chain`.
+    `polysegment`.
 
-    This is the parallelized variant of [`Composite::intersections_segment_chain`].
+    This is the parallelized variant of [`Composite::intersections_polysegment`].
     See its docstring for more information and examples.
      */
-    fn intersections_segment_chain_par<'a>(
+    fn intersections_polysegment_par<'a>(
         &'a self,
-        segment_chain: &'a SegmentChain,
+        polysegment: &'a Polysegment,
         epsilon: f64,
         max_ulps: u32,
     ) -> impl ParallelIterator<Item = Intersection<Self::SegmentKey, SegmentIdx>> + 'a;
@@ -483,10 +483,10 @@ pub trait Composite {
     use planar_geo::prelude::*;
 
     let vertices = &[[2.0, 1.0], [2.0, 0.5], [0.0, 0.5]];
-    let chain = SegmentChain::from_points(vertices);
+    let chain = Polysegment::from_points(vertices);
 
     let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
-    let contour = Contour::new(SegmentChain::from_points(vertices));
+    let contour = Contour::new(Polysegment::from_points(vertices));
 
     let mut intersections = chain.intersections_contour(&contour, 0.0, 0);
 
@@ -531,13 +531,13 @@ pub trait Composite {
     use planar_geo::prelude::*;
 
     let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
-    let contour = Contour::new(SegmentChain::from_points(vertices));
+    let contour = Contour::new(Polysegment::from_points(vertices));
     let vertices = &[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
-    let hole = Contour::new(SegmentChain::from_points(vertices));
+    let hole = Contour::new(Polysegment::from_points(vertices));
     let shape = Shape::new(vec![contour, hole]).expect("valid inputs");
 
     let vertices = &[[2.0, 1.0], [2.0, 0.5], [0.0, 0.5]];
-    let chain = SegmentChain::from_points(vertices);
+    let chain = Polysegment::from_points(vertices);
 
     let mut intersections = chain.intersections_shape(&shape, 0.0, 0);
 
@@ -578,11 +578,11 @@ pub trait Composite {
     [`Composite`].
 
     This is a generalized interface to all specialized intersection functions.
-    For example, if `self` is a [`SegmentChain`], the implementation of this
+    For example, if `self` is a [`Polysegment`], the implementation of this
     function boils down to:
 
     ```ignore
-    impl Composite for SegmentChain {
+    impl Composite for Polysegment {
         // Implementations of the other methods ...
 
         fn intersections_composite<'a, T: Composite>(
@@ -591,7 +591,7 @@ pub trait Composite {
             epsilon: f64,
             max_ulps: u32,
         ) -> PrimitiveIntersections {
-            other.intersections_segment_chain(self, epsilon, max_ulps)
+            other.intersections_polysegment(self, epsilon, max_ulps)
         }
     }
     ```
@@ -621,13 +621,26 @@ pub trait Composite {
         Self: Sized,
         <T as Composite>::SegmentKey: Send;
 
+    fn intersections<'a, T: Into<crate::geometry::GeometryRef<'a>>>(
+        &self,
+        other: T,
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> Vec<[f64; 2]>
+    where
+        Self: Sized,
+    {
+        let geo_ref: crate::geometry::GeometryRef = other.into();
+        return geo_ref.intersections_composite(self, epsilon, max_ulps);
+    }
+
     /**
     Returns whether the given point is contained within the composite or not.
 
     The definition of "contained" depends on the composite type:
-    - [`SegmentChain`]: A point is contained within it if it intersects any of
+    - [`Polysegment`]: A point is contained within it if it intersects any of
     its segments.
-    - [`Contour`]: Like the [`SegmentChain`] definition, but additionally a
+    - [`Contour`]: Like the [`Polysegment`] definition, but additionally a
     point is also contained if it is within the enclosed surface.
     - [`Shape`]: Like the contour definition, but a point is not considered
     contained if it is inside one of the "hole" contours.
@@ -638,15 +651,15 @@ pub trait Composite {
     use planar_geo::prelude::*;
 
     let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
-    let contour = Contour::new(SegmentChain::from_points(vertices));
+    let contour = Contour::new(Polysegment::from_points(vertices));
     let vertices = &[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
-    let hole = Contour::new(SegmentChain::from_points(vertices));
+    let hole = Contour::new(Polysegment::from_points(vertices));
     let shape = Shape::new(vec![contour.clone(), hole]).expect("valid inputs");
 
     let pt = [0.5, 0.5];
 
-    // pt is not on the segment chain defining the contour ...
-    assert!(!contour.segment_chain().contains_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    // pt is not on the polysegment defining the contour ...
+    assert!(!contour.polysegment().contains_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
 
     // ... but it is within the contour
     assert!(contour.contains_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
@@ -659,7 +672,7 @@ pub trait Composite {
 }
 
 /**
-This enum defines how a [`SegmentChain`] / [`Contour`] should be polygonized
+This enum defines how a [`Polysegment`] / [`Contour`] should be polygonized
 (approximated by a polygon). It is the counterpart of [`SegmentPolygonizer`] and
 built upon it.
  */
@@ -669,7 +682,7 @@ pub enum Polygonizer {
     This variant defines a single [`SegmentPolygonizer`] for all
     [`ArcSegment`](crate::segment::ArcSegment)s and another single
     [`SegmentPolygonizer`] for all [`LineSegment`](crate::segment::LineSegment)s
-    of a [`SegmentChain`] / [`Contour`].
+    of a [`Polysegment`] / [`Contour`].
      */
     PerType {
         /// [`SegmentPolygonizer`] for all arc segments.
@@ -679,7 +692,7 @@ pub enum Polygonizer {
     },
     /**
     This variant allows specifying individual [`SegmentPolygonizer`]s for each
-    segment of a [`SegmentChain`] / [`Contour`] via a
+    segment of a [`Polysegment`] / [`Contour`] via a
     [`map`](Polygonizer::Individual::map). The map uses the segment index as its
     key. If no entry can be found within the map for a particular segment index,
     the fallback [`default`](Polygonizer::Individual::default) is used to
@@ -726,7 +739,7 @@ An iterator over all points contained within the
  */
 #[derive(Clone, Debug)]
 pub struct PointIterator<'a> {
-    segment_chain: &'a SegmentChain,
+    polysegment: &'a Polysegment,
     index: usize,
     skip_last_vertex: bool,
     polygonizer: Polygonizer,
@@ -735,17 +748,17 @@ pub struct PointIterator<'a> {
 
 impl<'a> PointIterator<'a> {
     pub(crate) fn new(
-        segment_chain: &'a SegmentChain,
+        polysegment: &'a Polysegment,
         skip_last_vertex: bool,
         polygonizer: Polygonizer,
     ) -> Self {
-        let sub_iterator = segment_chain.front().map(|first_segment| {
+        let sub_iterator = polysegment.front().map(|first_segment| {
             let sub_polygonizer = polygonizer.segment_polygonizer(first_segment, 0);
 
             first_segment.polygonize(sub_polygonizer)
         });
         return Self {
-            segment_chain,
+            polysegment,
             index: 0,
             skip_last_vertex,
             polygonizer,
@@ -763,7 +776,7 @@ impl<'a> Iterator for PointIterator<'a> {
                 // Replace the sub-iterator with that of the next segment
                 self.index += 1;
 
-                let segment = match self.segment_chain.get(self.index) {
+                let segment = match self.polysegment.get(self.index) {
                     Some(s) => s,
                     None => {
                         self.sub_iterator = None;
@@ -776,9 +789,9 @@ impl<'a> Iterator for PointIterator<'a> {
                 let mut sub_iterator = segment.polygonize(sub_polygonizer);
                 sub_iterator.start_at_second_point();
 
-                // If the final vertex of the segment_chain should be skipped, adjust the new
+                // If the final vertex of the polysegment should be skipped, adjust the new
                 // sub iterator here
-                if self.index + 1 == self.segment_chain.len() && self.skip_last_vertex {
+                if self.index + 1 == self.polysegment.len() && self.skip_last_vertex {
                     sub_iterator.skip_last_vertex();
                 }
 
@@ -789,7 +802,7 @@ impl<'a> Iterator for PointIterator<'a> {
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let length = self.segment_chain.len();
+        let length = self.polysegment.len();
         (length, None)
     }
 }

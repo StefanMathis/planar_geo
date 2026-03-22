@@ -201,7 +201,7 @@ fn test_polygonize_segment_length() {
 
     let iter = line.polygonize(SegmentPolygonizer::MaximumSegmentLength(0.3));
     let pts: Vec<_> = iter.collect();
-    let chain = SegmentChain::from_points(&pts);
+    let chain = Polysegment::from_points(&pts);
     assert_eq!(chain.num_segments(), 4);
 
     for segments in chain.as_slices().0.windows(2) {
@@ -210,14 +210,14 @@ fn test_polygonize_segment_length() {
 
     let iter = line.polygonize(SegmentPolygonizer::InnerSegments(8));
     let pts: Vec<_> = iter.collect();
-    let chain = SegmentChain::from_points(&pts);
+    let chain = Polysegment::from_points(&pts);
     for segments in chain.as_slices().0.windows(2) {
         approx::assert_abs_diff_eq!(segments[0].length(), segments[1].length(), epsilon = 1e-14);
     }
 
     let iter = line.polygonize(SegmentPolygonizer::MaximumAngle(0.1));
     let pts: Vec<_> = iter.collect();
-    let chain = SegmentChain::from_points(&pts);
+    let chain = Polysegment::from_points(&pts);
     for segments in chain.as_slices().0.windows(2) {
         approx::assert_abs_diff_eq!(segments[0].length(), segments[1].length(), epsilon = 1e-14);
     }

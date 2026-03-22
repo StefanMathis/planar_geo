@@ -5,12 +5,12 @@ use planar_geo::{DEFAULT_EPSILON, DEFAULT_MAX_ULPS, prelude::*};
 #[test]
 fn test_bounding_line_segment() {
     {
-        let segment_chain: SegmentChain =
+        let polysegment: Polysegment =
             LineSegment::new([0.0, 0.0], [1.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS)
                 .unwrap()
                 .into();
 
-        let bb = BoundingBox::from(&segment_chain);
+        let bb = BoundingBox::from(&polysegment);
         assert_eq!(bb.xmin(), 0.0);
         assert_eq!(bb.xmax(), 1.0);
         assert_eq!(bb.ymin(), 0.0);
@@ -21,7 +21,7 @@ fn test_bounding_line_segment() {
 #[test]
 fn test_bounding_box_arc() {
     {
-        let segment_chain: SegmentChain = ArcSegment::from_center_radius_start_offset_angle(
+        let polysegment: Polysegment = ArcSegment::from_center_radius_start_offset_angle(
             [0.0, 0.0],
             0.5,
             0.0,
@@ -32,14 +32,14 @@ fn test_bounding_box_arc() {
         .unwrap()
         .into();
 
-        let bb = BoundingBox::from(&segment_chain);
+        let bb = BoundingBox::from(&polysegment);
         approx::assert_abs_diff_eq!(bb.xmin(), 0.0);
         approx::assert_abs_diff_eq!(bb.xmax(), 0.5);
         approx::assert_abs_diff_eq!(bb.ymin(), 0.0);
         approx::assert_abs_diff_eq!(bb.ymax(), 0.5);
     }
     {
-        let segment_chain: SegmentChain = ArcSegment::from_center_radius_start_offset_angle(
+        let polysegment: Polysegment = ArcSegment::from_center_radius_start_offset_angle(
             [0.0, 0.0],
             0.5,
             -FRAC_PI_2,
@@ -50,14 +50,14 @@ fn test_bounding_box_arc() {
         .unwrap()
         .into();
 
-        let bb = BoundingBox::from(&segment_chain);
+        let bb = BoundingBox::from(&polysegment);
         approx::assert_abs_diff_eq!(bb.xmin(), -0.5);
         approx::assert_abs_diff_eq!(bb.xmax(), 0.0);
         approx::assert_abs_diff_eq!(bb.ymin(), -0.5);
         approx::assert_abs_diff_eq!(bb.ymax(), 0.0);
     }
     {
-        let segment_chain: SegmentChain = ArcSegment::from_center_radius_start_offset_angle(
+        let polysegment: Polysegment = ArcSegment::from_center_radius_start_offset_angle(
             [0.0, 0.0],
             2.0,
             0.25 * PI,
@@ -68,14 +68,14 @@ fn test_bounding_box_arc() {
         .unwrap()
         .into();
 
-        let bb = BoundingBox::from(&segment_chain);
+        let bb = BoundingBox::from(&polysegment);
         approx::assert_abs_diff_eq!(bb.xmin(), -2.0f64.sqrt(),);
         approx::assert_abs_diff_eq!(bb.xmax(), 2.0f64.sqrt(),);
         approx::assert_abs_diff_eq!(bb.ymin(), 2.0f64.sqrt(),);
         approx::assert_abs_diff_eq!(bb.ymax(), 2.0);
     }
     {
-        let segment_chain: SegmentChain = ArcSegment::from_center_radius_start_offset_angle(
+        let polysegment: Polysegment = ArcSegment::from_center_radius_start_offset_angle(
             [0.0, 0.0],
             2.0,
             0.25 * PI,
@@ -86,7 +86,7 @@ fn test_bounding_box_arc() {
         .unwrap()
         .into();
 
-        let bb = BoundingBox::from(&segment_chain);
+        let bb = BoundingBox::from(&polysegment);
         approx::assert_abs_diff_eq!(bb.xmin(), 0.90798, epsilon = 1e-4);
         approx::assert_abs_diff_eq!(bb.xmax(), 2.0f64.sqrt(),);
         approx::assert_abs_diff_eq!(bb.ymin(), 2.0f64.sqrt(),);
@@ -97,7 +97,7 @@ fn test_bounding_box_arc() {
 #[test]
 fn test_bounding_two_box_shapes() {
     let vertices = [[10e-3, 0.0], [10e-3, 5e-3], [-10e-3, 5e-3], [-10e-3, 0.0]];
-    let chain = SegmentChain::from_points(vertices.as_slice());
+    let chain = Polysegment::from_points(vertices.as_slice());
     let shape_lower = Shape::new(vec![Contour::new(chain)]).unwrap();
 
     let vertices = vec![
@@ -106,7 +106,7 @@ fn test_bounding_two_box_shapes() {
         [-10e-3, 10e-3],
         [-10e-3, 5e-3],
     ];
-    let chain = SegmentChain::from_points(vertices.as_slice());
+    let chain = Polysegment::from_points(vertices.as_slice());
     let shape_upper = Shape::new(vec![Contour::new(chain)]).unwrap();
 
     let shapes = vec![shape_lower, shape_upper];

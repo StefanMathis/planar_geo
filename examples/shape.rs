@@ -27,8 +27,8 @@ fn main() {
     )
     .expect("radius is positive and offset angle is not zero");
 
-    // Connect those three segments to a segment chain
-    let mut chain = SegmentChain::new();
+    // Connect those three segments to a polysegment
+    let mut chain = Polysegment::new();
     chain.push_back(first_arc.into());
     chain.push_back(line.into());
     chain.push_back(second_arc.into());
@@ -38,7 +38,7 @@ fn main() {
     let outer_contour = Contour::new(chain);
 
     // Create a second contour via a simplified constructor
-    let rect_hole = Contour::new(SegmentChain::from_points(&[
+    let rect_hole = Contour::new(Polysegment::from_points(&[
         [1.5, 0.2],
         [3.5, 0.2],
         [3.5, 1.3],

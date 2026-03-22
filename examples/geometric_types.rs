@@ -76,35 +76,35 @@ fn main() {
     })
     .expect("image creation failed");
 
-    // Segment chain
+    // Polysegment
     // =========================================================================
-    let mut segment_chain = SegmentChain::new();
+    let mut polysegment = Polysegment::new();
 
-    segment_chain.push_back(
+    polysegment.push_back(
         ArcSegment::from_center_radius_start_offset_angle([0.0, 0.0], 1.0, 0.0, -0.5 * PI, e, m)
             .unwrap()
             .into(),
     );
-    segment_chain.extend_back([-1.0, -1.0]);
-    segment_chain.extend_back([-1.0, 0.0]);
+    polysegment.extend_back([-1.0, -1.0]);
+    polysegment.extend_back([-1.0, 0.0]);
 
-    let mut bb = BoundingBox::from(&segment_chain);
+    let mut bb = BoundingBox::from(&polysegment);
     bb.scale(1.1);
 
     let view = Viewport::from_bounding_box(&bb, SideLength::Long(600));
 
-    let fp = file_path("example_segment_chain");
+    let fp = file_path("example_polysegment");
     view.write_to_file(&fp, |cr| {
         cr.set_source_rgb(1.0, 1.0, 1.0);
         cr.paint()?;
-        segment_chain.draw(&style, cr)?;
+        polysegment.draw(&style, cr)?;
         return Ok(());
     })
     .expect("image creation failed");
 
     // Contour
     // =========================================================================
-    let contour = Contour::new(segment_chain);
+    let contour = Contour::new(polysegment);
 
     let fp = file_path("example_contour");
     view.write_to_file(&fp, |cr| {

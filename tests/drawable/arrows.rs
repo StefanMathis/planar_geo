@@ -3,8 +3,8 @@ use std::f64::consts::{FRAC_PI_2, FRAC_PI_4, PI};
 use cairo_viewport::{SideLength, Viewport};
 use planar_geo::{
     contour::ArrowHeadSize,
+    draw::{Color, LineStyle, Style},
     prelude::*,
-    visualize::{Color, LineStyle, Style},
 };
 
 #[test]
@@ -207,8 +207,8 @@ fn test_arrow_with_dashed_tail() {
     let mut style = Style::default();
     style.line_style = LineStyle::default_dashed();
 
-    let segment_chain = Contour::rectangle([0.0, 0.0], [1.0, 1.0]);
-    let rectangle = Shape::new(vec![segment_chain]).unwrap();
+    let polysegment = Contour::rectangle([0.0, 0.0], [1.0, 1.0]);
+    let rectangle = Shape::new(vec![polysegment]).unwrap();
 
     let view = Viewport::from_bounded_entities(
         [BoundingBox::from(&arrow), BoundingBox::from(&rectangle)].into_iter(),

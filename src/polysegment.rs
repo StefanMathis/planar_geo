@@ -1,5 +1,5 @@
 /*!
-Defines the [`SegmentChain`] type, a foundational [`Composite`] used throughout
+Defines the [`Polysegment`] type, a foundational [`Composite`] used throughout
 this crate.
 
 Segment chains serve as the basis for higher-level geometric types such as
@@ -7,7 +7,7 @@ Segment chains serve as the basis for higher-level geometric types such as
 represent connected sequences of segments and provide the core functionality
 required by composite geometries.
 
-Most users should interact with this module through the [`SegmentChain`] type
+Most users should interact with this module through the [`Polysegment`] type
 itself; see its documentation for details on construction, invariants, and
 usage.
 */
@@ -37,14 +37,11 @@ successor).
 #[doc = ""]
 #[cfg_attr(
     feature = "doc-images",
-    doc = "![Segment chain example][example_segment_chain]"
+    doc = "![Polysegment example][example_polysegment]"
 )]
 #[cfg_attr(
     feature = "doc-images",
-    embed_doc_image::embed_doc_image(
-        "example_segment_chain",
-        "docs/img/example_segment_chain.svg"
-    )
+    embed_doc_image::embed_doc_image("example_polysegment", "docs/img/example_polysegment.svg")
 )]
 #[cfg_attr(
     not(feature = "doc-images"),
@@ -59,77 +56,77 @@ The approximate equality of start and end point is defined by
 approx::ulps_eq!(chain[i].stop(), chain[i+1].start(), epsilon = DEFAULT_EPSILON, max_ulps = DEFAULT_MAX_ULPS)
 ```
 
-A segment chain can intersect itself (i.e. at least two of its segments
+A polysegment can intersect itself (i.e. at least two of its segments
 intersect each other). This can be tested using its [`Composite`] trait
 implementation:
 
 ```
 use planar_geo::prelude::*;
 
-let chain = SegmentChain::from_points(&[[0.0, 0.0], [2.0, 2.0], [0.0, 2.0], [2.0, 0.0]]);
-assert_eq!(chain.intersections_segment_chain(&chain, 0.0, 0).count(), 1);
+let chain = Polysegment::from_points(&[[0.0, 0.0], [2.0, 2.0], [0.0, 2.0], [2.0, 0.0]]);
+assert_eq!(chain.intersections_polysegment(&chain, 0.0, 0).count(), 1);
 ```
 
-# Constructing a segment chain
+# Constructing a polysegment
 
-A segment chain is essentially a [newtype](https://doc.rust-lang.org/rust-by-example/generics/new_types.html)
+A polysegment is essentially a [newtype](https://doc.rust-lang.org/rust-by-example/generics/new_types.html)
 wrapper around a [`VecDeque<Segment>`] and therefore exposes many of the same
-methods. For example, a segment chain can be built via
-[`push_front`](SegmentChain::push_front) and
-[`push_back`](SegmentChain::push_back) just like a [`VecDeque`]. The
-[`extend_front`](SegmentChain::extend_front) and
-[`extend_back`](SegmentChain::extend_back) methods can be used to implicitly
+methods. For example, a polysegment can be built via
+[`push_front`](Polysegment::push_front) and
+[`push_back`](Polysegment::push_back) just like a [`VecDeque`]. The
+[`extend_front`](Polysegment::extend_front) and
+[`extend_back`](Polysegment::extend_back) methods can be used to implicitly
 add [`LineSegment`]s.
 
 There are multiple constructors available:
-- [`new`](SegmentChain::new): A new, empty segment chain with no segment.
-- [`with_capacity`](SegmentChain::with_capacity): A new, empty segment chain
+- [`new`](Polysegment::new): A new, empty polysegment with no segment.
+- [`with_capacity`](Polysegment::with_capacity): A new, empty polysegment
 with a defined space for segments preallocated with no segment.
-- [`from_points`](SegmentChain::from_points): A segment chain consisting of
+- [`from_points`](Polysegment::from_points): A polysegment consisting of
 [`LineSegment`]s which connect the given points.
-- [`from_iter`](SegmentChain::from_iter): A segment chain consisting of the
+- [`from_iter`](Polysegment::from_iter): A polysegment consisting of the
 segments given by an iterator. In case two subsequent segments are not
 connected, a "filler" [`LineSegment`] is introduced between them.
 
-# Modifying a segment chain
+# Modifying a polysegment
 
 To uphold the "connection" property, it is not possible to manipulate arbitrary
 segments, which is why methods like [`VecDeque::get_mut`] are missing.
-It is however possible to manipulate the whole segment chain via the
+It is however possible to manipulate the whole polysegment via the
 [`Transformation`] implementation. Additionally, individual segments can be
-removed from the ends of the chain with [`pop_front`](SegmentChain::pop_front)
-and [`pop_back`](SegmentChain::pop_back).
+removed from the ends of the chain with [`pop_front`](Polysegment::pop_front)
+and [`pop_back`](Polysegment::pop_back).
 
 # Access of individual segments
 
 Accessing individual segments is possible via indexing (which panics when
-out-of-bounds) and the [`get`](SegmentChain::get) method (which returns `None`
+out-of-bounds) and the [`get`](Polysegment::get) method (which returns `None`
 when out-of-bounds). As in the underlying deque, the segments are not
 necessarily contiguous in memory and can generally only be accessed via two
-slices with the [`as_slices`](SegmentChain::as_slices) method. [`SegmentChain`]
-does however expose the [`make_contiguous`](SegmentChain::make_contiguous) to
+slices with the [`as_slices`](Polysegment::as_slices) method. [`Polysegment`]
+does however expose the [`make_contiguous`](Polysegment::make_contiguous) to
 store the segments contiguous in memory.
 
 # Serialization and deserialization
 
-When the `serde` feature is enabled, a segment chain can be serialized and
+When the `serde` feature is enabled, a polysegment can be serialized and
 deserialized using the [`serde`] crate. It uses the same serialized
 representation as a [`VecDeque`].
  */
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct SegmentChain(VecDeque<Segment>);
+pub struct Polysegment(VecDeque<Segment>);
 
-impl SegmentChain {
+impl Polysegment {
     /**
-    Creates an empty [`SegmentChain`].
+    Creates an empty [`Polysegment`].
 
     # Examples
 
     ```
-    use planar_geo::prelude::SegmentChain;
+    use planar_geo::prelude::Polysegment;
 
-    let chain = SegmentChain::new();
+    let chain = Polysegment::new();
     ```
      */
     pub fn new() -> Self {
@@ -137,15 +134,15 @@ impl SegmentChain {
     }
 
     /**
-    Creates an empty [`SegmentChain`] with space for at least `capacity`
+    Creates an empty [`Polysegment`] with space for at least `capacity`
     [`Segment`].
 
     # Examples
 
     ```
-    use planar_geo::prelude::SegmentChain;
+    use planar_geo::prelude::Polysegment;
 
-    let chain = SegmentChain::with_capacity(10);
+    let chain = Polysegment::with_capacity(10);
     ```
      */
     pub fn with_capacity(capacity: usize) -> Self {
@@ -153,7 +150,7 @@ impl SegmentChain {
     }
 
     /**
-    Creates an [`SegmentChain`] of [`LineSegment`]s from the given points.
+    Creates an [`Polysegment`] of [`LineSegment`]s from the given points.
     If two consecutive points are equal (within the tolerances defined by
     [`DEFAULT_EPSILON`] and [`DEFAULT_MAX_ULPS`]), they are treated as a single
     vertex.
@@ -161,14 +158,14 @@ impl SegmentChain {
     # Examples
 
     ```
-    use planar_geo::prelude::SegmentChain;
+    use planar_geo::prelude::Polysegment;
 
     // Three points -> Two line segments
-    let chain = SegmentChain::from_points(&[[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]);
+    let chain = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]);
     assert_eq!(chain.len(), 2);
 
     // Two consecutive points are equal
-    let chain = SegmentChain::from_points(&[[0.0, 0.0], [0.0, 0.0], [0.0, 1.0]]);
+    let chain = Polysegment::from_points(&[[0.0, 0.0], [0.0, 0.0], [0.0, 1.0]]);
     assert_eq!(chain.len(), 1);
     ```
      */
@@ -194,17 +191,17 @@ impl SegmentChain {
     }
 
     /**
-    "Closes" the [`SegmentChain`] by connecting the start point of the first /
+    "Closes" the [`Polysegment`] by connecting the start point of the first /
     "front" segment with the stop point of the last / "back" segment with a
     [`LineSegment`] (if the two points aren't already equal).
 
     # Examples
 
     ```
-    use planar_geo::prelude::SegmentChain;
+    use planar_geo::prelude::Polysegment;
 
     // Three points -> Two line segments
-    let mut chain = SegmentChain::from_points(&[[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]);
+    let mut chain = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]);
     assert_eq!(chain.len(), 2);
 
     // Close the chain
@@ -254,9 +251,9 @@ impl SegmentChain {
     }
 
     /**
-    Appends a [`Segment`] to the back of the [`SegmentChain`].
+    Appends a [`Segment`] to the back of the [`Polysegment`].
 
-    If the chain already has a "back" segment ([`SegmentChain::back`] returns
+    If the chain already has a "back" segment ([`Polysegment::back`] returns
     [`Some`]), the start point of `segment` is compared to the stop point of
     the back segment. If they aren't equal within the tolerances defined by
     [`DEFAULT_EPSILON`] and [`DEFAULT_MAX_ULPS`], a filler line segment is
@@ -267,7 +264,7 @@ impl SegmentChain {
     ```
     use planar_geo::prelude::*;
 
-    let mut chain = SegmentChain::new();
+    let mut chain = Polysegment::new();
     assert_eq!(chain.len(), 0);
 
     chain.push_back(LineSegment::new([0.0, 0.0], [1.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap().into());
@@ -296,9 +293,9 @@ impl SegmentChain {
     }
 
     /**
-    Prepends a [`Segment`] to the front of the [`SegmentChain`].
+    Prepends a [`Segment`] to the front of the [`Polysegment`].
 
-    If the chain already has a "front" segment ([`SegmentChain::front`] returns
+    If the chain already has a "front" segment ([`Polysegment::front`] returns
     [`Some`]), the stop point of `segment` is compared to the start point of
     the front segment. If they aren't equal within the tolerances defined by
     [`DEFAULT_EPSILON`] and [`DEFAULT_MAX_ULPS`], a filler line segment is
@@ -309,7 +306,7 @@ impl SegmentChain {
     ```
     use planar_geo::prelude::*;
 
-    let mut chain = SegmentChain::new();
+    let mut chain = Polysegment::new();
     assert_eq!(chain.len(), 0);
 
     chain.push_front(LineSegment::new([0.0, 0.0], [1.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap().into());
@@ -346,7 +343,7 @@ impl SegmentChain {
     ```
     use planar_geo::prelude::*;
 
-    let mut chain = SegmentChain::new();
+    let mut chain = Polysegment::new();
 
     let ls: Segment = LineSegment::new([0.0, 0.0], [1.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap().into();
 
@@ -369,7 +366,7 @@ impl SegmentChain {
     ```
     use planar_geo::prelude::*;
 
-    let mut chain = SegmentChain::new();
+    let mut chain = Polysegment::new();
 
     let ls: Segment = LineSegment::new([0.0, 0.0], [1.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap().into();
 
@@ -391,7 +388,7 @@ impl SegmentChain {
     ```
     use planar_geo::prelude::*;
 
-    let chain = SegmentChain::from_points(&[[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]);
+    let chain = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]);
     let ls: Segment = LineSegment::new([1.0, 0.0], [0.0, 1.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap().into();
 
     assert_eq!(chain.back(), Some(&ls));
@@ -409,7 +406,7 @@ impl SegmentChain {
     ```
     use planar_geo::prelude::*;
 
-    let chain = SegmentChain::from_points(&[[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]);
+    let chain = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]);
     let ls: Segment = LineSegment::new([0.0, 0.0], [1.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap().into();
 
     assert_eq!(chain.front(), Some(&ls));
@@ -421,7 +418,7 @@ impl SegmentChain {
     /**
     Adds a [`LineSegment`] to the front of `self` which stops at `point` and
     starts at the current stop point of `self` - i.e., the `stop` point of the
-    [`Segment`] returned from [`SegmentChain::back`]. If `self` is empty or
+    [`Segment`] returned from [`Polysegment::back`]. If `self` is empty or
     `point` is equal to `stop`, this is a no-op.
 
     # Examples
@@ -429,7 +426,7 @@ impl SegmentChain {
     ```
     use planar_geo::prelude::*;
 
-    let mut chain = SegmentChain::new();
+    let mut chain = Polysegment::new();
     assert_eq!(chain.len(), 0);
 
     // No-op, since the chain is empty
@@ -457,7 +454,7 @@ impl SegmentChain {
     /**
     Adds a [`LineSegment`] to the front of `self` which starts at `point` and
     stops at the current start point of `self` - i.e., the `start` point of the
-    [`Segment`] returned from [`SegmentChain::front`]. If `self` is empty or
+    [`Segment`] returned from [`Polysegment::front`]. If `self` is empty or
     `point` is equal to `start`, this is a no-op.
 
     # Examples
@@ -465,7 +462,7 @@ impl SegmentChain {
     ```
     use planar_geo::prelude::*;
 
-    let mut chain = SegmentChain::new();
+    let mut chain = Polysegment::new();
     assert_eq!(chain.len(), 0);
 
     // No-op, since the chain is empty
@@ -498,7 +495,7 @@ impl SegmentChain {
     ```
      use planar_geo::prelude::*;
 
-    let mut chain = SegmentChain::new();
+    let mut chain = Polysegment::new();
     assert!(chain.is_empty());
 
     chain.push_back(LineSegment::new([0.0, 0.0], [1.0, 0.0], 0.0, 0).unwrap().into());
@@ -519,7 +516,7 @@ impl SegmentChain {
     ```
      use planar_geo::prelude::*;
 
-    let chain = SegmentChain::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]);
+    let chain = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]);
     assert!(chain.get(0).is_some());
     assert!(chain.get(3).is_none());
     ```
@@ -536,7 +533,7 @@ impl SegmentChain {
     ```
     use planar_geo::prelude::*;
 
-    let chain = SegmentChain::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]);
+    let chain = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]);
     assert_eq!(chain.len(), 2);
     ```
      */
@@ -552,7 +549,7 @@ impl SegmentChain {
     ```
     use planar_geo::prelude::*;
 
-    let chain = SegmentChain::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]);
+    let chain = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]);
     let mut iter = chain.iter();
     assert!(iter.next().is_some());
     assert!(iter.next().is_some());
@@ -572,7 +569,7 @@ impl SegmentChain {
     use rayon::prelude::*;
     use planar_geo::prelude::*;
 
-    let chain = SegmentChain::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]);
+    let chain = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]);
     let vec: Vec<_> = chain.par_iter().collect();
     assert_eq!(vec.len(), 2);
     ```
@@ -596,9 +593,9 @@ impl SegmentChain {
     ```
     use planar_geo::prelude::*;
 
-    let mut chain1 = SegmentChain::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]);
-    let mut chain2 = SegmentChain::from_points(&[[1.0, 1.0], [0.0, 1.0]]);
-    let mut chain3 = SegmentChain::from_points(&[[0.0, 2.0], [0.0, 3.0]]);
+    let mut chain1 = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]);
+    let mut chain2 = Polysegment::from_points(&[[1.0, 1.0], [0.0, 1.0]]);
+    let mut chain3 = Polysegment::from_points(&[[0.0, 2.0], [0.0, 3.0]]);
 
     assert_eq!(chain1.len(), 2);
     assert_eq!(chain2.len(), 1);
@@ -611,7 +608,7 @@ impl SegmentChain {
     assert_eq!(chain1.len(), 5);
     ```
      */
-    pub fn append(&mut self, other: &mut SegmentChain) -> () {
+    pub fn append(&mut self, other: &mut Polysegment) -> () {
         if let Some(s) = other.0.front() {
             let start = s.start();
             if let Some(s) = self.0.back() {
@@ -634,7 +631,7 @@ impl SegmentChain {
     ```
     use planar_geo::prelude::*;
 
-    let chain = SegmentChain::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]);
+    let chain = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]);
 
     let mut iter = chain.points();
     assert_eq!(iter.next(), Some([0.0, 0.0]));
@@ -666,26 +663,26 @@ impl SegmentChain {
 
     // Square with a side length of 1
     let points = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
-    let mut segment_chain = SegmentChain::from_points(points);
-    segment_chain.close();
-    assert_eq!(segment_chain.length(), 4.0);
+    let mut polysegment = Polysegment::from_points(points);
+    polysegment.close();
+    assert_eq!(polysegment.length(), 4.0);
 
     // Circle with a radius of 1
     let segment: Segment = ArcSegment::from_center_radius_start_offset_angle([0.0, 0.0], 1.0, 0.0, TAU, DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap().into();
-    let segment_chain = SegmentChain::from(segment);
-    assert_eq!(segment_chain.length(), TAU);
+    let polysegment = Polysegment::from(segment);
+    assert_eq!(polysegment.length(), TAU);
 
     // Half-circle segment
     let segment: Segment = ArcSegment::from_center_radius_start_offset_angle([0.0, 0.0], 1.0, 0.0, PI, DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap().into();
-    let mut segment_chain = SegmentChain::from(segment);
-    segment_chain.close();
-    assert_eq!(segment_chain.length(), PI + 2.0);
+    let mut polysegment = Polysegment::from(segment);
+    polysegment.close();
+    assert_eq!(polysegment.length(), PI + 2.0);
 
     // Triangle
     let points = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]];
-    let mut segment_chain = SegmentChain::from_points(points);
-    segment_chain.close();
-    assert_eq!(segment_chain.length(), 2.0 + SQRT_2);
+    let mut polysegment = Polysegment::from_points(points);
+    polysegment.close();
+    assert_eq!(polysegment.length(), 2.0 + SQRT_2);
     ```
      */
     pub fn length(&self) -> f64 {
@@ -706,8 +703,8 @@ impl SegmentChain {
     use planar_geo::prelude::*;
 
     let points = &[[0.0, 0.0], [2.0, 0.0], [2.0, 2.0], [0.0, 2.0]];
-    let line = SegmentChain::from_points(points);
-    let cut = SegmentChain::from_points(&[[-1.0, 1.0], [3.0, 1.0]]);
+    let line = Polysegment::from_points(points);
+    let cut = Polysegment::from_points(&[[-1.0, 1.0], [3.0, 1.0]]);
 
     let separated_lines = line.intersection_cut(&cut, DEFAULT_EPSILON, DEFAULT_MAX_ULPS);
 
@@ -717,10 +714,10 @@ impl SegmentChain {
      */
     pub fn intersection_cut(
         &self,
-        other: &SegmentChain,
+        other: &Polysegment,
         epsilon: f64,
         max_ulps: u32,
-    ) -> Vec<SegmentChain> {
+    ) -> Vec<Polysegment> {
         // Inner helper function
         fn create_cut_segment(
             segment: &Segment,
@@ -765,7 +762,7 @@ impl SegmentChain {
             }
         }
 
-        let mut lines: Vec<SegmentChain> = Vec::new();
+        let mut lines: Vec<Polysegment> = Vec::new();
         let mut segments_of_current_line: Vec<Segment> = Vec::new();
 
         // Temporary variables. The values themselves are dummy values to satisfy the
@@ -837,10 +834,10 @@ impl SegmentChain {
                             max_ulps,
                         ) {
                             if segments_of_current_line.is_empty() {
-                                lines.push(SegmentChain::from(segment));
+                                lines.push(Polysegment::from(segment));
                             } else {
                                 let mut chain =
-                                    SegmentChain::with_capacity(segments_of_current_line.len());
+                                    Polysegment::with_capacity(segments_of_current_line.len());
                                 for s in segments_of_current_line.into_iter() {
                                     chain.push_back(s);
                                 }
@@ -850,7 +847,7 @@ impl SegmentChain {
                         } else {
                             if !segments_of_current_line.is_empty() {
                                 let mut chain =
-                                    SegmentChain::with_capacity(segments_of_current_line.len());
+                                    Polysegment::with_capacity(segments_of_current_line.len());
                                 for s in segments_of_current_line.into_iter() {
                                     chain.push_back(s);
                                 }
@@ -874,7 +871,7 @@ impl SegmentChain {
                             epsilon,
                             max_ulps,
                         ) {
-                            lines.push(SegmentChain::from(segment));
+                            lines.push(Polysegment::from(segment));
                         }
                     };
                 }
@@ -896,7 +893,7 @@ impl SegmentChain {
         }
 
         // Store the last segments as a line into the lines vector
-        let mut chain = SegmentChain::with_capacity(segments_of_current_line.len());
+        let mut chain = Polysegment::with_capacity(segments_of_current_line.len());
         for s in segments_of_current_line.into_iter() {
             chain.push_back(s);
         }
@@ -910,7 +907,7 @@ impl SegmentChain {
     points (see [`Segment::reverse`]). To ensure the "connected" property holds
     true, the ordering of the segments itself is exchanged as well.
 
-    This method calls [`make_contiguous`](SegmentChain::make_contiguous) so all
+    This method calls [`make_contiguous`](Polysegment::make_contiguous) so all
     segments are in the first slice before reversing it.
 
     # Examples
@@ -918,7 +915,7 @@ impl SegmentChain {
     ```
     use planar_geo::prelude::*;
 
-    let mut chain = SegmentChain::from_points(&[[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]);
+    let mut chain = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]);
     assert_eq!(chain.front().unwrap().start(), [0.0, 0.0]);
     assert_eq!(chain.back().unwrap().stop(), [0.0, 1.0]);
 
@@ -950,7 +947,7 @@ impl SegmentChain {
     use planar_geo::prelude::*;
     use std::f64::consts::FRAC_PI_2;
 
-    let mut chain = SegmentChain::from_points(&[[0.0, 0.0], [1.0, 0.0]]);
+    let mut chain = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0]]);
 
     // 0 repetitions => The original chain is left unchanged
     chain.rotational_pattern([1.0, 1.0], FRAC_PI_2, 0);
@@ -998,7 +995,7 @@ impl SegmentChain {
     use planar_geo::prelude::*;
     use std::f64::consts::FRAC_PI_2;
 
-    let mut chain = SegmentChain::from_points(&[[0.0, 0.0], [1.0, 0.0]]);
+    let mut chain = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0]]);
 
     // 0 repetitions => The original chain is left unchanged
     chain.translational_pattern([1.0, 1.0], 0);
@@ -1007,7 +1004,7 @@ impl SegmentChain {
     approx::assert_abs_diff_eq!(points[0], [0.0, 0.0], epsilon = 1e-10);
     approx::assert_abs_diff_eq!(points[1], [1.0, 0.0], epsilon = 1e-10);
 
-    // Two repetitions: A "stair" segment chain is created
+    // Two repetitions: A "stair" polysegment is created
     chain.translational_pattern([1.0, 1.0], 2);
     let points: Vec<[f64; 2]> = chain.points().collect();
     assert_eq!(points.len(), 6);
@@ -1035,9 +1032,9 @@ impl SegmentChain {
     }
 }
 
-impl FromIterator<Segment> for SegmentChain {
+impl FromIterator<Segment> for Polysegment {
     fn from_iter<T: IntoIterator<Item = Segment>>(iter: T) -> Self {
-        let mut chain = SegmentChain::new();
+        let mut chain = Polysegment::new();
         for segment in iter {
             chain.push_back(segment);
         }
@@ -1045,7 +1042,7 @@ impl FromIterator<Segment> for SegmentChain {
     }
 }
 
-impl Composite for SegmentChain {
+impl Composite for Polysegment {
     type SegmentKey = SegmentIdx;
 
     fn segment(&self, key: Self::SegmentKey) -> Option<&crate::segment::Segment> {
@@ -1060,7 +1057,7 @@ impl Composite for SegmentChain {
         return crate::CentroidData::from(self).into();
     }
 
-    fn intersections_primitive<'a, T: Primitive + std::marker::Sync>(
+    fn intersections_primitive<'a, T: Primitive>(
         &'a self,
         primitive: &'a T,
         epsilon: f64,
@@ -1101,13 +1098,13 @@ impl Composite for SegmentChain {
             .flatten()
     }
 
-    fn intersections_segment_chain<'a>(
+    fn intersections_polysegment<'a>(
         &'a self,
         other: &'a Self,
         epsilon: f64,
         max_ulps: u32,
     ) -> impl Iterator<Item = Intersection<Self::SegmentKey, SegmentIdx>> + 'a {
-        let same_segment_chain_len = if std::ptr::eq(self, other) {
+        let same_polysegment_len = if std::ptr::eq(self, other) {
             Some(self.num_segments())
         } else {
             None
@@ -1121,24 +1118,24 @@ impl Composite for SegmentChain {
             .iter()
             .enumerate()
             .flat_map(move |(right_idx, right_seg)| {
-                intersections_between_segment_chain_and_segment_priv(
+                intersections_between_polysegment_and_segment_priv(
                     self.0.iter(),
                     right_idx,
                     right_seg,
-                    same_segment_chain_len,
+                    same_polysegment_len,
                     epsilon,
                     max_ulps,
                 )
             });
     }
 
-    fn intersections_segment_chain_par<'a>(
+    fn intersections_polysegment_par<'a>(
         &'a self,
         other: &'a Self,
         epsilon: f64,
         max_ulps: u32,
     ) -> impl ParallelIterator<Item = Intersection<Self::SegmentKey, SegmentIdx>> + 'a {
-        let same_segment_chain_len = if std::ptr::eq(self, other) {
+        let same_polysegment_len = if std::ptr::eq(self, other) {
             Some(self.num_segments())
         } else {
             None
@@ -1153,11 +1150,11 @@ impl Composite for SegmentChain {
             .par_iter()
             .enumerate()
             .flat_map(move |(right_idx, right_seg)| {
-                intersections_between_segment_chain_and_segment_priv_par(
+                intersections_between_polysegment_and_segment_priv_par(
                     self.0.par_iter(),
                     right_idx,
                     right_seg,
-                    same_segment_chain_len,
+                    same_polysegment_len,
                     epsilon,
                     max_ulps,
                 )
@@ -1170,7 +1167,7 @@ impl Composite for SegmentChain {
         epsilon: f64,
         max_ulps: u32,
     ) -> impl Iterator<Item = Intersection<Self::SegmentKey, SegmentIdx>> {
-        return self.intersections_segment_chain(contour.segment_chain(), epsilon, max_ulps);
+        return self.intersections_polysegment(contour.polysegment(), epsilon, max_ulps);
     }
 
     fn intersections_contour_par<'a>(
@@ -1179,7 +1176,7 @@ impl Composite for SegmentChain {
         epsilon: f64,
         max_ulps: u32,
     ) -> impl ParallelIterator<Item = Intersection<Self::SegmentKey, SegmentIdx>> + 'a {
-        return self.intersections_segment_chain_par(contour.segment_chain(), epsilon, max_ulps);
+        return self.intersections_polysegment_par(contour.polysegment(), epsilon, max_ulps);
     }
 
     fn intersections_shape<'a>(
@@ -1189,7 +1186,7 @@ impl Composite for SegmentChain {
         max_ulps: u32,
     ) -> impl Iterator<Item = Intersection<Self::SegmentKey, ShapeIdx>> {
         shape
-            .intersections_segment_chain(self, epsilon, max_ulps)
+            .intersections_polysegment(self, epsilon, max_ulps)
             .map(Intersection::switch)
     }
 
@@ -1200,7 +1197,7 @@ impl Composite for SegmentChain {
         max_ulps: u32,
     ) -> impl ParallelIterator<Item = Intersection<Self::SegmentKey, ShapeIdx>> {
         shape
-            .intersections_segment_chain_par(self, epsilon, max_ulps)
+            .intersections_polysegment_par(self, epsilon, max_ulps)
             .map(Intersection::switch)
     }
 
@@ -1214,7 +1211,7 @@ impl Composite for SegmentChain {
         Self: Sized,
     {
         return other
-            .intersections_segment_chain(self, epsilon, max_ulps)
+            .intersections_polysegment(self, epsilon, max_ulps)
             .map(Intersection::switch);
     }
 
@@ -1229,7 +1226,7 @@ impl Composite for SegmentChain {
         <T as Composite>::SegmentKey: Send,
     {
         return other
-            .intersections_segment_chain_par(self, epsilon, max_ulps)
+            .intersections_polysegment_par(self, epsilon, max_ulps)
             .map(Intersection::switch);
     }
 
@@ -1241,7 +1238,7 @@ impl Composite for SegmentChain {
     }
 }
 
-impl std::ops::Index<usize> for SegmentChain {
+impl std::ops::Index<usize> for Polysegment {
     type Output = Segment;
 
     fn index(&self, index: usize) -> &Self::Output {
@@ -1249,27 +1246,27 @@ impl std::ops::Index<usize> for SegmentChain {
     }
 }
 
-impl From<Segment> for SegmentChain {
+impl From<Segment> for Polysegment {
     fn from(value: Segment) -> Self {
-        let mut chain = SegmentChain::new();
+        let mut chain = Polysegment::new();
         chain.push_back(value);
         return chain;
     }
 }
 
-impl From<LineSegment> for SegmentChain {
+impl From<LineSegment> for Polysegment {
     fn from(value: LineSegment) -> Self {
-        return SegmentChain::from(Segment::LineSegment(value));
+        return Polysegment::from(Segment::LineSegment(value));
     }
 }
 
-impl From<ArcSegment> for SegmentChain {
+impl From<ArcSegment> for Polysegment {
     fn from(value: ArcSegment) -> Self {
-        return SegmentChain::from(Segment::ArcSegment(value));
+        return Polysegment::from(Segment::ArcSegment(value));
     }
 }
 
-impl Transformation for SegmentChain {
+impl Transformation for Polysegment {
     fn rotate(&mut self, center: [f64; 2], angle: f64) -> () {
         self.0.par_iter_mut().for_each(|segment| {
             segment.rotate(center, angle);
@@ -1295,8 +1292,8 @@ impl Transformation for SegmentChain {
     }
 }
 
-impl From<&SegmentChain> for BoundingBox {
-    fn from(value: &SegmentChain) -> BoundingBox {
+impl From<&Polysegment> for BoundingBox {
+    fn from(value: &Polysegment) -> BoundingBox {
         // Use the bounding box of the first segment as a starting point
         return value
             .par_iter()
@@ -1315,7 +1312,7 @@ impl From<&SegmentChain> for BoundingBox {
     }
 }
 
-impl IntoIterator for SegmentChain {
+impl IntoIterator for Polysegment {
     type Item = Segment;
     type IntoIter = std::collections::vec_deque::IntoIter<Segment>;
 
@@ -1324,11 +1321,11 @@ impl IntoIterator for SegmentChain {
     }
 }
 
-fn intersections_between_segment_chain_and_segment_priv<'a, L>(
+fn intersections_between_polysegment_and_segment_priv<'a, L>(
     left: L,
     right_idx: usize,
     right_seg: &'a Segment,
-    same_segment_chain_len: Option<usize>,
+    same_polysegment_len: Option<usize>,
     epsilon: f64,
     max_ulps: u32,
 ) -> impl Iterator<Item = Intersection<SegmentIdx, SegmentIdx>> + 'a
@@ -1342,7 +1339,7 @@ where
                 left_idx,
                 right_seg,
                 right_idx,
-                same_segment_chain_len,
+                same_polysegment_len,
                 epsilon,
                 max_ulps,
             )
@@ -1350,11 +1347,11 @@ where
         .flatten()
 }
 
-fn intersections_between_segment_chain_and_segment_priv_par<'a, L>(
+fn intersections_between_polysegment_and_segment_priv_par<'a, L>(
     left: L,
     right_idx: usize,
     right_seg: &'a Segment,
-    same_segment_chain_len: Option<usize>,
+    same_polysegment_len: Option<usize>,
     epsilon: f64,
     max_ulps: u32,
 ) -> impl ParallelIterator<Item = Intersection<SegmentIdx, SegmentIdx>> + 'a
@@ -1368,7 +1365,7 @@ where
                 left_idx,
                 right_seg,
                 right_idx,
-                same_segment_chain_len,
+                same_polysegment_len,
                 epsilon,
                 max_ulps,
             )
@@ -1382,7 +1379,7 @@ fn segment_intersections<'a>(
     left_idx: usize,
     right_seg: &'a Segment,
     right_idx: usize,
-    same_segment_chain_len: Option<usize>,
+    same_polysegment_len: Option<usize>,
     epsilon: f64,
     max_ulps: u32,
 ) -> Option<impl Iterator<Item = Intersection<SegmentIdx, SegmentIdx>> + 'a> {
@@ -1395,7 +1392,7 @@ fn segment_intersections<'a>(
     a) Left segment is in the outer loop, right segment is in the inner loop
     b) Left segment is in the outer loop, right segment is in the inner loop
      */
-    if same_segment_chain_len.is_some() {
+    if same_polysegment_len.is_some() {
         if left_idx == right_idx {
             return None;
         }
@@ -1420,7 +1417,7 @@ fn segment_intersections<'a>(
             connection points.
              */
 
-            if let Some(len) = same_segment_chain_len {
+            if let Some(len) = same_polysegment_len {
                 /*
                 This check evaluates whether the left segment is a predecessor
                 of the right segment. If that is the case, filter out
@@ -1449,21 +1446,21 @@ fn segment_intersections<'a>(
     return Some(intersection_iter);
 }
 
-impl From<SegmentChain> for VecDeque<Segment> {
-    fn from(line: SegmentChain) -> Self {
+impl From<Polysegment> for VecDeque<Segment> {
+    fn from(line: Polysegment) -> Self {
         return line.0;
     }
 }
 
-impl From<BoundingBox> for SegmentChain {
+impl From<BoundingBox> for Polysegment {
     fn from(bounding_box: BoundingBox) -> Self {
         return Self::from(&bounding_box);
     }
 }
 
-impl From<&BoundingBox> for SegmentChain {
+impl From<&BoundingBox> for Polysegment {
     fn from(bounding_box: &BoundingBox) -> Self {
-        return SegmentChain::from_points(&[
+        return Polysegment::from_points(&[
             [bounding_box.xmin(), bounding_box.ymin()],
             [bounding_box.xmax(), bounding_box.ymin()],
             [bounding_box.xmax(), bounding_box.ymax()],
@@ -1473,8 +1470,8 @@ impl From<&BoundingBox> for SegmentChain {
     }
 }
 
-impl From<&SegmentChain> for crate::CentroidData {
-    fn from(value: &SegmentChain) -> Self {
+impl From<&Polysegment> for crate::CentroidData {
+    fn from(value: &Polysegment) -> Self {
         return value
             .par_iter()
             .map(|segment| match segment {
@@ -1501,7 +1498,7 @@ This implementation uses the "Shoelace formula", as e.g. described here:
 <https://en.wikipedia.org/wiki/Shoelace_formula>.
 
 ```
-use planar_geo::segment_chain::area_signed;
+use planar_geo::polysegment::area_signed;
 
 let pt1 = [0.0, 0.0];
 let pt2 = [1.0, 0.0];

@@ -36,7 +36,7 @@ fn main() {
         &fs::read_to_string("docs/readme_parts/intersection_composites.svg.md")
             .expect("Failed to read template"),
     );
-    readme.push_str("\n\n![](https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/docs/img/intersection_composites.svg \"Intersection between contours and a segment chain\")\n\n");
+    readme.push_str("\n\n![](https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/docs/img/intersection_composites.svg \"Intersection between contours and a polysegment\")\n\n");
 
     readme.push_str(
         &fs::read_to_string("docs/readme_parts/end.md").expect("Failed to read template"),

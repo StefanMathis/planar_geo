@@ -4,14 +4,14 @@ use planar_geo::prelude::*;
 #[test]
 fn test_intersection_visualization() {
     let vertices = vec![[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
-    let mut contours = vec![Contour::new(SegmentChain::from_points(&vertices))];
+    let mut contours = vec![Contour::new(Polysegment::from_points(&vertices))];
 
     let vertices = vec![[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
-    contours.push(Contour::new(SegmentChain::from_points(&vertices)));
+    contours.push(Contour::new(Polysegment::from_points(&vertices)));
 
     let shape = Shape::new(contours).unwrap();
 
-    let chain = SegmentChain::from_points(&[
+    let chain = Polysegment::from_points(&[
         [-1.0, 1.0],
         [-1.0, 0.5],
         [2.0, 0.5],
@@ -45,7 +45,7 @@ fn test_intersection_visualization() {
 
         shape.draw(&style, cr)?;
         chain.draw(&style, cr)?;
-        for i in shape.intersections_segment_chain(&chain, DEFAULT_EPSILON, DEFAULT_MAX_ULPS) {
+        for i in shape.intersections_polysegment(&chain, DEFAULT_EPSILON, DEFAULT_MAX_ULPS) {
             i.draw(
                 &intersection_style,
                 Some((&shape, &intersected_segments_style)),

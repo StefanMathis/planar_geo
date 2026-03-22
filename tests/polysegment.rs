@@ -1,18 +1,18 @@
 use approx::{assert_abs_diff_eq, assert_ulps_eq};
-use planar_geo::{prelude::*, segment_chain::area_signed};
+use planar_geo::{polysegment::area_signed, prelude::*};
 use rayon::prelude::*;
 use std::f64::consts::{FRAC_PI_2, TAU};
 
 #[test]
 fn test_from_bounding_box() {
     let bounding_box = BoundingBox::new(0.0, 1.0, 0.0, 1.0);
-    let chain: SegmentChain = bounding_box.into();
+    let chain: Polysegment = bounding_box.into();
     assert_eq!(chain.len(), 4);
 }
 
 #[test]
 fn test_from_iter() {
-    let mut chain = SegmentChain::from_iter(
+    let mut chain = Polysegment::from_iter(
         [
             ArcSegment::fillet([-1.5, 2.0], [-1.0, 0.0], [1.0, 0.0], 0.1, 0.0, 0)
                 .unwrap()
@@ -39,13 +39,13 @@ fn test_from_iter() {
 fn test_to_bounding_box() {
     {
         let bounding_box = BoundingBox::new(0.0, 1.0, 0.0, 1.0);
-        let chain: SegmentChain = bounding_box.into();
+        let chain: Polysegment = bounding_box.into();
         let bb = BoundingBox::from(&chain);
         assert_eq!(bounding_box, bb);
     }
     {
         // Empty chain
-        let chain = SegmentChain::new();
+        let chain = Polysegment::new();
         let bb = BoundingBox::from(&chain);
         assert_eq!(bb.xmin(), 0.0);
         assert_eq!(bb.xmax(), 0.0);
@@ -96,7 +96,7 @@ fn test_area_calculation() {
 fn test_from_points() {
     // Triangle
     let vertices = vec![[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]];
-    let path = SegmentChain::from_points(&vertices);
+    let path = Polysegment::from_points(&vertices);
     let vertices: Vec<[f64; 2]> = path.points().collect();
 
     assert_eq!(vertices.len(), 3);
@@ -105,46 +105,47 @@ fn test_from_points() {
 
     // Three consecutive vertices are identical -> unite them
     let vertices = vec![[0.0, 0.0], [1.0, 0.0], [1.0, 0.0], [1.0, 0.0], [1.0, 1.0]];
-    let path = SegmentChain::from_points(&vertices);
+    let path = Polysegment::from_points(&vertices);
     assert_eq!(path.len(), 2);
 
-    // Failed to create a segment_chain because the vertices are identical
+    // Failed to create a polysegment because the vertices are identical
     let vertices = vec![[0.0, 0.0], [0.0, 0.0], [0.0, 0.0]];
-    let empty_segment_chain = SegmentChain::from_points(&vertices);
-    assert_eq!(empty_segment_chain.num_segments(), 0);
+    let empty_polysegment = Polysegment::from_points(&vertices);
+    assert_eq!(empty_polysegment.num_segments(), 0);
 }
 
 #[test]
 fn test_push_and_pop() {
     let vertices = vec![[0.0, 0.0], [1.0, 0.0]];
-    let mut segment_chain = SegmentChain::from_points(&vertices);
+    let mut polysegment = Polysegment::from_points(&vertices);
 
     // Currently, we have one segment (a single line segment)
-    assert_eq!(segment_chain.len(), 1);
+    assert_eq!(polysegment.len(), 1);
 
-    // Add another line segment which is directly connected to the segment_chain
+    // Add another line segment which is directly connected to the polysegment
     let segment: Segment =
         LineSegment::new([1.0, 0.0], [2.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS)
             .unwrap()
             .into();
 
-    segment_chain.push_back(segment.clone());
-    assert_eq!(segment_chain.len(), 2);
-    let removed_segment = segment_chain.pop_back().unwrap();
+    polysegment.push_back(segment.clone());
+    assert_eq!(polysegment.len(), 2);
+    let removed_segment = polysegment.pop_back().unwrap();
     assert_eq!(segment, removed_segment);
 
-    // Add another line segment which is not directly connected to the segment_chain
+    // Add another line segment which is not directly connected to the polysegment
     let segment: Segment =
         LineSegment::new([3.0, 0.0], [4.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS)
             .unwrap()
             .into();
-    segment_chain.push_back(segment.clone());
-    assert_eq!(segment_chain.len(), 3);
-    let removed_segment = segment_chain.pop_back().unwrap();
+    polysegment.push_back(segment.clone());
+    assert_eq!(polysegment.len(), 3);
+    let removed_segment = polysegment.pop_back().unwrap();
     assert_eq!(segment, removed_segment);
 
-    // Check the connection line segment which was put between the original segment_chain and the previously added (and removed) line segment
-    let removed_segment = segment_chain.pop_back().unwrap();
+    // Check the connection line segment which was put between the original
+    // polysegment and the previously added (and removed) line segment
+    let removed_segment = polysegment.pop_back().unwrap();
     let segment: Segment =
         LineSegment::new([1.0, 0.0], [3.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS)
             .unwrap()
@@ -154,7 +155,7 @@ fn test_push_and_pop() {
 
 #[test]
 fn test_push_extend() {
-    let mut chain = SegmentChain::new();
+    let mut chain = Polysegment::new();
     chain.push_back(
         ArcSegment::fillet([0.0, 0.0], [1.0, 0.0], [1.0, 1.0], 0.5, 0.0, 0)
             .unwrap()
@@ -192,10 +193,10 @@ fn test_push_extend() {
 #[test]
 fn test_single_cut() {
     let vertices = vec![[0.0, 0.0], [1.0, 0.0]];
-    let line = SegmentChain::from_points(&vertices);
+    let line = Polysegment::from_points(&vertices);
 
     let cut_vertices = vec![[0.5, -0.5], [0.5, 0.5]];
-    let cut = SegmentChain::from_points(&cut_vertices);
+    let cut = Polysegment::from_points(&cut_vertices);
 
     let separated_lines = line.intersection_cut(&cut, 0.0, 0);
 
@@ -212,7 +213,7 @@ fn test_single_cut() {
 
 #[test]
 fn test_cutted_slot_contour() {
-    let line = SegmentChain::from_points(&[
+    let line = Polysegment::from_points(&[
         [0.001, 0.0],
         [0.001, 0.001],
         [0.004158825456719743, 0.001],
@@ -223,7 +224,7 @@ fn test_cutted_slot_contour() {
         [-0.001, 0.0],
         [0.001, 0.0],
     ]);
-    let cutter = SegmentChain::from_points(&[
+    let cutter = Polysegment::from_points(&[
         [-0.015307337294603592, 0.001],
         [0.015307337294603592, 0.001],
     ]);
@@ -252,8 +253,8 @@ fn test_cutted_slot_contour() {
 
 #[test]
 fn test_cut_vertical_horizontal() {
-    let vertical_line = SegmentChain::from_points(&[[0.0, 0.0], [0.0, 1.0]]);
-    let horizontal_line = SegmentChain::from_points(&[[-0.5, 0.5], [0.5, 0.5]]);
+    let vertical_line = Polysegment::from_points(&[[0.0, 0.0], [0.0, 1.0]]);
+    let horizontal_line = Polysegment::from_points(&[[-0.5, 0.5], [0.5, 0.5]]);
 
     // Cut the vertical line with the horizontal line
     let separated_lines =
@@ -283,10 +284,10 @@ fn test_cut_vertical_horizontal() {
 #[test]
 fn test_second_segment_intersection_before_first() {
     let vertices = [[0.0, 0.0], [2.0, 0.0]];
-    let cutted = SegmentChain::from_points(vertices.as_slice());
+    let cutted = Polysegment::from_points(vertices.as_slice());
 
     let cut_vertices = vec![[1.5, 1.0], [1.5, -1.0], [0.5, -1.0], [0.5, 1.0]];
-    let cut = SegmentChain::from_points(&cut_vertices);
+    let cut = Polysegment::from_points(&cut_vertices);
 
     let separated_lines = cutted.intersection_cut(&cut, DEFAULT_EPSILON, DEFAULT_MAX_ULPS);
 
@@ -306,13 +307,13 @@ fn test_second_segment_intersection_before_first() {
 
     // Circle
     // =====================================================================================
-    let cutted: SegmentChain =
+    let cutted: Polysegment =
         ArcSegment::from_center_radius_start_offset_angle([0.0, 0.0], 1.0, 0.0, FRAC_PI_2, 0.0, 0)
             .unwrap()
             .into();
 
     let cut_vertices = vec![[0.5, 1.0], [0.0, 0.0], [1.0, 0.5]];
-    let mut cut = SegmentChain::from_points(&cut_vertices);
+    let mut cut = Polysegment::from_points(&cut_vertices);
 
     let separated_lines = cutted.intersection_cut(&cut, DEFAULT_EPSILON, DEFAULT_MAX_ULPS);
     assert_eq!(separated_lines.len(), 3);
@@ -354,7 +355,7 @@ fn test_second_segment_intersection_before_first() {
 
 #[test]
 fn test_intersection_cut() {
-    let mut chain = SegmentChain::new();
+    let mut chain = Polysegment::new();
     chain.push_back(
         ArcSegment::fillet([0.0, 0.0], [1.0, 0.0], [1.0, 1.0], 0.5, 0.0, 0)
             .unwrap()
@@ -365,7 +366,7 @@ fn test_intersection_cut() {
     chain.extend_back([0.0, 1.0]);
 
     let cut_vertices = vec![[0.5, 1.0], [1.0, 0.0], [1.0, -0.5], [0.5, -0.5], [0.5, 0.5]];
-    let cut = SegmentChain::from_points(&cut_vertices);
+    let cut = Polysegment::from_points(&cut_vertices);
 
     let separated_lines = chain.intersection_cut(&cut, DEFAULT_EPSILON, DEFAULT_MAX_ULPS);
 
@@ -397,9 +398,9 @@ fn test_intersection_cut() {
 
 #[test]
 fn test_self_intersection() {
-    // Open segment_chain
+    // Open polysegment
     {
-        let mut chain = SegmentChain::new();
+        let mut chain = Polysegment::new();
         chain.push_back(
             ArcSegment::fillet([1.0, 0.0], [1.0, 1.0], [0.0, 1.0], 0.5, 0.0, 0)
                 .unwrap()
@@ -409,15 +410,15 @@ fn test_self_intersection() {
 
         // Intersect the line with itself
         let intersections =
-            chain.intersections_segment_chain(&chain, DEFAULT_EPSILON, DEFAULT_MAX_ULPS);
+            chain.intersections_polysegment(&chain, DEFAULT_EPSILON, DEFAULT_MAX_ULPS);
 
         // No self-intersection
         assert_eq!(intersections.count(), 0);
     }
 
-    // Closed segment_chain
+    // Closed polysegment
     {
-        let mut chain = SegmentChain::new();
+        let mut chain = Polysegment::new();
         chain.push_back(
             ArcSegment::fillet([1.0, 0.0], [1.0, 1.0], [0.0, 1.0], 0.5, 0.0, 0)
                 .unwrap()
@@ -428,14 +429,14 @@ fn test_self_intersection() {
 
         // Intersect the line with itself
         let intersections =
-            chain.intersections_segment_chain(&chain, DEFAULT_EPSILON, DEFAULT_MAX_ULPS);
+            chain.intersections_polysegment(&chain, DEFAULT_EPSILON, DEFAULT_MAX_ULPS);
 
-        // Segment chain touches itself at the end
+        // Polysegment touches itself at the end
         assert_eq!(intersections.count(), 1);
 
         // Intersect the line with itself
         let intersections =
-            chain.intersections_segment_chain_par(&chain, DEFAULT_EPSILON, DEFAULT_MAX_ULPS);
+            chain.intersections_polysegment_par(&chain, DEFAULT_EPSILON, DEFAULT_MAX_ULPS);
 
         // No self-intersection
         assert_eq!(intersections.count(), 1);
@@ -446,9 +447,9 @@ fn test_self_intersection() {
 fn test_append() {
     // Appending and closing
     let vertices = vec![[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]];
-    let mut path1 = SegmentChain::from_points(&vertices);
+    let mut path1 = Polysegment::from_points(&vertices);
     let vertices = vec![[0.0, 1.0], [-0.5, 0.5]];
-    let mut path2 = SegmentChain::from_points(&vertices);
+    let mut path2 = Polysegment::from_points(&vertices);
     path1.append(&mut path2);
     let verts: Vec<[f64; 2]> = path1.points().collect();
 
@@ -458,9 +459,9 @@ fn test_append() {
 
     // Appending and not closing
     let vertices = vec![[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]];
-    let mut path1 = SegmentChain::from_points(&vertices);
+    let mut path1 = Polysegment::from_points(&vertices);
     let vertices = vec![[0.0, 1.0], [-0.5, 0.5]];
-    let mut path2 = SegmentChain::from_points(&vertices);
+    let mut path2 = Polysegment::from_points(&vertices);
     path1.append(&mut path2);
     let verts: Vec<[f64; 2]> = path1.points().collect();
 
@@ -470,9 +471,9 @@ fn test_append() {
 
     // Appending and closing non-closed paths
     let vertices = vec![[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]];
-    let mut path1 = SegmentChain::from_points(&vertices);
+    let mut path1 = Polysegment::from_points(&vertices);
     let vertices = vec![[0.0, 1.0], [-0.5, 0.5]];
-    let mut path2 = SegmentChain::from_points(&vertices);
+    let mut path2 = Polysegment::from_points(&vertices);
     path1.append(&mut path2);
     let verts: Vec<[f64; 2]> = path1.points().collect();
 
@@ -483,10 +484,10 @@ fn test_append() {
 
 #[test]
 fn test_intersection_cut_fillets() {
-    fn cut_by_height(segment_chain: &SegmentChain, height: f64) {
+    fn cut_by_height(polysegment: &Polysegment, height: f64) {
         let bounding_box = BoundingBox::new(-2.0, 2.0, height, 4.0);
-        let new_polylines = segment_chain.intersection_cut(
-            &SegmentChain::from(&bounding_box),
+        let new_polylines = polysegment.intersection_cut(
+            &Polysegment::from(&bounding_box),
             DEFAULT_EPSILON,
             DEFAULT_MAX_ULPS,
         );
@@ -502,7 +503,7 @@ fn test_intersection_cut_fillets() {
         }
     }
 
-    let chain = SegmentChain::from_iter(
+    let chain = Polysegment::from_iter(
         [
             ArcSegment::fillet([-1.5, 2.0], [-1.0, 0.0], [1.0, 0.0], 0.1, 0.0, 0)
                 .unwrap()
@@ -529,7 +530,7 @@ fn test_intersection_cut_fillets() {
 
 #[test]
 fn test_rotational_pattern() {
-    let org_chain = SegmentChain::from_points(&[[1.0, 1.0], [2.0, 1.0], [2.0, 2.0]]);
+    let org_chain = Polysegment::from_points(&[[1.0, 1.0], [2.0, 1.0], [2.0, 2.0]]);
     {
         // Do nothing
         let mut mod_chain = org_chain.clone();
@@ -571,7 +572,7 @@ fn test_rotational_pattern() {
 
 #[test]
 fn test_translational_pattern() {
-    let org_chain = SegmentChain::from_points(&[[1.0, 1.0], [2.0, 1.0], [2.0, 2.0]]);
+    let org_chain = Polysegment::from_points(&[[1.0, 1.0], [2.0, 1.0], [2.0, 2.0]]);
     {
         // Do nothing
         let mut mod_chain = org_chain.clone();
@@ -618,7 +619,7 @@ fn test_polygonize() {
             ArcSegment::from_center_radius_start_offset_angle([0.0, 0.0], 2.0, 0.0, TAU, 0.0, 0)
                 .unwrap()
                 .into();
-        let path = SegmentChain::from(arc);
+        let path = Polysegment::from(arc);
 
         let mut iter = path.polygonize(Polygonizer::PerType {
             arc: SegmentPolygonizer::MaximumAngle(FRAC_PI_2),
@@ -638,7 +639,7 @@ fn test_polygonize() {
             ArcSegment::from_center_radius_start_offset_angle([0.0, 0.0], 2.0, 0.0, -TAU, 0.0, 0)
                 .unwrap()
                 .into();
-        let path = SegmentChain::from(arc);
+        let path = Polysegment::from(arc);
 
         let mut iter = path.polygonize(Polygonizer::PerType {
             arc: SegmentPolygonizer::MaximumAngle(FRAC_PI_2),
@@ -657,7 +658,7 @@ fn test_polygonize() {
 #[test]
 fn test_straight_line_chain() {
     let vertices = vec![[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]];
-    let chain = SegmentChain::from_points(&vertices);
+    let chain = Polysegment::from_points(&vertices);
 
     // Points which are contained in the first segment
     assert!(chain.contains_point([0.5, 0.0], 0.0, 0));
@@ -679,11 +680,11 @@ fn test_straight_line_chain() {
 }
 
 #[test]
-fn test_intersection_segment_chains() {
-    let first = SegmentChain::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]);
-    let second = SegmentChain::from_points(&[[0.0, 0.5], [2.0, 0.5]]);
+fn test_intersection_polysegments() {
+    let first = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]);
+    let second = Polysegment::from_points(&[[0.0, 0.5], [2.0, 0.5]]);
 
-    let vec: Vec<_> = first.intersections_segment_chain(&second, 0.0, 0).collect();
+    let vec: Vec<_> = first.intersections_polysegment(&second, 0.0, 0).collect();
     assert_eq!(vec.len(), 1);
 
     let i = vec[0];
@@ -698,9 +699,9 @@ fn test_intersection_segment_chains() {
 }
 
 #[test]
-fn test_intersection_line_segment_chain() {
+fn test_intersection_line_polysegment() {
     let vertices = vec![[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0], [0.0, 0.0]];
-    let chain = SegmentChain::from_points(&vertices);
+    let chain = Polysegment::from_points(&vertices);
 
     let line = Line::from_point_angle([0.5, 0.5], 0.0);
     let mut intersections = chain.intersections_primitive(&line, 0.0, 0);

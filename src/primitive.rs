@@ -643,6 +643,19 @@ pub trait Primitive: private::Sealed {
     ) -> PrimitiveIntersections
     where
         Self: Sized;
+
+    fn intersections<'a, T: Into<crate::geometry::GeometryRef<'a>>>(
+        &self,
+        other: T,
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> Vec<[f64; 2]>
+    where
+        Self: Sized,
+    {
+        let geo_ref: crate::geometry::GeometryRef = other.into();
+        return geo_ref.intersections_primitive(self, epsilon, max_ulps);
+    }
 }
 
 impl private::Sealed for [f64; 2] {}

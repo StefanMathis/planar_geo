@@ -101,9 +101,9 @@ impl Shape {
 
     // Shape fulfills all conditions
     let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
-    let c1 = Contour::new(SegmentChain::from_points(vertices));
+    let c1 = Contour::new(Polysegment::from_points(vertices));
     let vertices = &[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
-    let c2 = Contour::new(SegmentChain::from_points(vertices));
+    let c2 = Contour::new(Polysegment::from_points(vertices));
     assert!(Shape::new(vec![c1, c2]).is_ok());
 
     // Given vector is empty
@@ -111,22 +111,22 @@ impl Shape {
 
     // One of the contours is empty
     let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
-    let c1 = Contour::new(SegmentChain::from_points(vertices));
-    let c2 = Contour::new(SegmentChain::new());
+    let c1 = Contour::new(Polysegment::from_points(vertices));
+    let c2 = Contour::new(Polysegment::new());
     assert!(Shape::new(vec![c1, c2]).is_err());
 
     // The contours intersect
     let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
-    let c1 = Contour::new(SegmentChain::from_points(vertices));
+    let c1 = Contour::new(Polysegment::from_points(vertices));
     let vertices = &[[0.1, 0.1], [1.1, 0.1], [1.1, 0.9], [0.1, 0.9]];
-    let c2 = Contour::new(SegmentChain::from_points(vertices));
+    let c2 = Contour::new(Polysegment::from_points(vertices));
     assert!(Shape::new(vec![c1, c2]).is_err());
 
     // Second contour is not inside the first contour
     let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
-    let c1 = Contour::new(SegmentChain::from_points(vertices));
+    let c1 = Contour::new(Polysegment::from_points(vertices));
     let vertices = &[[1.0, 0.1], [2.0, 0.1], [2.0, 0.9], [1.0, 0.9]];
-    let c2 = Contour::new(SegmentChain::from_points(vertices));
+    let c2 = Contour::new(Polysegment::from_points(vertices));
     assert!(Shape::new(vec![c1, c2]).is_err());
     ```
      */
@@ -201,16 +201,16 @@ impl Shape {
 
     // Contour fulfill al criteria
     let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
-    let c = Contour::new(SegmentChain::from_points(vertices));
+    let c = Contour::new(Polysegment::from_points(vertices));
     assert!(Shape::from_outer(c).is_ok());
 
     // Contour is empty
-    let c = Contour::new(SegmentChain::new());
+    let c = Contour::new(Polysegment::new());
     assert!(Shape::from_outer(c).is_err());
 
     // Contour intersects itself
     let vertices = &[[0.0, 0.0], [1.0, 1.0], [1.0, 0.0], [0.0, 1.0]];
-    let c = Contour::new(SegmentChain::from_points(vertices));
+    let c = Contour::new(Polysegment::from_points(vertices));
     assert!(Shape::from_outer(c).is_err());
     ```
      */
@@ -270,13 +270,13 @@ impl Shape {
     use planar_geo::prelude::*;
 
     let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
-    let c1 = Contour::new(SegmentChain::from_points(vertices));
+    let c1 = Contour::new(Polysegment::from_points(vertices));
 
     let vertices = &[[0.1, 0.1], [0.4, 0.1], [0.4, 0.9], [0.1, 0.9]];
-    let c2 = Contour::new(SegmentChain::from_points(vertices));
+    let c2 = Contour::new(Polysegment::from_points(vertices));
 
     let vertices = &[[0.6, 0.1], [0.9, 0.1], [0.9, 0.9], [0.6, 0.9]];
-    let c3 = Contour::new(SegmentChain::from_points(vertices));
+    let c3 = Contour::new(Polysegment::from_points(vertices));
 
     let shape = Shape::new(vec![c1, c2, c3]).expect("valid input");
     assert_eq!(shape.holes().len(), 2);
@@ -300,10 +300,10 @@ impl Shape {
     use planar_geo::prelude::*;
 
     let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
-    let contour = Contour::new(SegmentChain::from_points(vertices));
+    let contour = Contour::new(Polysegment::from_points(vertices));
 
     let vertices = &[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
-    let hole = Contour::new(SegmentChain::from_points(vertices));
+    let hole = Contour::new(Polysegment::from_points(vertices));
 
     let shape = Shape::new(vec![contour.clone(), hole.clone()]).expect("valid input");
     assert_eq!(shape.area(), contour.area() - hole.area());
@@ -314,7 +314,7 @@ impl Shape {
         let holes: f64 = self
             .holes()
             .par_iter()
-            .map(|segment_chain| return segment_chain.area())
+            .map(|polysegment| return polysegment.area())
             .sum();
         return contour_area - holes;
     }
@@ -337,18 +337,18 @@ impl Shape {
 
     // Shaoe without an hole
     let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
-    let mut shape = Shape::new(vec![Contour::new(SegmentChain::from_points(vertices))]).expect("valid input");
+    let mut shape = Shape::new(vec![Contour::new(Polysegment::from_points(vertices))]).expect("valid input");
     assert_eq!(shape.holes().len(), 0);
 
     // Add a hole to the shape - this works
     let vertices = &[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
-    let hole = Contour::new(SegmentChain::from_points(vertices));
+    let hole = Contour::new(Polysegment::from_points(vertices));
     assert!(shape.add_hole(hole).is_ok());
     assert_eq!(shape.holes().len(), 1);
 
     // Adding this hole does not work because it intersects with the outer contour
     let vertices = &[[1.0, 0.1], [1.0, 0.1], [2.0, 0.9], [2.0, 0.9]];
-    let hole = Contour::new(SegmentChain::from_points(vertices));
+    let hole = Contour::new(Polysegment::from_points(vertices));
     assert!(shape.add_hole(hole).is_err());
     assert_eq!(shape.holes().len(), 1);
     ```
@@ -419,13 +419,13 @@ impl Shape {
     use planar_geo::prelude::*;
 
     let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
-    let c1 = Contour::new(SegmentChain::from_points(vertices));
+    let c1 = Contour::new(Polysegment::from_points(vertices));
 
     let vertices = &[[0.1, 0.1], [0.4, 0.1], [0.4, 0.9], [0.1, 0.9]];
-    let c2 = Contour::new(SegmentChain::from_points(vertices));
+    let c2 = Contour::new(Polysegment::from_points(vertices));
 
     let vertices = &[[0.6, 0.1], [0.9, 0.1], [0.9, 0.9], [0.6, 0.9]];
-    let c3 = Contour::new(SegmentChain::from_points(vertices));
+    let c3 = Contour::new(Polysegment::from_points(vertices));
 
     let mut shape = Shape::new(vec![c1, c2, c3]).unwrap();
 
@@ -480,7 +480,7 @@ impl Composite for Shape {
         return crate::CentroidData::from(self).into();
     }
 
-    fn intersections_primitive<'a, T: Primitive + std::marker::Sync>(
+    fn intersections_primitive<'a, T: Primitive>(
         &'a self,
         primitive: &'a T,
         epsilon: f64,
@@ -491,7 +491,7 @@ impl Composite for Shape {
             .enumerate()
             .flat_map(move |(idx_1, contour_1)| {
                 contour_1
-                    .segment_chain()
+                    .polysegment()
                     .intersections_primitive(primitive, epsilon, max_ulps)
                     .map(move |i| Intersection {
                         point: i.point,
@@ -515,7 +515,7 @@ impl Composite for Shape {
             .enumerate()
             .flat_map(move |(idx_1, contour_1)| {
                 contour_1
-                    .segment_chain()
+                    .polysegment()
                     .intersections_primitive_par(primitive, epsilon, max_ulps)
                     .map(move |i| Intersection {
                         point: i.point,
@@ -528,9 +528,9 @@ impl Composite for Shape {
             })
     }
 
-    fn intersections_segment_chain<'a>(
+    fn intersections_polysegment<'a>(
         &'a self,
-        segment_chain: &'a crate::prelude::SegmentChain,
+        polysegment: &'a crate::prelude::Polysegment,
         epsilon: f64,
         max_ulps: u32,
     ) -> impl Iterator<Item = Intersection<Self::SegmentKey, SegmentIdx>> + 'a {
@@ -539,8 +539,8 @@ impl Composite for Shape {
             .enumerate()
             .flat_map(move |(c1, contour_1)| {
                 contour_1
-                    .segment_chain()
-                    .intersections_segment_chain(segment_chain, epsilon, max_ulps)
+                    .polysegment()
+                    .intersections_polysegment(polysegment, epsilon, max_ulps)
                     .map(move |i| Intersection {
                         point: i.point,
                         left: ShapeIdx {
@@ -552,9 +552,9 @@ impl Composite for Shape {
             })
     }
 
-    fn intersections_segment_chain_par<'a>(
+    fn intersections_polysegment_par<'a>(
         &'a self,
-        segment_chain: &'a crate::prelude::SegmentChain,
+        polysegment: &'a crate::prelude::Polysegment,
         epsilon: f64,
         max_ulps: u32,
     ) -> impl ParallelIterator<Item = Intersection<Self::SegmentKey, SegmentIdx>> + 'a {
@@ -563,8 +563,8 @@ impl Composite for Shape {
             .enumerate()
             .flat_map(move |(c1, contour_1)| {
                 contour_1
-                    .segment_chain()
-                    .intersections_segment_chain_par(segment_chain, epsilon, max_ulps)
+                    .polysegment()
+                    .intersections_polysegment_par(polysegment, epsilon, max_ulps)
                     .map(move |i| Intersection {
                         point: i.point,
                         left: ShapeIdx {
@@ -582,7 +582,7 @@ impl Composite for Shape {
         epsilon: f64,
         max_ulps: u32,
     ) -> impl Iterator<Item = Intersection<Self::SegmentKey, SegmentIdx>> + 'a {
-        self.intersections_segment_chain(contour.segment_chain(), epsilon, max_ulps)
+        self.intersections_polysegment(contour.polysegment(), epsilon, max_ulps)
     }
 
     fn intersections_contour_par<'a>(
@@ -591,7 +591,7 @@ impl Composite for Shape {
         epsilon: f64,
         max_ulps: u32,
     ) -> impl ParallelIterator<Item = Intersection<Self::SegmentKey, SegmentIdx>> + 'a {
-        self.intersections_segment_chain_par(contour.segment_chain(), epsilon, max_ulps)
+        self.intersections_polysegment_par(contour.polysegment(), epsilon, max_ulps)
     }
 
     fn intersections_shape<'a>(
@@ -702,7 +702,7 @@ impl Composite for Shape {
             .par_iter()
             .find_any(|contour| {
                 contour
-                    .segment_chain()
+                    .polysegment()
                     .contains_point(point, epsilon, max_ulps)
             })
             .is_some()
@@ -715,7 +715,7 @@ impl Composite for Shape {
 
         let mut counter = 0;
         for contour in &self.0 {
-            for segment in contour.segment_chain().iter() {
+            for segment in contour.polysegment().iter() {
                 counter += segment
                     .intersections_primitive(&ray, epsilon, max_ulps)
                     .len();
@@ -761,8 +761,8 @@ impl Transformation for Shape {
         self.0
             .as_mut_slice()
             .par_iter_mut()
-            .for_each(|segment_chain| {
-                segment_chain.scale(factor);
+            .for_each(|polysegment| {
+                polysegment.scale(factor);
             })
     }
 }

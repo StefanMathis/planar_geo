@@ -2,16 +2,17 @@
 [`ArcSegment`]: crate::segment::ArcSegment
 [`LineSegment`]: crate::segment::LineSegment
 [`Segment`]: crate::segment::Segment
-[`SegmentChain`]: crate::segment_chain::SegmentChain
+[`Polysegment`]: crate::polysegment::Polysegment
 [`Contour`]: crate::contour::Contour
 [`Shape`]: crate::shape::Shape
+[`Geometry`]: crate::geometry::Geometry
 [`Primitive`]: crate::primitive::Primitive
 [`Composite`]: crate::composite::Composite
 [`Transformation`]: crate::Transformation
 [`DEFAULT_EPSILON`]: crate::DEFAULT_EPSILON
 [`DEFAULT_MAX_ULPS`]: crate::DEFAULT_MAX_ULPS
 [crate_index]: crate
-[visualize]: crate::visualize
+[draw]: crate::draw
 [`Context`]: cairo::Context
 [cairo]: cairo
 [approxim]: approx
@@ -63,7 +64,7 @@ doc = ::embed_doc_image::embed_image!("intersection_segments", "docs/img/interse
 #![doc = include_str!("../docs/readme_parts/intersection_composites.svg.md")]
 #![doc = r#"
 
-![Intersection between contours and a segment chain][intersection_composites]
+![Intersection between contours and a polysegment][intersection_composites]
 
 "#]
 #![cfg_attr(feature = "doc-images",
@@ -76,6 +77,8 @@ doc = ::embed_doc_image::embed_image!("intersection_composites", "docs/img/inter
 )]
 #![doc = include_str!("../docs/readme_parts/end.md")]
 #![deny(missing_docs)]
+
+use bounding_box::BoundingBox;
 
 /**
 A resonable value for the absolute tolerance.
@@ -125,14 +128,17 @@ pub mod line;
 pub mod primitive;
 pub mod segment;
 
-// Composite types
+// Composites
 pub mod composite;
 pub mod contour;
-pub mod segment_chain;
+pub mod polysegment;
 pub mod shape;
 
-#[cfg(feature = "visualize")]
-pub mod visualize;
+// Container for primitives and composites
+pub mod geometry;
+
+#[cfg(feature = "cairo")]
+pub mod draw;
 
 // =============================================================================
 // Shared code
@@ -256,6 +262,42 @@ impl Transformation for [f64; 2] {
             let d = (self[0] + (self[1] - c) * m) / (1.0 + m.powi(2));
             *self = [2.0 * d - self[0], 2.0 * d * m - self[1] + 2.0 * c];
         }
+    }
+}
+
+impl Transformation for BoundingBox {
+    fn translate(&mut self, shift: [f64; 2]) {
+        BoundingBox::translate(self, shift);
+    }
+
+    fn rotate(&mut self, center: [f64; 2], angle: f64) {
+        let mut ll = [self.xmin(), self.ymin()];
+        let mut ul = [self.xmin(), self.xmax()];
+        let mut lr = [self.xmax(), self.ymin()];
+        let mut ur = [self.xmax(), self.xmax()];
+        ll.rotate(center, angle);
+        ul.rotate(center, angle);
+        lr.rotate(center, angle);
+        ur.rotate(center, angle);
+        *self = BoundingBox::from_points([ll, ul, lr, ur].into_iter())
+            .expect("supplied more than zero points")
+    }
+
+    fn scale(&mut self, factor: f64) {
+        BoundingBox::scale(self, factor);
+    }
+
+    fn line_reflection(&mut self, start: [f64; 2], stop: [f64; 2]) -> () {
+        let mut ll = [self.xmin(), self.ymin()];
+        let mut ul = [self.xmin(), self.xmax()];
+        let mut lr = [self.xmax(), self.ymin()];
+        let mut ur = [self.xmax(), self.xmax()];
+        ll.line_reflection(start, stop);
+        ul.line_reflection(start, stop);
+        lr.line_reflection(start, stop);
+        ur.line_reflection(start, stop);
+        *self = BoundingBox::from_points([ll, ul, lr, ur].into_iter())
+            .expect("supplied more than zero points")
     }
 }
 

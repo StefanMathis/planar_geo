@@ -22,7 +22,7 @@ fn test_text_placement() {
         };
 
         let contour: Contour =
-            SegmentChain::from_points(&[[0.1, 0.1], [1.9, 0.1], [1.9, 0.9], [0.1, 0.9]]).into();
+            Polysegment::from_points(&[[0.1, 0.1], [1.9, 0.1], [1.9, 0.9], [0.1, 0.9]]).into();
 
         // A cross on the right of the contour which shows placement of standalone texts
         let cc = [2.5, 0.5];
@@ -120,7 +120,7 @@ fn anchor_offset_scaling() {
         style.line_width = 2.0;
 
         let mut contour: Contour =
-            SegmentChain::from_points(&[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]]).into();
+            Polysegment::from_points(&[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]]).into();
 
         let drawing_fn = move |cr: &cairo::Context| {
             // Set the background to white

@@ -18,17 +18,18 @@ use planar_geo::primitive::Primitive;
 pub use crate::Transformation;
 pub use crate::composite::*;
 pub use crate::contour::{ArrowHeadSize, Contour};
+pub use crate::geometry::*;
 pub use crate::line::*;
+pub use crate::polysegment::*;
 pub use crate::primitive::{Primitive, PrimitiveIntersections};
 pub use crate::segment::arc_segment::*;
 pub use crate::segment::line_segment::*;
 pub use crate::segment::*;
-pub use crate::segment_chain::*;
 pub use crate::shape::Shape;
 pub use crate::{DEFAULT_EPSILON, DEFAULT_MAX_ULPS};
 
-#[cfg(feature = "visualize")]
-pub use crate::visualize::*;
+#[cfg(feature = "cairo")]
+pub use crate::draw::*;
 pub use approx;
 
 ///! Reexport of useful common functionality

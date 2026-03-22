@@ -2,8 +2,10 @@ _This image was created with examples/type_overview.rs_
 
 The "segment" types are so-called [`Primitive`]s: Simple straight
 ([`LineSegment`]) or arc ([`ArcSegment`]) connections between two points. They
-form the basis for the [`Composite`] types [`SegmentChain`], [`Contour`] (a
-closed segment chain) and [`Shape`] (composed of one or more contours).
+form the basis for the [`Composite`] types [`Polysegment`], [`Contour`] (a
+closed polysegment) and [`Shape`] (composed of one or more contours). Different
+geometric types can be grouped together in a collection such as a `Vec` by
+wrapping them in the [`Geometry`] enum.
 
 For these types, this crate offers the following features:
 - Property calculation (e.g. length, surface area, centroids),
@@ -12,7 +14,7 @@ For these types, this crate offers the following features:
 see the [`Primitive`] and [`Composite`] traits.
 
 If the corresponding features are activated, it is also possible to serialize
-and deserialize (using [serde]) and to visualize (using [gtk-rs]) these types.
+and deserialize (using [serde]) and to draw (using [gtk-rs]) these types.
 See the [Features](#features) section for more.
 
 One distinct feature of this library is the treatment of arcs: Arcs are not

@@ -9,7 +9,7 @@ where the first element is interpreted as the `x` value and the second element
 is interpreted as the `y` value in the underlying cartesian coordinate system.
 
 Multiple connected segments form a
-[`SegmentChain`](crate::segment_chain::SegmentChain), which in turn is
+[`Polysegment`](crate::polysegment::Polysegment), which in turn is
 used to define [`Contour`](crate::contour::Contour)s and by extension
 [`Shape`](crate::shape::Shape)s, the [`Composite`](crate::composite::Composite)
 types of this crate. However, segments can also used on their own to e.g.

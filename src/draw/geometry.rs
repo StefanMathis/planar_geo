@@ -1,8 +1,8 @@
 /*!
 Implementations of visualization functions for geometric types.
 
-If the `visualize` feature is enabled, all geometric types ([`Segment`],
-[`SegmentChain`], [`Contour`] and [`Shape`]) implement a drawing function with
+If the `draw` feature is enabled, all geometric types ([`Segment`],
+[`Polysegment`], [`Contour`] and [`Shape`]) implement a drawing function with
 the signature `draw(&self, style: &Style, context: &cairo::Context) -> Result<(), cairo::Error>`.
 This function can be used to draw the type onto a [`cairo::Context`], using the
 [`Style`] struct to define the appearance. The vertices / points of the type
@@ -29,14 +29,15 @@ use bounding_box::BoundingBox;
 use crate::Rotation2;
 use crate::composite::Composite;
 use crate::contour::Contour;
+use crate::polysegment::Polysegment;
 use crate::segment::{ArcSegment, LineSegment, Segment};
-use crate::segment_chain::SegmentChain;
 use crate::shape::Shape;
 
 impl Segment {
     /**
     Draws the [`Segment`] onto the [`cairo::Context`] with the given [`Style`].
-    See the [module level documentation](crate::visualize).
+
+    See the [module level documentation](crate::draw::geometry) for more.
      */
     pub fn draw(&self, style: &Style, context: &cairo::Context) -> Result<(), cairo::Error> {
         match self {
@@ -49,7 +50,8 @@ impl Segment {
 impl ArcSegment {
     /**
     Draws the [`ArcSegment`] onto the [`cairo::Context`] with the given [`Style`].
-    See the [module level documentation](crate::visualize).
+
+    See the [module level documentation](crate::draw::geometry) for more.
      */
     pub fn draw(&self, style: &Style, context: &cairo::Context) -> Result<(), cairo::Error> {
         let vertex = self.start();
@@ -70,7 +72,7 @@ impl ArcSegment {
         draw_common(style, context)?;
 
         if let Some(txt) = &style.text {
-            let bb = if txt.anchor == crate::visualize::Anchor::Centroid {
+            let bb = if txt.anchor == crate::draw::Anchor::Centroid {
                 let c = self.centroid();
                 BoundingBox::new(c[0], c[0], c[1], c[1])
             } else {
@@ -85,7 +87,8 @@ impl ArcSegment {
 impl LineSegment {
     /**
     Draws the [`LineSegment`] onto the [`cairo::Context`] with the given [`Style`].
-    See the [module level documentation](crate::visualize).
+
+    See the [module level documentation](crate::draw::geometry) for more.
      */
     pub fn draw(&self, style: &Style, context: &cairo::Context) -> Result<(), cairo::Error> {
         context.move_to(self.start()[0], self.start()[1]);
@@ -95,7 +98,7 @@ impl LineSegment {
         draw_common(style, context)?;
 
         if let Some(txt) = &style.text {
-            let bb = if txt.anchor == crate::visualize::Anchor::Centroid {
+            let bb = if txt.anchor == crate::draw::Anchor::Centroid {
                 let c = self.centroid();
                 BoundingBox::new(c[0], c[0], c[1], c[1])
             } else {
@@ -141,10 +144,11 @@ fn draw_common(style: &Style, context: &cairo::Context) -> Result<(), cairo::Err
     return Ok(());
 }
 
-impl SegmentChain {
+impl Polysegment {
     /**
-    Draws the [`SegmentChain`] onto the [`cairo::Context`] with the given [`Style`].
-    See the [module level documentation](crate::visualize).
+    Draws the [`Polysegment`] onto the [`cairo::Context`] with the given [`Style`].
+
+    See the [module level documentation](crate::draw::geometry) for more.
      */
     pub fn draw(&self, style: &Style, context: &cairo::Context) -> Result<(), cairo::Error> {
         return self.draw_stroking::<false, false>(style, context);
@@ -174,7 +178,7 @@ impl SegmentChain {
         }
 
         if let Some(txt) = &style.text {
-            let bb = if txt.anchor == crate::visualize::Anchor::Centroid {
+            let bb = if txt.anchor == crate::draw::Anchor::Centroid {
                 let c = self.centroid();
                 BoundingBox::new(c[0], c[0], c[1], c[1])
             } else {
@@ -249,11 +253,12 @@ impl SegmentChain {
 impl Contour {
     /**
     Draws the [`Contour`] onto the [`cairo::Context`] with the given [`Style`].
-    See the [module level documentation](crate::visualize).
+
+    See the [module level documentation](crate::draw::geometry) for more.
      */
     pub fn draw(&self, style: &Style, context: &cairo::Context) -> Result<(), cairo::Error> {
         return self
-            .segment_chain()
+            .polysegment()
             .draw_stroking::<true, true>(style, context);
     }
 }
@@ -261,7 +266,8 @@ impl Contour {
 impl Shape {
     /**
     Draws the [`Shape`] onto the [`cairo::Context`] with the given [`Style`].
-    See the [module level documentation](crate::visualize).
+
+    See the [module level documentation](crate::draw::geometry) for more.
      */
     pub fn draw(&self, style: &Style, context: &cairo::Context) -> Result<(), cairo::Error> {
         let draw_contour = if let LineStyle::None = style.line_style {
@@ -275,16 +281,16 @@ impl Shape {
         // given
         if draw_contour || fill_contour {
             self.contour()
-                .segment_chain()
+                .polysegment()
                 .draw_without_stroking::<true, false>(style, context)?;
             // Fill path while substracting inner paths
             for hole in self.holes() {
                 context.new_sub_path();
-                hole.segment_chain()
+                hole.polysegment()
                     .draw_without_stroking::<true, false>(style, context)?;
             }
 
-            // Substract the holes regardless of the direction of the segment_chain
+            // Substract the holes regardless of the direction of the polysegment
             // (clockwise or counter-clockwise)
             if fill_contour {
                 context.set_fill_rule(cairo::FillRule::EvenOdd);
@@ -310,7 +316,7 @@ impl Shape {
         }
 
         if let Some(txt) = &style.text {
-            let bb = if txt.anchor == crate::visualize::Anchor::Centroid {
+            let bb = if txt.anchor == crate::draw::Anchor::Centroid {
                 let c = self.centroid();
                 BoundingBox::new(c[0], c[0], c[1], c[1])
             } else {
@@ -370,7 +376,7 @@ impl Color {
 
 /**
 This struct defines the visual appearance of a geometric object - i.e. a
-[`SegmentChain`], a [`Contour`] or a [`Shape`]. These properties are derived
+[`Polysegment`], a [`Contour`] or a [`Shape`]. These properties are derived
 from the CSS standard, see links in field descriptions.
 */
 #[derive(Debug, Clone)]
@@ -628,7 +634,7 @@ fn draw_fn() -> Box<dyn FnOnce(&cairo::Context) -> Result<(), cairo::Error>> {
     style.line_color = Color::new(1.0, 0.5, 0.5, 1.0);
     style.line_width = 2.0;
 
-    let mut contour = Contour::new(SegmentChain::from_points(&[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]]));
+    let mut contour = Contour::new(Polysegment::from_points(&[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]]));
 
     let drawing_fn = move |cr: &cairo::Context| {
         // Set the background to white
@@ -913,7 +919,7 @@ of [`Text`].
 The image below shows both cases: On the left side, the red bounding box of an
 geometric object and the associated text placement options are shown. On the
 right side, the [`Text`] has been drawn "standalone" (the text placement point
-is visualized as a red cross).
+is drawn as a red cross).
 */
 #[doc = ""]
 #[cfg_attr(
@@ -954,7 +960,7 @@ let mut txt = Text {
 };
 
 // This contour is equivalent to its bounding box, since it is just a rectangle.
-let contour = Contour::new(SegmentChain::from_points(&[[0.1, 0.1], [1.9, 0.1], [1.9, 0.9], [0.1, 0.9]]));
+let contour = Contour::new(Polysegment::from_points(&[[0.1, 0.1], [1.9, 0.1], [1.9, 0.9], [0.1, 0.9]]));
 
 // A cross on the right of the contour which shows placement of standalone texts
 let cc = [2.5, 0.5];
@@ -1044,7 +1050,7 @@ let draw_fn = |cr: &cairo::Context| {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Anchor {
     /// If used to style a geometric type, the text is placed at its centroid
-    /// (center of mass). If used to visualize a [`Text`] object directly, this
+    /// (center of mass). If used to draw a [`Text`] object directly, this
     /// variant behaves identical to [`Anchor::Center`].
     Centroid,
     /// Center of text extents is placed at the bounding box center / at the
@@ -1081,7 +1087,7 @@ impl Anchor {
     Returns the "opposite" [`Anchor`]. See the examples below.
 
     ```
-    use planar_geo::visualize::Anchor;
+    use planar_geo::draw::Anchor;
 
     // Centroid and center are not changed
     assert_eq!(Anchor::Centroid.opposite(), Anchor::Centroid);

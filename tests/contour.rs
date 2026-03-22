@@ -5,7 +5,7 @@ use std::f64::consts::{FRAC_PI_2, PI, TAU};
 
 #[test]
 fn test_from_segments() {
-    let mut chain = SegmentChain::new();
+    let mut chain = Polysegment::new();
     chain.push_back(
         ArcSegment::from_center_radius_start_offset_angle([0.0, 0.0], 2.0, PI, FRAC_PI_2, 0.0, 0)
             .unwrap()
@@ -29,7 +29,7 @@ fn test_from_segments() {
 fn test_from_points() {
     // Triangle
     let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]];
-    let polygon: Contour = SegmentChain::from_points(vertices).into();
+    let polygon: Contour = Polysegment::from_points(vertices).into();
     let vertices: Vec<[f64; 2]> = polygon.points().collect();
 
     assert_eq!(vertices.len(), 3);
@@ -106,9 +106,9 @@ fn test_cut_on_line() {
         [-1.0, 1.0],
         [-1.0, 0.0],
     ];
-    let slot_equivalent = Contour::new(SegmentChain::from_points(vertices.as_slice()));
+    let slot_equivalent = Contour::new(Polysegment::from_points(vertices.as_slice()));
 
-    let cut = SegmentChain::from_points([[-10.0, 1.0], [10.0, 1.0]].as_slice());
+    let cut = Polysegment::from_points([[-10.0, 1.0], [10.0, 1.0]].as_slice());
 
     let separated_lines = slot_equivalent.intersection_cut(&cut, 0.0, 0);
     assert_eq!(separated_lines.len(), 4);
@@ -137,7 +137,7 @@ fn test_cut_on_line() {
 #[test]
 fn test_points() {
     let vertices = &[[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]];
-    let polygon = Contour::new(SegmentChain::from_points(vertices));
+    let polygon = Contour::new(Polysegment::from_points(vertices));
     let vertices: Vec<[f64; 2]> = polygon.points().collect();
     assert_eq!(vertices.len(), 3);
     assert_eq!(vertices[0], [0.0, 0.0]);
@@ -202,7 +202,7 @@ fn test_area() {
 
     // Square with concave radius in one corner
     {
-        let mut chain = SegmentChain::new();
+        let mut chain = Polysegment::new();
         chain.push_back(
             ArcSegment::from_center_radius_start_offset_angle(
                 [0.0, 0.0],
@@ -231,7 +231,7 @@ fn test_area() {
 
     // Square with concave radius in another corner
     {
-        let mut chain = SegmentChain::new();
+        let mut chain = Polysegment::new();
         chain.push_back(
             ArcSegment::from_center_radius_start_offset_angle(
                 [0.0, 0.0],
@@ -264,7 +264,7 @@ fn test_area() {
 
     // Square with rounded edges
     {
-        let mut chain = SegmentChain::new();
+        let mut chain = Polysegment::new();
         chain.push_back(
             ArcSegment::fillet([-1.0, 2.0], [-1.0, 0.0], [1.0, 0.0], 0.1, 0.0, 0)
                 .unwrap()
@@ -297,7 +297,7 @@ fn test_area() {
 
     // "Pie" section with a straight connection between the end points of the arc
     {
-        let mut chain = SegmentChain::new();
+        let mut chain = Polysegment::new();
         chain.push_back(
             ArcSegment::fillet([1.0, 0.0], [1.0, 1.0], [0.0, 1.0], 1.0, 0.0, 0)
                 .unwrap()
@@ -309,7 +309,7 @@ fn test_area() {
 
     // "Pie" section with a square cut out at the origin
     {
-        let mut chain = SegmentChain::new();
+        let mut chain = Polysegment::new();
         chain.push_back(
             ArcSegment::fillet([0.0, -1.0], [-1.0, -1.0], [-1.0, 0.0], 1.0, 0.0, 0)
                 .unwrap()
@@ -328,7 +328,7 @@ fn test_area() {
 #[test]
 fn test_contains_point() {
     let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
-    let contour = Contour::new(SegmentChain::from_points(vertices));
+    let contour = Contour::new(Polysegment::from_points(vertices));
     assert!(contour.contains_point([0.5, 0.5], 0.0, 0));
     assert!(contour.contains_point([0.5, 1.0], 0.0, 0));
     assert!(!contour.contains_point([0.5, 1.5], 0.0, 0));
@@ -336,10 +336,10 @@ fn test_contains_point() {
 
 #[test]
 fn test_self_intersection() {
-    // Open segment_chain
+    // Open polysegment
     {
         let c: Contour =
-            SegmentChain::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]).into();
+            Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]).into();
 
         // Intersect the line with itself
         let intersections = c.intersections_contour(&c, DEFAULT_EPSILON, DEFAULT_MAX_ULPS);
@@ -350,10 +350,10 @@ fn test_self_intersection() {
         assert_eq!(intersections.count(), 0);
     }
 
-    // Closed segment_chain
+    // Closed polysegment
     {
         let c: Contour =
-            SegmentChain::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]).into();
+            Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]).into();
 
         // Intersect the line with itself
         let intersections = c.intersections_contour(&c, DEFAULT_EPSILON, DEFAULT_MAX_ULPS);
@@ -388,7 +388,7 @@ fn test_centroid() {
         assert_abs_diff_eq!(&contour.centroid(), &center, epsilon = DEFAULT_EPSILON);
 
         // Quarter-circle => Compare with analytical solution
-        let mut chain = SegmentChain::new();
+        let mut chain = Polysegment::new();
         chain.push_back(
             ArcSegment::fillet(
                 [0.0, 2.0],
@@ -419,7 +419,7 @@ fn test_centroid() {
         let arc_segment_height =
             outer_radius - 0.5 * (4.0 * outer_radius.powi(2) - width.powi(2)).sqrt();
 
-        let mut chain = SegmentChain::with_capacity(5);
+        let mut chain = Polysegment::with_capacity(5);
         chain.push_back(
             LineSegment::new(
                 [0.0, 0.0],
@@ -480,13 +480,13 @@ fn test_centroid() {
 fn test_contains() {
     {
         // large contains small
-        let small = Contour::new(SegmentChain::from_points(&[
+        let small = Contour::new(Polysegment::from_points(&[
             [1.0, 1.0],
             [1.0, 2.0],
             [2.0, 2.0],
             [2.0, 1.0],
         ]));
-        let large = Contour::new(SegmentChain::from_points(&[
+        let large = Contour::new(Polysegment::from_points(&[
             [0.0, 0.0],
             [10.0, 0.0],
             [10.0, 10.0],
@@ -505,13 +505,13 @@ fn test_contains() {
     {
         // large does not contain small, but they do not intersect and the
         // bounding box of small is within that of large
-        let small = Contour::new(SegmentChain::from_points(&[
+        let small = Contour::new(Polysegment::from_points(&[
             [1.0, 1.0],
             [1.0, 2.0],
             [2.0, 2.0],
             [2.0, 1.0],
         ]));
-        let large = Contour::new(SegmentChain::from_points(&[
+        let large = Contour::new(Polysegment::from_points(&[
             [10.0, 0.0],
             [10.0, 10.0],
             [0.0, 10.0],

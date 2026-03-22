@@ -17,8 +17,8 @@ let line = LineSegment::new([1.5, 1.5], [3.5, 1.5], e, m)
 let second_arc = ArcSegment::from_start_center_angle([3.5, 1.5], [3.5, 0.0], -FRAC_PI_2, e, m)
     .expect("radius is positive and offset angle is not zero");
 
-// Build a segment chain from these three segments
-let mut chain = SegmentChain::new();
+// Build a polysegment from these three segments
+let mut chain = Polysegment::new();
 
 // Initially, the chain is empty (has no segments)
 assert_eq!(chain.num_segments(), 0);
@@ -37,10 +37,10 @@ let contour = Contour::new(chain);
 assert_eq!(contour.num_segments(), 4);
 
 // Create a second contour by creating multiple line segments directly from vertices.
-let hole = Contour::new(SegmentChain::from_points(&[[1.5, 0.2], [3.5, 0.2], [3.5, 1.3], [1.5, 1.3]]));
+let hole = Contour::new(Polysegment::from_points(&[[1.5, 0.2], [3.5, 0.2], [3.5, 1.3], [1.5, 1.3]]));
 
 // First element of the vector is interpreted as outer contour, all further
-// elements are holes. The resulting shape is visualized below the code snippet.
+// elements are holes. The resulting shape is drawn below the code snippet.
 let shape = Shape::new(vec![contour, hole]).expect("inputs form a valid shape");
 
 // Calculate the surface area: Area of outer contour minus hole area
@@ -89,8 +89,8 @@ ls.rotate([1.0, 1.0], PI);
 approx::assert_abs_diff_eq!(ls.start(), [1.0, 2.0], epsilon = 1e-15);
 approx::assert_abs_diff_eq!(ls.stop(), [0.0, 2.0], epsilon = 1e-15);
 
-// Scale a segment chain
-let mut chain = SegmentChain::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]);
+// Scale a polysegment
+let mut chain = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]);
 chain.scale(3.0);
 
 let mut pts = chain.points();

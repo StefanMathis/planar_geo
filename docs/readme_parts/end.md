@@ -10,7 +10,7 @@ deserialized using the [serde](https://crates.io/crates/serde) crate.
 When the `cairo` feature is enabled, all geometric objects have a `draw`
 method which can be used to draw them onto a 
 [cairo](https://gtk-rs.org/gtk-rs-core/stable/latest/docs/cairo/) [`Context`].
-See the [module-level documentation](visualize)
+See the [module-level documentation](draw)
 for more. All images used in the documentation were created using this
 functionality.
 

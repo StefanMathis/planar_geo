@@ -22,17 +22,17 @@ fn main() {
     // Approximation by one segment
     let iter = s.polygonize(SegmentPolygonizer::MaximumSegmentLength(10.0));
     let pts: Vec<_> = iter.collect();
-    let poly_one_seg = SegmentChain::from_points(&pts);
+    let poly_one_seg = Polysegment::from_points(&pts);
 
     // Approximation by two segments
     let iter = s.polygonize(SegmentPolygonizer::MaximumAngle(0.5 * PI));
     let pts: Vec<_> = iter.collect();
-    let poly_two_seg = SegmentChain::from_points(&pts);
+    let poly_two_seg = Polysegment::from_points(&pts);
 
     // Approximation by three segments
     let iter = s.polygonize(SegmentPolygonizer::InnerSegments(3));
     let pts: Vec<_> = iter.collect();
-    let poly_three_seg = SegmentChain::from_points(&pts);
+    let poly_three_seg = Polysegment::from_points(&pts);
 
     let mut bb = BoundingBox::from(&s);
     bb.scale(1.05);

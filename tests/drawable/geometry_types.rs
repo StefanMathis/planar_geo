@@ -5,10 +5,10 @@ use cairo_viewport::*;
 use planar_geo::{
     DEFAULT_EPSILON, DEFAULT_MAX_ULPS, Transformation,
     contour::Contour,
+    draw::{Anchor, Color, LineStyle, Style, Text},
     segment::{ArcSegment, LineSegment, Segment},
-    segment_chain::SegmentChain,
+    polysegment::Polysegment,
     shape::Shape,
-    visualize::{Anchor, Color, LineStyle, Style, Text},
 };
 
 #[test]
@@ -226,7 +226,7 @@ fn test_shape_and_text_separated() {
     let e = planar_geo::DEFAULT_EPSILON;
     let m = planar_geo::DEFAULT_MAX_ULPS;
 
-    let mut chain = SegmentChain::new();
+    let mut chain = Polysegment::new();
     chain.push_back(
         ArcSegment::fillet([0.0, 100.0], [0.0, 0.0], [100.0, 0.0], 50.0, e, m)
             .unwrap()
@@ -284,7 +284,7 @@ fn test_shape_scaled_text() {
     let e = planar_geo::DEFAULT_EPSILON;
     let m = planar_geo::DEFAULT_MAX_ULPS;
 
-    let mut chain = SegmentChain::new();
+    let mut chain = Polysegment::new();
     chain.push_back(
         ArcSegment::fillet([0.0, 100.0], [0.0, 0.0], [100.0, 0.0], 50.0, e, m)
             .unwrap()
@@ -518,7 +518,7 @@ fn setup_rotated_text() -> (Shape, Style, Viewport) {
     let e = planar_geo::DEFAULT_EPSILON;
     let m = planar_geo::DEFAULT_MAX_ULPS;
 
-    let mut chain = SegmentChain::new();
+    let mut chain = Polysegment::new();
     chain.push_back(
         ArcSegment::fillet([0.0, 100.0], [0.0, 0.0], [100.0, 0.0], 50.0, e, m)
             .unwrap()
@@ -804,7 +804,7 @@ fn test_rotated_text_right() {
 //     let vertices = vec![[0.0, 0.0], [100.0, 0.0], [0.0, 100.0]];
 //     let radii = vec![50.0, 0.0, 10.0];
 //     let contour = Contour::new(
-//         SegmentChain::from_fillets(vertices, radii, true, DEFAULT_EPSILON,
+//         Polysegment::from_fillets(vertices, radii, true, DEFAULT_EPSILON,
 // DEFAULT_MAX_ULPS)             .unwrap(),
 //     );
 //     let mut style = Style::new(
@@ -878,7 +878,7 @@ fn test_rotated_text_right() {
 #[test]
 fn test_circle_in_square() {
     let verts = vec![[1.0, 1.0], [1.0, -1.0], [-1.0, -1.0], [-1.0, 1.0]];
-    let contour = Contour::new(SegmentChain::from_points(&verts));
+    let contour = Contour::new(Polysegment::from_points(&verts));
 
     let segment: Segment = ArcSegment::from_center_radius_start_offset_angle(
         [0.0, 0.0],
@@ -890,7 +890,7 @@ fn test_circle_in_square() {
     )
     .unwrap()
     .into();
-    let hole = Contour::new(SegmentChain::from_iter(vec![segment]));
+    let hole = Contour::new(Polysegment::from_iter(vec![segment]));
     let shape = Shape::new(vec![contour, hole]).unwrap();
 
     // Set the background_color to blue
@@ -917,7 +917,7 @@ fn test_circle_in_square() {
 #[test]
 fn test_two_shapes() {
     let verts = vec![[1.0, 0.0], [1.0, -1.0], [-1.0, -1.0], [-1.0, 1.0]];
-    let contour = Contour::new(SegmentChain::from_points(&verts));
+    let contour = Contour::new(Polysegment::from_points(&verts));
     let shape_outer = Shape::new(vec![contour]).unwrap();
 
     // Set the background_color to blue
@@ -934,7 +934,7 @@ fn test_two_shapes() {
     )
     .unwrap()
     .into();
-    let contour = Contour::new(SegmentChain::from_iter(vec![segment]));
+    let contour = Contour::new(Polysegment::from_iter(vec![segment]));
     let shape_inner = Shape::new(vec![contour]).unwrap();
 
     // Set the background_color to green
@@ -981,13 +981,13 @@ fn test_quarter_arc() {
     )
     .unwrap()
     .into();
-    let segment_chain = SegmentChain::from_iter(vec![segment]);
+    let polysegment = Polysegment::from_iter(vec![segment]);
 
     let mut style = Style::default();
     style.line_width = 3.0;
 
     let view =
-        Viewport::from_bounding_box(&BoundingBox::from(&segment_chain), SideLength::Long(500));
+        Viewport::from_bounding_box(&BoundingBox::from(&polysegment), SideLength::Long(500));
 
     assert!(
         view.compare_or_create(
@@ -996,7 +996,7 @@ fn test_quarter_arc() {
                 // Set the background to white
                 cr.set_source_rgb(1.0, 1.0, 1.0);
                 cr.paint()?;
-                segment_chain.draw(&style, cr)?;
+                polysegment.draw(&style, cr)?;
                 return Ok(());
             },
             0.99
@@ -1015,7 +1015,7 @@ fn test_quarter_arc() {
     )
     .unwrap()
     .into();
-    let contour = Contour::new(SegmentChain::from_iter(vec![segment]));
+    let contour = Contour::new(Polysegment::from_iter(vec![segment]));
     let shape = Shape::new(vec![contour]).unwrap();
     style.line_width = 3.0;
 
@@ -1042,7 +1042,7 @@ fn test_block_with_fillets() {
     let e = planar_geo::DEFAULT_EPSILON;
     let m = planar_geo::DEFAULT_MAX_ULPS;
 
-    let mut chain = SegmentChain::new();
+    let mut chain = Polysegment::new();
     chain.push_back(
         ArcSegment::fillet([-10f64, 0.0], [10f64, 0.0], [10f64, 10f64], 1.0, e, m)
             .unwrap()

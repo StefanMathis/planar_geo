@@ -8,7 +8,7 @@ fn test_new() {
         let e = planar_geo::DEFAULT_EPSILON;
         let m = planar_geo::DEFAULT_MAX_ULPS;
 
-        let mut chain = SegmentChain::new();
+        let mut chain = Polysegment::new();
         chain.push_back(
             ArcSegment::fillet([0.0, 100.0], [0.0, 0.0], [100.0, 0.0], 50.0, e, m)
                 .unwrap()
@@ -26,17 +26,17 @@ fn test_new() {
     // Shape without any hole
     {
         let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
-        let c = Contour::new(SegmentChain::from_points(vertices));
+        let c = Contour::new(Polysegment::from_points(vertices));
         assert!(Shape::new(vec![c]).is_ok());
     }
 
     // Shape with a single hole
     {
         let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
-        let c1 = Contour::new(SegmentChain::from_points(vertices));
+        let c1 = Contour::new(Polysegment::from_points(vertices));
 
         let vertices = &[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
-        let c2 = Contour::new(SegmentChain::from_points(vertices));
+        let c2 = Contour::new(Polysegment::from_points(vertices));
 
         assert!(Shape::new(vec![c1, c2]).is_ok());
     }
@@ -44,13 +44,13 @@ fn test_new() {
     // Shape with two holes
     {
         let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
-        let c1 = Contour::new(SegmentChain::from_points(vertices));
+        let c1 = Contour::new(Polysegment::from_points(vertices));
 
         let vertices = &[[0.1, 0.1], [0.4, 0.1], [0.4, 0.9], [0.1, 0.9]];
-        let c2 = Contour::new(SegmentChain::from_points(vertices));
+        let c2 = Contour::new(Polysegment::from_points(vertices));
 
         let vertices = &[[0.6, 0.1], [0.9, 0.1], [0.9, 0.9], [0.6, 0.9]];
-        let c3 = Contour::new(SegmentChain::from_points(vertices));
+        let c3 = Contour::new(Polysegment::from_points(vertices));
 
         assert!(Shape::new(vec![c1, c2, c3]).is_ok());
     }
@@ -63,7 +63,7 @@ fn test_new() {
 
     // Fails because one of the contours is empty
     {
-        let err = Shape::new(vec![Contour::new(SegmentChain::new())]).unwrap_err();
+        let err = Shape::new(vec![Contour::new(Polysegment::new())]).unwrap_err();
         match err {
             ShapeConstructorError::EmptyContour { input: _, idx } => assert_eq!(idx, 0),
             _ => unreachable!(),
@@ -71,9 +71,9 @@ fn test_new() {
     }
     {
         let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
-        let c = Contour::new(SegmentChain::from_points(vertices));
+        let c = Contour::new(Polysegment::from_points(vertices));
 
-        let err = Shape::new(vec![c, Contour::new(SegmentChain::new())]).unwrap_err();
+        let err = Shape::new(vec![c, Contour::new(Polysegment::new())]).unwrap_err();
         match err {
             ShapeConstructorError::EmptyContour { input: _, idx } => assert_eq!(idx, 1),
             _ => unreachable!(),
@@ -81,9 +81,9 @@ fn test_new() {
     }
     {
         let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
-        let c = Contour::new(SegmentChain::from_points(vertices));
+        let c = Contour::new(Polysegment::from_points(vertices));
 
-        let err = Shape::new(vec![Contour::new(SegmentChain::new()), c]).unwrap_err();
+        let err = Shape::new(vec![Contour::new(Polysegment::new()), c]).unwrap_err();
         match err {
             ShapeConstructorError::EmptyContour { input: _, idx } => assert_eq!(idx, 0),
             _ => unreachable!(),
@@ -93,7 +93,7 @@ fn test_new() {
     // Fails because the contour intersects itself
     {
         let vertices = &[[0.0, 0.0], [1.0, 1.0], [0.0, 1.0], [1.0, 0.0]];
-        let c = Contour::new(SegmentChain::from_points(vertices));
+        let c = Contour::new(Polysegment::from_points(vertices));
 
         let err = Shape::new(vec![c]).unwrap_err();
         match err {
@@ -121,10 +121,10 @@ fn test_new() {
     // Fails because the two contours intersect
     {
         let vertices = &[[0.0, 0.0], [2.0, 0.0], [2.0, 2.0], [0.0, 2.0]];
-        let c1 = Contour::new(SegmentChain::from_points(vertices));
+        let c1 = Contour::new(Polysegment::from_points(vertices));
 
         let vertices = &[[-1.0, 1.0], [3.0, 1.0], [3.0, 3.0], [-1.0, 3.0]];
-        let c2 = Contour::new(SegmentChain::from_points(vertices));
+        let c2 = Contour::new(Polysegment::from_points(vertices));
 
         let err = Shape::new(vec![c1, c2]).unwrap_err();
         match err {
@@ -136,13 +136,13 @@ fn test_new() {
     // Fails because the second hole is within the first hole
     {
         let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
-        let c1 = Contour::new(SegmentChain::from_points(vertices));
+        let c1 = Contour::new(Polysegment::from_points(vertices));
 
         let vertices = &[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
-        let c2 = Contour::new(SegmentChain::from_points(vertices));
+        let c2 = Contour::new(Polysegment::from_points(vertices));
 
         let vertices = &[[0.2, 0.2], [0.8, 0.2], [0.8, 0.8], [0.2, 0.8]];
-        let c3 = Contour::new(SegmentChain::from_points(vertices));
+        let c3 = Contour::new(Polysegment::from_points(vertices));
 
         let err = Shape::new(vec![c1, c2, c3]).unwrap_err();
         match err {
@@ -159,32 +159,32 @@ fn test_new() {
 #[test]
 fn test_add_hole() {
     let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
-    let c = Contour::new(SegmentChain::from_points(vertices));
+    let c = Contour::new(Polysegment::from_points(vertices));
 
     let mut shape = Shape::new(vec![c]).unwrap();
     assert_eq!(shape.holes().len(), 0);
 
     // Adding works
     let vertices = &[[0.1, 0.1], [0.4, 0.1], [0.4, 0.9], [0.1, 0.9]];
-    let hole = Contour::new(SegmentChain::from_points(vertices));
+    let hole = Contour::new(Polysegment::from_points(vertices));
     assert!(shape.add_hole(hole).is_ok());
     assert_eq!(shape.holes().len(), 1);
 
     // Adding fails (intersection)
     let vertices = &[[-1.0, 1.0], [3.0, 1.0], [3.0, 3.0], [-1.0, 3.0]];
-    let hole = Contour::new(SegmentChain::from_points(vertices));
+    let hole = Contour::new(Polysegment::from_points(vertices));
     assert!(shape.add_hole(hole).is_err());
     assert_eq!(shape.holes().len(), 1);
 
     // Adding works
     let vertices = &[[0.6, 0.1], [0.9, 0.1], [0.9, 0.9], [0.6, 0.9]];
-    let hole = Contour::new(SegmentChain::from_points(vertices));
+    let hole = Contour::new(Polysegment::from_points(vertices));
     assert!(shape.add_hole(hole).is_ok());
     assert_eq!(shape.holes().len(), 2);
 
     // Adding fails (new hole is within first hole)
     let vertices = &[[0.1, 0.1], [0.4, 0.1], [0.4, 0.9], [0.1, 0.9]];
-    let hole = Contour::new(SegmentChain::from_points(vertices));
+    let hole = Contour::new(Polysegment::from_points(vertices));
     assert!(shape.add_hole(hole).is_err());
     assert_eq!(shape.holes().len(), 2);
 }
@@ -192,13 +192,13 @@ fn test_add_hole() {
 #[test]
 fn test_remove_hole() {
     let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
-    let c1 = Contour::new(SegmentChain::from_points(vertices));
+    let c1 = Contour::new(Polysegment::from_points(vertices));
 
     let vertices = &[[0.1, 0.1], [0.4, 0.1], [0.4, 0.9], [0.1, 0.9]];
-    let c2 = Contour::new(SegmentChain::from_points(vertices));
+    let c2 = Contour::new(Polysegment::from_points(vertices));
 
     let vertices = &[[0.6, 0.1], [0.9, 0.1], [0.9, 0.9], [0.6, 0.9]];
-    let c3 = Contour::new(SegmentChain::from_points(vertices));
+    let c3 = Contour::new(Polysegment::from_points(vertices));
 
     let mut shape = Shape::new(vec![c1, c2, c3]).unwrap();
 
@@ -218,10 +218,10 @@ fn test_remove_hole() {
 #[test]
 fn test_translate() {
     let vertices = vec![[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
-    let c1 = Contour::new(SegmentChain::from_points(&vertices));
+    let c1 = Contour::new(Polysegment::from_points(&vertices));
 
     let vertices = vec![[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
-    let c2 = Contour::new(SegmentChain::from_points(&vertices));
+    let c2 = Contour::new(Polysegment::from_points(&vertices));
 
     let mut shape = Shape::new(vec![c1, c2]).unwrap();
     shape.translate([1.0, 0.0]);
@@ -236,10 +236,10 @@ fn test_translate() {
 #[test]
 fn test_rotation() {
     let vertices = vec![[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
-    let c1 = Contour::new(SegmentChain::from_points(&vertices));
+    let c1 = Contour::new(Polysegment::from_points(&vertices));
 
     let vertices = vec![[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
-    let c2 = Contour::new(SegmentChain::from_points(&vertices));
+    let c2 = Contour::new(Polysegment::from_points(&vertices));
 
     let mut shape = Shape::new(vec![c1, c2]).unwrap();
     shape.rotate([0.0, 0.0], FRAC_PI_2);
@@ -254,10 +254,10 @@ fn test_rotation() {
 #[test]
 fn test_rectangle_with_hole() {
     let vertices = vec![[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
-    let c1 = Contour::new(SegmentChain::from_points(&vertices));
+    let c1 = Contour::new(Polysegment::from_points(&vertices));
 
     let vertices = vec![[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
-    let c2 = Contour::new(SegmentChain::from_points(&vertices));
+    let c2 = Contour::new(Polysegment::from_points(&vertices));
 
     let shape = Shape::new(vec![c1, c2]).unwrap();
 
@@ -274,14 +274,14 @@ fn test_rectangle_with_hole() {
 #[test]
 fn test_intersection_with_chain() {
     let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
-    let contour = Contour::new(SegmentChain::from_points(vertices));
+    let contour = Contour::new(Polysegment::from_points(vertices));
 
     let vertices = &[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
-    let hole = Contour::new(SegmentChain::from_points(vertices));
+    let hole = Contour::new(Polysegment::from_points(vertices));
 
     let shape = Shape::new(vec![contour, hole]).unwrap();
 
-    let chain = SegmentChain::from_points(&[
+    let chain = Polysegment::from_points(&[
         [-1.0, 1.0],
         [-1.0, 0.5],
         [2.0, 0.5],
@@ -291,7 +291,7 @@ fn test_intersection_with_chain() {
     ]);
 
     let intersections_sc: Vec<_> = shape
-        .intersections_segment_chain(&chain, DEFAULT_EPSILON, DEFAULT_MAX_ULPS)
+        .intersections_polysegment(&chain, DEFAULT_EPSILON, DEFAULT_MAX_ULPS)
         .collect();
     let intersections_cs: Vec<_> = chain
         .intersections_shape(&shape, DEFAULT_EPSILON, DEFAULT_MAX_ULPS)

@@ -7,7 +7,7 @@ Unlike the "segment" types ([`Segment`](crate::segment::Segment) and its
 variants [`ArcSegment`](crate::segment::ArcSegment) and
 [`LineSegment`](crate::segment::LineSegment)), it is not used in defining more
 complex "composite" types (such as the
-[`SegmentChain`](crate::segment_chain::SegmentChain)). Its main purpose is to
+[`Polysegment`](crate::polysegment::Polysegment)). Its main purpose is to
 serve as a tool for calculations, for example in the "ray casting" algorithm
 which is used to determine whether a point is inside a
 [`Contour`](crate::contour::Contour) or a [`Shape`](crate::shape::Shape).
@@ -15,7 +15,10 @@ which is used to determine whether a point is inside a
 See the docstring of [`Line`] for more information.
  */
 
+use std::f64::{INFINITY, NEG_INFINITY};
+
 use approx::ulps_eq;
+use bounding_box::BoundingBox;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -216,6 +219,22 @@ impl From<[[f64; 2]; 2]> for Line {
 impl From<&crate::segment::LineSegment> for Line {
     fn from(l: &crate::segment::LineSegment) -> Self {
         return [l.start(), l.stop()].into();
+    }
+}
+
+impl From<&'_ Line> for BoundingBox {
+    fn from(value: &'_ Line) -> Self {
+        if value.a == 0.0 {
+            // Horizontal line
+            let y = value.c / value.b;
+            return BoundingBox::new(NEG_INFINITY, INFINITY, y, y);
+        } else if value.b == 0.0 {
+            // Vertical line
+            let x = value.c / value.a;
+            return BoundingBox::new(x, x, NEG_INFINITY, INFINITY);
+        } else {
+            return BoundingBox::new(NEG_INFINITY, INFINITY, NEG_INFINITY, INFINITY);
+        }
     }
 }
 

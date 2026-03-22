@@ -1,19 +1,20 @@
 planar_geo
 ==========
 
-[`ArcSegment`]: https://docs.rs/planar_geo/0.2.1/planar_geo/segment/arc_segment/struct.ArcSegment.html
-[`LineSegment`]: https://docs.rs/planar_geo/0.2.1/planar_geo/segment/line_segment/struct.LineSegment.html
-[`Segment`]: https://docs.rs/planar_geo/0.2.1/planar_geo/segment/enum.Segment.html
-[`SegmentChain`]: https://docs.rs/planar_geo/0.2.1/planar_geo/segment_chain/struct.SegmentChain.html
-[`Contour`]: https://docs.rs/planar_geo/0.2.1/planar_geo/contour/struct.Contour.html
-[`Shape`]: https://docs.rs/planar_geo/0.2.1/planar_geo/shape/struct.Shape.html
-[`Primitive`]: https://docs.rs/planar_geo/0.2.1/planar_geo/primitive/trait.Primitive.html
-[`Composite`]: https://docs.rs/planar_geo/0.2.1/planar_geo/composite/trait.Composite.html
-[`Transformation`]: https://docs.rs/planar_geo/0.2.1/planar_geo/trait.Transformation.html
-[`DEFAULT_EPSILON`]: https://docs.rs/planar_geo/0.2.1/planar_geo/constant.DEFAULT_EPSILON.html
-[`DEFAULT_MAX_ULPS`]: https://docs.rs/planar_geo/0.2.1/planar_geo/constant.DEFAULT_MAX_ULPS.html
-[crate_index]: https://docs.rs/planar_geo/0.2.1/planar_geo/.
-[visualize]: https://docs.rs/planar_geo/0.2.1/planar_geo/visualize/index.html.
+[`ArcSegment`]: https://docs.rs/planar_geo/0.3.0/planar_geo/segment/arc_segment/struct.ArcSegment.html
+[`LineSegment`]: https://docs.rs/planar_geo/0.3.0/planar_geo/segment/line_segment/struct.LineSegment.html
+[`Segment`]: https://docs.rs/planar_geo/0.3.0/planar_geo/segment/enum.Segment.html
+[`Polysegment`]: https://docs.rs/planar_geo/0.3.0/planar_geo/polysegment/struct.Polysegment.html
+[`Contour`]: https://docs.rs/planar_geo/0.3.0/planar_geo/contour/struct.Contour.html
+[`Shape`]: https://docs.rs/planar_geo/0.3.0/planar_geo/shape/struct.Shape.html
+[`Primitive`]: https://docs.rs/planar_geo/0.3.0/planar_geo/primitive/trait.Primitive.html
+[`Composite`]: https://docs.rs/planar_geo/0.3.0/planar_geo/composite/trait.Composite.html
+[`Transformation`]: https://docs.rs/planar_geo/0.3.0/planar_geo/trait.Transformation.html
+[`Geometry`]: https://docs.rs/planar_geo/0.3.0/planar_geo/geometry/enum.Geometry.html
+[`DEFAULT_EPSILON`]: https://docs.rs/planar_geo/0.3.0/planar_geo/constant.DEFAULT_EPSILON.html
+[`DEFAULT_MAX_ULPS`]: https://docs.rs/planar_geo/0.3.0/planar_geo/constant.DEFAULT_MAX_ULPS.html
+[crate_index]: https://docs.rs/planar_geo/0.3.0/planar_geo/.
+[draw]: https://docs.rs/planar_geo/0.3.0/planar_geo/draw/index.html.
 [`Context`]: https://gtk-rs.org/gtk-rs-core/stable/latest/docs/cairo/struct.Context.html
 [gtk-rs]: https://gtk-rs.org/gtk-rs-core/stable/latest/docs/cairo
 [approxim]: https://docs.rs/approxim/latest/approxim/
@@ -39,8 +40,10 @@ _This image was created with examples/type_overview.rs_
 
 The "segment" types are so-called [`Primitive`]s: Simple straight
 ([`LineSegment`]) or arc ([`ArcSegment`]) connections between two points. They
-form the basis for the [`Composite`] types [`SegmentChain`], [`Contour`] (a
-closed segment chain) and [`Shape`] (composed of one or more contours).
+form the basis for the [`Composite`] types [`Polysegment`], [`Contour`] (a
+closed polysegment) and [`Shape`] (composed of one or more contours). Different
+geometric types can be grouped together in a collection such as a `Vec` by
+wrapping them in the [`Geometry`] enum.
 
 For these types, this crate offers the following features:
 - Property calculation (e.g. length, surface area, centroids),
@@ -49,7 +52,7 @@ For these types, this crate offers the following features:
 see the [`Primitive`] and [`Composite`] traits.
 
 If the corresponding features are activated, it is also possible to serialize
-and deserialize (using [serde]) and to visualize (using [gtk-rs]) these types.
+and deserialize (using [serde]) and to draw (using [gtk-rs]) these types.
 See the [Features](#features) section for more.
 
 One distinct feature of this library is the treatment of arcs: Arcs are not
@@ -97,8 +100,8 @@ let line = LineSegment::new([1.5, 1.5], [3.5, 1.5], e, m)
 let second_arc = ArcSegment::from_start_center_angle([3.5, 1.5], [3.5, 0.0], -FRAC_PI_2, e, m)
     .expect("radius is positive and offset angle is not zero");
 
-// Build a segment chain from these three segments
-let mut chain = SegmentChain::new();
+// Build a polysegment from these three segments
+let mut chain = Polysegment::new();
 
 // Initially, the chain is empty (has no segments)
 assert_eq!(chain.num_segments(), 0);
@@ -117,10 +120,10 @@ let contour = Contour::new(chain);
 assert_eq!(contour.num_segments(), 4);
 
 // Create a second contour by creating multiple line segments directly from vertices.
-let hole = Contour::new(SegmentChain::from_points(&[[1.5, 0.2], [3.5, 0.2], [3.5, 1.3], [1.5, 1.3]]));
+let hole = Contour::new(Polysegment::from_points(&[[1.5, 0.2], [3.5, 0.2], [3.5, 1.3], [1.5, 1.3]]));
 
 // First element of the vector is interpreted as outer contour, all further
-// elements are holes. The resulting shape is visualized below the code snippet.
+// elements are holes. The resulting shape is drawn below the code snippet.
 let shape = Shape::new(vec![contour, hole]).expect("inputs form a valid shape");
 
 // Calculate the surface area: Area of outer contour minus hole area
@@ -169,8 +172,8 @@ ls.rotate([1.0, 1.0], PI);
 approx::assert_abs_diff_eq!(ls.start(), [1.0, 2.0], epsilon = 1e-15);
 approx::assert_abs_diff_eq!(ls.stop(), [0.0, 2.0], epsilon = 1e-15);
 
-// Scale a segment chain
-let mut chain = SegmentChain::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]);
+// Scale a polysegment
+let mut chain = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]);
 chain.scale(3.0);
 
 let mut pts = chain.points();
@@ -248,7 +251,7 @@ assert_eq!(line_2.intersections_primitive(&arc, e, m), PrimitiveIntersections::Z
 It is also possible to calculate the intersections between composite types, as
 shown in `examples/intersection_composites.rs`:
 
-![](https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/docs/img/intersection_composites.svg "Intersection between contours and a segment chain")
+![](https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/docs/img/intersection_composites.svg "Intersection between contours and a polysegment")
 
 # Features
 
@@ -262,7 +265,7 @@ deserialized using the [serde](https://crates.io/crates/serde) crate.
 When the `cairo` feature is enabled, all geometric objects have a `draw`
 method which can be used to draw them onto a 
 [cairo](https://gtk-rs.org/gtk-rs-core/stable/latest/docs/cairo/) [`Context`].
-See the [module-level documentation](visualize)
+See the [module-level documentation](draw)
 for more. All images used in the documentation were created using this
 functionality.
 
