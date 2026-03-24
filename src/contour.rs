@@ -24,11 +24,11 @@ use rayon::iter::ParallelIterator;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-use crate::Transformation;
 use crate::composite::*;
 use crate::polysegment::Polysegment;
 use crate::primitive::Primitive;
 use crate::segment::{Segment, arc_segment::ArcSegment, line_segment::LineSegment};
+use crate::{CentroidData, Transformation};
 use crate::{DEFAULT_EPSILON, DEFAULT_MAX_ULPS};
 
 use bounding_box::BoundingBox;
@@ -68,8 +68,8 @@ implementation:
 ```
 use planar_geo::prelude::*;
 
-let chain = Polysegment::from_points(&[[0.0, 0.0], [2.0, 2.0], [0.0, 2.0], [2.0, 0.0]]);
-let contour = Contour::new(chain);
+let polysegment = Polysegment::from_points(&[[0.0, 0.0], [2.0, 2.0], [0.0, 2.0], [2.0, 0.0]]);
+let contour = Contour::new(polysegment);
 assert_eq!(contour.intersections_contour(&contour, 0.0, 0).count(), 1);
 ```
 
@@ -79,12 +79,12 @@ the last segment is not counted as an intersection:
 ```
 use planar_geo::prelude::*;
 
-let chain = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [0.0, 0.0]]);
+let polysegment = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [0.0, 0.0]]);
 
 // Last and first segment are "touching" at 0.0
-assert_eq!(chain.intersections_polysegment(&chain, 0.0, 0).count(), 1);
+assert_eq!(polysegment.intersections_polysegment(&polysegment, 0.0, 0).count(), 1);
 
-let contour = Contour::new(chain);
+let contour = Contour::new(polysegment);
 assert_eq!(contour.intersections_contour(&contour, 0.0, 0).count(), 0);
 ```
 
@@ -141,14 +141,14 @@ impl Contour {
     ```
     use planar_geo::prelude::*;
 
-    let chain = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]);
+    let polysegment = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]);
 
     // Two segments
-    assert_eq!(chain.len(), 2);
+    assert_eq!(polysegment.len(), 2);
 
-    let contour = Contour::new(chain);
+    let contour = Contour::new(polysegment);
 
-    // Now the chain has been closed and has three segments
+    // Now the polysegment has been closed and has three segments
     assert_eq!(contour.polysegment().len(), 3);
     ```
      */
@@ -181,10 +181,10 @@ impl Contour {
     ```
     use planar_geo::prelude::*;
 
-    let chain = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]);
-    let contour = Contour::new(chain);
+    let polysegment = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]);
+    let contour = Contour::new(polysegment);
 
-    // Now the chain has been closed and has three segments
+    // Now the polysegment has been closed and has three segments
     assert_eq!(contour.segments().len(), contour.len());
     ```
      */
@@ -242,8 +242,8 @@ impl Contour {
     assert!(Contour::new(Polysegment::new()).is_empty());
 
     // Non-empty contour
-    let chain = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]);
-    let contour = Contour::new(chain);
+    let polysegment = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]);
+    let contour = Contour::new(polysegment);
     assert!(!contour.is_empty());
     ```
      */
@@ -261,8 +261,8 @@ impl Contour {
     ```
      use planar_geo::prelude::*;
 
-    let chain = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]);
-    let contour = Contour::new(chain);
+    let polysegment = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]);
+    let contour = Contour::new(polysegment);
     assert!(contour.get(0).is_some());
     assert!(contour.get(3).is_none());
     ```
@@ -272,7 +272,7 @@ impl Contour {
     }
 
     /**
-    Reverses all [`Segment`]s of the chain by switching their start and stop
+    Reverses all [`Segment`]s of the polysegment by switching their start and stop
     points (see [`Segment::reverse`]). To ensure the "connected" property holds
     true, the ordering of the segments itself is exchanged as well.
 
@@ -281,8 +281,8 @@ impl Contour {
     ```
     use planar_geo::prelude::*;
 
-    let chain = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]);
-    let mut contour = Contour::new(chain);
+    let polysegment = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]);
+    let mut contour = Contour::new(polysegment);
     assert_eq!(contour[1].start(), [1.0, 0.0]);
     assert_eq!(contour[1].stop(), [0.0, 1.0]);
 
@@ -333,8 +333,8 @@ impl Contour {
     ```
     use planar_geo::prelude::*;
 
-    let mut chain = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]);
-    let contour = Contour::new(chain);
+    let mut polysegment = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]);
+    let contour = Contour::new(polysegment);
 
     let mut iter = contour.points();
     assert_eq!(iter.next(), Some([0.0, 0.0]));
@@ -348,7 +348,7 @@ impl Contour {
     }
 
     /**
-    Returns the points of a polygon chain which approximates `self`. The
+    Returns the points of a polygon polysegment which approximates `self`. The
     individual segments are "polygonized" via [`Segment::polygonize`] and
     an [`SegmentPolygonizer`](crate::segment::SegmentPolygonizer) specified
     within [`Polygonizer`]. See the docstring of the latter fore more.
@@ -369,32 +369,32 @@ impl Contour {
     ```
     use planar_geo::prelude::*;
 
-    let chain = Polysegment::from_points(&[
+    let polysegment = Polysegment::from_points(&[
         [0.0, 0.0],
         [1.0, 0.0],
         [1.0, 1.0],
         [0.0, 1.0],
     ]);
-    let outer = Contour::new(chain);
+    let outer = Contour::new(polysegment);
 
     // This contour is inside "outer"
-    let chain = Polysegment::from_points(&[
+    let polysegment = Polysegment::from_points(&[
         [0.1, 0.1],
         [0.9, 0.1],
         [0.9, 0.9],
         [0.1, 0.9],
     ]);
-    let inner = Contour::new(chain);
+    let inner = Contour::new(polysegment);
     assert!(outer.contains(&inner, 0.0, 0));
 
     // This contour intersects with "outer"
-    let chain = Polysegment::from_points(&[
+    let polysegment = Polysegment::from_points(&[
         [0.1, 0.1],
         [1.1, 0.1],
         [1.1, 0.9],
         [0.1, 0.9],
     ]);
-    let inner = Contour::new(chain);
+    let inner = Contour::new(polysegment);
     assert!(!outer.contains(&inner, 0.0, 0));
     ```
     */
@@ -431,7 +431,7 @@ impl Contour {
     }
 
     /**
-    Cuts `self` into multiple chains by intersecting it with `other` and returns
+    Cuts `self` into multiple polysegments by intersecting it with `other` and returns
     those them.
 
     The specified tolerances `epsilon` and `max_ulps` are used to determine
@@ -449,7 +449,7 @@ impl Contour {
 
     let separated_lines = contour.intersection_cut(&cut, DEFAULT_EPSILON, DEFAULT_MAX_ULPS);
 
-    // This cut results in two separate chains
+    // This cut results in two separate polysegments
     assert_eq!(separated_lines.len(), 2);
     ```
      */
@@ -582,8 +582,8 @@ impl Contour {
     pub fn circle(center: [f64; 2], radius: f64) -> Self {
         match ArcSegment::circle(center, radius) {
             Ok(segment) => {
-                let chain = Polysegment::from(Segment::from(segment));
-                return Contour::new(chain);
+                let polysegment = Polysegment::from(Segment::from(segment));
+                return Contour::new(polysegment);
             }
             Err(_) => return Contour::new(Polysegment::new()),
         }
@@ -776,10 +776,10 @@ impl Contour {
     }
 }
 
-impl Composite for Contour {
-    type SegmentKey = SegmentIdx;
+impl crate::composite::private::Sealed for Contour {}
 
-    fn segment(&self, key: Self::SegmentKey) -> Option<&crate::segment::Segment> {
+impl Composite for Contour {
+    fn segment(&self, key: SegmentKey) -> Option<&crate::segment::Segment> {
         return self.polysegment().segment(key);
     }
 
@@ -788,7 +788,7 @@ impl Composite for Contour {
     }
 
     fn centroid(&self) -> [f64; 2] {
-        return crate::CentroidData::from(self).into();
+        return CentroidData::from(self).into();
     }
 
     fn intersections_primitive<'a, T: Primitive>(
@@ -796,7 +796,7 @@ impl Composite for Contour {
         primitive: &'a T,
         epsilon: f64,
         max_ulps: u32,
-    ) -> impl Iterator<Item = Intersection<Self::SegmentKey, ()>> + 'a {
+    ) -> impl Iterator<Item = Intersection> + 'a {
         self.polysegment()
             .intersections_primitive(primitive, epsilon, max_ulps)
     }
@@ -806,7 +806,7 @@ impl Composite for Contour {
         primitive: &'a T,
         epsilon: f64,
         max_ulps: u32,
-    ) -> impl ParallelIterator<Item = Intersection<Self::SegmentKey, ()>> + 'a {
+    ) -> impl ParallelIterator<Item = Intersection> + 'a {
         self.polysegment()
             .intersections_primitive_par(primitive, epsilon, max_ulps)
     }
@@ -816,7 +816,7 @@ impl Composite for Contour {
         polysegment: &'a Polysegment,
         epsilon: f64,
         max_ulps: u32,
-    ) -> impl Iterator<Item = Intersection<Self::SegmentKey, SegmentIdx>> + 'a {
+    ) -> impl Iterator<Item = Intersection> + 'a {
         self.polysegment()
             .intersections_polysegment(polysegment, epsilon, max_ulps)
     }
@@ -826,7 +826,7 @@ impl Composite for Contour {
         polysegment: &'a Polysegment,
         epsilon: f64,
         max_ulps: u32,
-    ) -> impl ParallelIterator<Item = Intersection<Self::SegmentKey, SegmentIdx>> + 'a {
+    ) -> impl ParallelIterator<Item = Intersection> + 'a {
         self.polysegment()
             .intersections_polysegment_par(polysegment, epsilon, max_ulps)
     }
@@ -836,12 +836,15 @@ impl Composite for Contour {
         contour: &'a Contour,
         epsilon: f64,
         max_ulps: u32,
-    ) -> impl Iterator<Item = Intersection<Self::SegmentKey, SegmentIdx>> + 'a {
+    ) -> impl Iterator<Item = Intersection> + 'a {
         let is_identical = std::ptr::eq(self, contour);
         self.polysegment()
             .intersections_polysegment(contour.polysegment(), epsilon, max_ulps)
             .filter(move |i| {
-                if is_identical && i.left.0 == 0 && i.right.0 + 1 == self.num_segments() {
+                if is_identical
+                    && i.left.segment_idx == 0
+                    && i.right.segment_idx + 1 == self.num_segments()
+                {
                     if let Some(start) = self.polysegment().front() {
                         let pt = start.start();
                         return !approx::ulps_eq!(
@@ -861,12 +864,15 @@ impl Composite for Contour {
         contour: &'a Contour,
         epsilon: f64,
         max_ulps: u32,
-    ) -> impl ParallelIterator<Item = Intersection<Self::SegmentKey, SegmentIdx>> + 'a {
+    ) -> impl ParallelIterator<Item = Intersection> + 'a {
         let is_identical = std::ptr::eq(self, contour);
         self.polysegment()
             .intersections_polysegment_par(contour.polysegment(), epsilon, max_ulps)
             .filter(move |i| {
-                if is_identical && i.left.0 == 0 && i.right.0 + 1 == self.num_segments() {
+                if is_identical
+                    && i.left.segment_idx == 0
+                    && i.right.segment_idx + 1 == self.num_segments()
+                {
                     if let Some(start) = self.polysegment().front() {
                         let pt = start.start();
                         return !approx::ulps_eq!(
@@ -886,7 +892,7 @@ impl Composite for Contour {
         shape: &'a crate::prelude::Shape,
         epsilon: f64,
         max_ulps: u32,
-    ) -> impl Iterator<Item = Intersection<Self::SegmentKey, ShapeIdx>> + 'a {
+    ) -> impl Iterator<Item = Intersection> + 'a {
         shape
             .intersections_contour(self, epsilon, max_ulps)
             .map(Intersection::switch)
@@ -897,7 +903,7 @@ impl Composite for Contour {
         shape: &'a crate::prelude::Shape,
         epsilon: f64,
         max_ulps: u32,
-    ) -> impl ParallelIterator<Item = Intersection<Self::SegmentKey, ShapeIdx>> + 'a {
+    ) -> impl ParallelIterator<Item = Intersection> + 'a {
         shape
             .intersections_contour_par(self, epsilon, max_ulps)
             .map(Intersection::switch)
@@ -908,7 +914,7 @@ impl Composite for Contour {
         other: &'a T,
         epsilon: f64,
         max_ulps: u32,
-    ) -> impl Iterator<Item = Intersection<Self::SegmentKey, T::SegmentKey>> + 'a
+    ) -> impl Iterator<Item = Intersection> + 'a
     where
         Self: Sized,
     {
@@ -922,50 +928,14 @@ impl Composite for Contour {
         other: &'a T,
         epsilon: f64,
         max_ulps: u32,
-    ) -> impl ParallelIterator<Item = Intersection<Self::SegmentKey, T::SegmentKey>> + 'a
+    ) -> impl ParallelIterator<Item = Intersection> + 'a
     where
         Self: Sized,
-        <T as Composite>::SegmentKey: Send,
     {
         return other
             .intersections_contour_par(self, epsilon, max_ulps)
             .map(Intersection::switch);
     }
-
-    // fn intersection<'a, T: Into<crate::geometry::GeometryRef<'a>>>(
-    //     &'a self,
-    //     other: T,
-    //     epsilon: f64,
-    //     max_ulps: u32,
-    // ) -> Box<dyn Iterator<Item = [f64; 2]> + 'a> {
-    //     let other: crate::geometry::GeometryRef = other.into();
-    //     match other {
-    //         crate::prelude::GeometryRef::Point(point) => {
-    //             if self.contains_point(point.clone(), epsilon, max_ulps) {
-    //                 return Box::new(std::iter::once(point.clone()));
-    //             } else {
-    //                 return Box::new(std::iter::empty::<[f64; 2]>());
-    //             }
-    //         }
-    //         crate::prelude::GeometryRef::BoundingBox(bounding_box) => todo!(),
-    //         crate::prelude::GeometryRef::ArcSegment(arc_segment) => todo!(),
-    //         crate::prelude::GeometryRef::LineSegment(line_segment) => todo!(),
-    //         crate::prelude::GeometryRef::Line(line) => todo!(),
-    //         crate::prelude::GeometryRef::Segment(segment) => todo!(),
-    //         crate::prelude::GeometryRef::Polysegment(elem) => Box::new(
-    //             self.intersections_composite(elem, epsilon, max_ulps)
-    //                 .map(|i| i.point),
-    //         ),
-    //         crate::prelude::GeometryRef::Contour(elem) => Box::new(
-    //             self.intersections_composite(elem, epsilon, max_ulps)
-    //                 .map(|i| i.point),
-    //         ),
-    //         crate::prelude::GeometryRef::Shape(elem) => Box::new(
-    //             self.intersections_composite(elem, epsilon, max_ulps)
-    //                 .map(|i| i.point),
-    //         ),
-    //     }
-    // }
 
     /**
     This function check if the point is on the contour OR inside it.
@@ -1060,7 +1030,7 @@ impl From<&Contour> for BoundingBox {
     }
 }
 
-impl From<&Contour> for crate::CentroidData {
+impl From<&Contour> for CentroidData {
     fn from(value: &Contour) -> Self {
         return (&value.0).into();
     }

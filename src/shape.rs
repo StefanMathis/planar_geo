@@ -11,10 +11,11 @@ itself; see its documentation for details on construction, invariants, and
 usage.
  */
 
-use crate::composite::Composite;
+use crate::CentroidData;
+use crate::composite::{Composite, Intersection, SegmentKey};
 use crate::error::ShapeConstructorError;
 use crate::primitive::Primitive;
-use crate::{DEFAULT_EPSILON, DEFAULT_MAX_ULPS, composite::*};
+use crate::{DEFAULT_EPSILON, DEFAULT_MAX_ULPS};
 use crate::{Transformation, contour::Contour};
 use bounding_box::BoundingBox;
 use num::Integer;
@@ -130,9 +131,7 @@ impl Shape {
     assert!(Shape::new(vec![c1, c2]).is_err());
     ```
      */
-    pub fn new(
-        contours: Vec<Contour>,
-    ) -> Result<Self, ShapeConstructorError<Vec<Contour>, ShapeIdx>> {
+    pub fn new(contours: Vec<Contour>) -> Result<Self, ShapeConstructorError<Vec<Contour>>> {
         if contours.len() == 0 {
             return Err(ShapeConstructorError::EmptyVec);
         }
@@ -214,7 +213,7 @@ impl Shape {
     assert!(Shape::from_outer(c).is_err());
     ```
      */
-    pub fn from_outer(outer: Contour) -> Result<Self, ShapeConstructorError<Contour, SegmentIdx>> {
+    pub fn from_outer(outer: Contour) -> Result<Self, ShapeConstructorError<Contour>> {
         if outer.is_empty() {
             return Err(ShapeConstructorError::EmptyContour {
                 input: outer,
@@ -229,7 +228,7 @@ impl Shape {
                 input: outer,
                 intersection: Intersection {
                     point: i.point,
-                    left: ShapeIdx::new(0usize, i.left),
+                    left: i.left,
                     right: i.right,
                 },
             });
@@ -353,10 +352,7 @@ impl Shape {
     assert_eq!(shape.holes().len(), 1);
     ```
      */
-    pub fn add_hole(
-        &mut self,
-        hole: Contour,
-    ) -> Result<(), ShapeConstructorError<Contour, SegmentIdx>> {
+    pub fn add_hole(&mut self, hole: Contour) -> Result<(), ShapeConstructorError<Contour>> {
         if hole.is_empty() {
             return Err(ShapeConstructorError::EmptyContour {
                 input: hole,
@@ -464,12 +460,12 @@ impl Shape {
     }
 }
 
-impl Composite for Shape {
-    type SegmentKey = ShapeIdx;
+impl crate::composite::private::Sealed for Shape {}
 
-    fn segment(&self, key: Self::SegmentKey) -> Option<&crate::segment::Segment> {
+impl Composite for Shape {
+    fn segment(&self, key: SegmentKey) -> Option<&crate::segment::Segment> {
         let contour = self.0.get(key.contour_idx)?;
-        return contour.segment(key.segment_idx);
+        return contour.segment(key);
     }
 
     fn num_segments(&self) -> usize {
@@ -477,7 +473,7 @@ impl Composite for Shape {
     }
 
     fn centroid(&self) -> [f64; 2] {
-        return crate::CentroidData::from(self).into();
+        return CentroidData::from(self).into();
     }
 
     fn intersections_primitive<'a, T: Primitive>(
@@ -485,7 +481,7 @@ impl Composite for Shape {
         primitive: &'a T,
         epsilon: f64,
         max_ulps: u32,
-    ) -> impl Iterator<Item = Intersection<Self::SegmentKey, ()>> + 'a {
+    ) -> impl Iterator<Item = Intersection> + 'a {
         self.contours()
             .iter()
             .enumerate()
@@ -495,9 +491,9 @@ impl Composite for Shape {
                     .intersections_primitive(primitive, epsilon, max_ulps)
                     .map(move |i| Intersection {
                         point: i.point,
-                        left: ShapeIdx {
+                        left: SegmentKey {
                             contour_idx: idx_1,
-                            segment_idx: i.left,
+                            segment_idx: i.left.segment_idx,
                         },
                         right: i.right,
                     })
@@ -509,7 +505,7 @@ impl Composite for Shape {
         primitive: &'a T,
         epsilon: f64,
         max_ulps: u32,
-    ) -> impl ParallelIterator<Item = Intersection<Self::SegmentKey, ()>> + 'a {
+    ) -> impl ParallelIterator<Item = Intersection> + 'a {
         self.contours()
             .par_iter()
             .enumerate()
@@ -519,9 +515,9 @@ impl Composite for Shape {
                     .intersections_primitive_par(primitive, epsilon, max_ulps)
                     .map(move |i| Intersection {
                         point: i.point,
-                        left: ShapeIdx {
+                        left: SegmentKey {
                             contour_idx: idx_1,
-                            segment_idx: i.left,
+                            segment_idx: i.left.segment_idx,
                         },
                         right: i.right,
                     })
@@ -533,7 +529,7 @@ impl Composite for Shape {
         polysegment: &'a crate::prelude::Polysegment,
         epsilon: f64,
         max_ulps: u32,
-    ) -> impl Iterator<Item = Intersection<Self::SegmentKey, SegmentIdx>> + 'a {
+    ) -> impl Iterator<Item = Intersection> + 'a {
         self.contours()
             .iter()
             .enumerate()
@@ -543,9 +539,9 @@ impl Composite for Shape {
                     .intersections_polysegment(polysegment, epsilon, max_ulps)
                     .map(move |i| Intersection {
                         point: i.point,
-                        left: ShapeIdx {
+                        left: SegmentKey {
                             contour_idx: c1,
-                            segment_idx: i.left,
+                            segment_idx: i.left.segment_idx,
                         },
                         right: i.right,
                     })
@@ -557,7 +553,7 @@ impl Composite for Shape {
         polysegment: &'a crate::prelude::Polysegment,
         epsilon: f64,
         max_ulps: u32,
-    ) -> impl ParallelIterator<Item = Intersection<Self::SegmentKey, SegmentIdx>> + 'a {
+    ) -> impl ParallelIterator<Item = Intersection> + 'a {
         self.contours()
             .par_iter()
             .enumerate()
@@ -567,9 +563,9 @@ impl Composite for Shape {
                     .intersections_polysegment_par(polysegment, epsilon, max_ulps)
                     .map(move |i| Intersection {
                         point: i.point,
-                        left: ShapeIdx {
+                        left: SegmentKey {
                             contour_idx: c1,
-                            segment_idx: i.left,
+                            segment_idx: i.left.segment_idx,
                         },
                         right: i.right,
                     })
@@ -581,7 +577,7 @@ impl Composite for Shape {
         contour: &'a Contour,
         epsilon: f64,
         max_ulps: u32,
-    ) -> impl Iterator<Item = Intersection<Self::SegmentKey, SegmentIdx>> + 'a {
+    ) -> impl Iterator<Item = Intersection> + 'a {
         self.intersections_polysegment(contour.polysegment(), epsilon, max_ulps)
     }
 
@@ -590,7 +586,7 @@ impl Composite for Shape {
         contour: &'a Contour,
         epsilon: f64,
         max_ulps: u32,
-    ) -> impl ParallelIterator<Item = Intersection<Self::SegmentKey, SegmentIdx>> + 'a {
+    ) -> impl ParallelIterator<Item = Intersection> + 'a {
         self.intersections_polysegment_par(contour.polysegment(), epsilon, max_ulps)
     }
 
@@ -599,7 +595,7 @@ impl Composite for Shape {
         shape: &'a Shape,
         epsilon: f64,
         max_ulps: u32,
-    ) -> impl Iterator<Item = Intersection<Self::SegmentKey, ShapeIdx>> + 'a {
+    ) -> impl Iterator<Item = Intersection> + 'a {
         self.contours()
             .iter()
             .enumerate()
@@ -613,13 +609,13 @@ impl Composite for Shape {
                             .intersections_contour(contour_2, epsilon, max_ulps)
                             .map(move |i| Intersection {
                                 point: i.point,
-                                left: ShapeIdx {
+                                left: SegmentKey {
                                     contour_idx: idx_1,
-                                    segment_idx: i.left,
+                                    segment_idx: i.left.segment_idx,
                                 },
-                                right: ShapeIdx {
+                                right: SegmentKey {
                                     contour_idx: idx_2,
-                                    segment_idx: i.right,
+                                    segment_idx: i.right.segment_idx,
                                 },
                             })
                     })
@@ -632,7 +628,7 @@ impl Composite for Shape {
         shape: &'a Shape,
         epsilon: f64,
         max_ulps: u32,
-    ) -> impl ParallelIterator<Item = Intersection<Self::SegmentKey, ShapeIdx>> + 'a {
+    ) -> impl ParallelIterator<Item = Intersection> + 'a {
         self.contours()
             .par_iter()
             .enumerate()
@@ -646,13 +642,13 @@ impl Composite for Shape {
                             .intersections_contour_par(contour_2, epsilon, max_ulps)
                             .map(move |i| Intersection {
                                 point: i.point,
-                                left: ShapeIdx {
+                                left: SegmentKey {
                                     contour_idx: idx_1,
-                                    segment_idx: i.left,
+                                    segment_idx: i.left.segment_idx,
                                 },
-                                right: ShapeIdx {
+                                right: SegmentKey {
                                     contour_idx: idx_2,
-                                    segment_idx: i.right,
+                                    segment_idx: i.right.segment_idx,
                                 },
                             })
                     })
@@ -665,7 +661,7 @@ impl Composite for Shape {
         other: &'a T,
         epsilon: f64,
         max_ulps: u32,
-    ) -> impl Iterator<Item = Intersection<Self::SegmentKey, T::SegmentKey>> + 'a
+    ) -> impl Iterator<Item = Intersection> + 'a
     where
         Self: Sized,
     {
@@ -679,10 +675,9 @@ impl Composite for Shape {
         other: &'a T,
         epsilon: f64,
         max_ulps: u32,
-    ) -> impl ParallelIterator<Item = Intersection<Self::SegmentKey, T::SegmentKey>> + 'a
+    ) -> impl ParallelIterator<Item = Intersection> + 'a
     where
         Self: Sized,
-        <T as Composite>::SegmentKey: Send,
     {
         return other
             .intersections_shape_par(self, epsilon, max_ulps)
@@ -773,13 +768,13 @@ impl From<&Shape> for BoundingBox {
     }
 }
 
-impl From<&Shape> for crate::CentroidData {
+impl From<&Shape> for CentroidData {
     fn from(value: &Shape) -> Self {
-        let contour_centroid = crate::CentroidData::from(value.contour());
+        let contour_centroid = CentroidData::from(value.contour());
         return value
             .holes()
             .iter()
-            .map(|contour| crate::CentroidData::from(contour))
+            .map(|contour| CentroidData::from(contour))
             .fold(contour_centroid, |prev, curr| prev.subtract(&curr));
     }
 }

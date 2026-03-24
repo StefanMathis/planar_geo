@@ -97,8 +97,8 @@ fn test_bounding_box_arc() {
 #[test]
 fn test_bounding_two_box_shapes() {
     let vertices = [[10e-3, 0.0], [10e-3, 5e-3], [-10e-3, 5e-3], [-10e-3, 0.0]];
-    let chain = Polysegment::from_points(vertices.as_slice());
-    let shape_lower = Shape::new(vec![Contour::new(chain)]).unwrap();
+    let polysegment = Polysegment::from_points(vertices.as_slice());
+    let shape_lower = Shape::new(vec![Contour::new(polysegment)]).unwrap();
 
     let vertices = vec![
         [10e-3, 5e-3],
@@ -106,8 +106,8 @@ fn test_bounding_two_box_shapes() {
         [-10e-3, 10e-3],
         [-10e-3, 5e-3],
     ];
-    let chain = Polysegment::from_points(vertices.as_slice());
-    let shape_upper = Shape::new(vec![Contour::new(chain)]).unwrap();
+    let polysegment = Polysegment::from_points(vertices.as_slice());
+    let shape_upper = Shape::new(vec![Contour::new(polysegment)]).unwrap();
 
     let shapes = vec![shape_lower, shape_upper];
     let bb = BoundingBox::from_bounded_entities(shapes.iter()).unwrap();
@@ -169,4 +169,14 @@ fn test_touches() {
     let bb2: BoundingBox = BoundingBox::new(0.8, 2.0, 0.0, 1.0);
     assert!(!bb2.touches(&bb1));
     assert!(!bb1.touches(&bb2));
+}
+
+#[test]
+fn intersection() {
+    let bb1 = BoundingBox::new(0.0, 1.0, 0.0, 1.0);
+    let bb2 = BoundingBox::new(0.5, 1.5, 0.5, 1.5);
+    let intersections = GeometryRef::from(&bb1).intersections(&bb2, 0.0, 0);
+    assert_eq!(intersections.len(), 2);
+    approx::assert_abs_diff_eq!(intersections[0].point, [1.0, 0.5], epsilon = 1e-3);
+    approx::assert_abs_diff_eq!(intersections[1].point, [0.5, 1.0], epsilon = 1e-3);
 }

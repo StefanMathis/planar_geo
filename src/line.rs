@@ -23,7 +23,7 @@ use bounding_box::BoundingBox;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    DEFAULT_EPSILON, DEFAULT_MAX_ULPS, Transformation,
+    DEFAULT_EPSILON, DEFAULT_MAX_ULPS, Rotation2, Transformation,
     primitive::{Primitive, PrimitiveIntersections},
 };
 
@@ -248,7 +248,7 @@ impl Transformation for Line {
     }
 
     fn rotate(&mut self, center: [f64; 2], angle: f64) {
-        let t = crate::Rotation2::new(angle);
+        let t = Rotation2::new(angle);
         let ab_r = t * [self.a, self.b];
         self.c = self.c + self.a * center[0] + self.b * center[1]
             - ab_r[0] * center[0]

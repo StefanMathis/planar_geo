@@ -6,6 +6,7 @@
 [`Contour`]: crate::contour::Contour
 [`Shape`]: crate::shape::Shape
 [`Geometry`]: crate::geometry::Geometry
+[`intersections`]: crate::geometry::GeometryRef::intersections
 [`Primitive`]: crate::primitive::Primitive
 [`Composite`]: crate::composite::Composite
 [`Transformation`]: crate::Transformation
@@ -140,25 +141,22 @@ pub mod geometry;
 #[cfg(feature = "cairo")]
 pub mod draw;
 
-// =============================================================================
-// Shared code
-
 /**
 Affine transformations for geometric types.
 
-All geometric types within this crate as well as the basic "point" type
-`[f64;2`] implement this trait to allow for easy affine transformations. All
-examples in the docstrings of the individual trait methods are for the point
-type, because all other geometric types are based on it. Hence, their trait
-implementation just delegates to `impl Transformation for [f64; 2]` for all
-their points.
+All geometric types within this crate as well as the basic "point"
+`[f64;2]` and [`bounding_box::BoundingBox`] types implement this trait to allow
+for easy affine transformations. All examples in the docstrings of the
+ndividual trait methods are for the point type, because all other geometric
+types are based on it. Hence, their implementation basically just delegates to
+`impl Transformation for [f64; 2]` for all their points.
  */
 pub trait Transformation {
     /**
     Translates `self` by the given `shift`.
 
     ```
-    use planar_geo::Transformation;
+    use planar_geo::prelude::Transformation;
 
     let mut pt = [1.0, 1.0];
     pt.translate([1.0, -1.0]);
@@ -172,7 +170,7 @@ pub trait Transformation {
 
     ```
     use std::f64::consts::PI;
-    use planar_geo::Transformation;
+    use planar_geo::prelude::Transformation;
 
     let mut pt = [1.0, 1.0];
     pt.rotate([1.0, -1.0], PI);
@@ -185,7 +183,7 @@ pub trait Transformation {
     Scales `self` by `factor` with respect to the origin `[0.0, 0.0]`.
 
     ```
-    use planar_geo::Transformation;
+    use planar_geo::prelude::Transformation;
 
     let mut pt = [1.0, 1.0];
     pt.scale(2.0);
@@ -198,7 +196,7 @@ pub trait Transformation {
     Mirrors `self` about a line defined by two points.
 
     ```
-    use planar_geo::Transformation;
+    use planar_geo::prelude::Transformation;
 
     let mut pt = [1.0, 1.0];
     pt.line_reflection([0.0, 0.0], [0.0, 2.0]); // Vertical line
@@ -214,7 +212,7 @@ pub trait Transformation {
     around the point with the angle PI.
 
     ```
-    use planar_geo::prelude::*;
+    use planar_geo::prelude::Transformation;
 
     let mut pt = [1.0, 1.0];
     pt.point_reflection([0.0, 0.0]);
@@ -234,7 +232,7 @@ impl Transformation for [f64; 2] {
     }
 
     fn rotate(&mut self, center: [f64; 2], angle: f64) {
-        let t = crate::Rotation2::new(angle);
+        let t = Rotation2::new(angle);
         let pt = [self[0] - center[0], self[1] - center[1]];
         let mut p = t * pt;
         p.translate([center[0], center[1]]);

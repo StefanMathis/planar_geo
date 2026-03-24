@@ -31,7 +31,45 @@ let geo = Geometry::from(segment);
 let geo_ref = GeometryRef::from(&geo);
 ```
 
-One use for these containers is to find the common bounding box of multiple
+These containers enable the generic `intersections` interface which avoids the
+need to use the specialized intersection methods from [`Primitive`] or
+[`Composite`] (it defers to those under the hood). Its main disadvantage is that
+it needs to eagerly allocate a vector to hold the [`Intersection`]s, because the
+specialized methods return different iterator types. If that is not an issues,
+using the `intersections` methods greatly simplifies finding the intersections
+between any two geometric types
+
+```
+use planar_geo::prelude::*;
+
+let e = DEFAULT_EPSILON;
+let m = DEFAULT_MAX_ULPS;
+
+let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
+let contour = Contour::new(Polysegment::from_points(vertices));
+let vertices = &[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
+let hole = Contour::new(Polysegment::from_points(vertices));
+let shape = Shape::new(vec![contour, hole]).expect("valid inputs");
+
+let vertices = &[[2.0, 1.0], [2.0, 0.5], [0.0, 0.5]];
+let polysegment = Polysegment::from_points(vertices);
+
+let line = Line::from_point_angle([0.0, 0.5], 0.0);
+
+// Generic interface
+let intersections: Vec<Intersection> = polysegment.intersections(&shape, e, m);
+assert_eq!(intersections.len(), 4);
+let intersections: Vec<Intersection> = shape.intersections(&line, e, m);
+assert_eq!(intersections.len(), 4);
+
+// Specialized interface (note the explicit allocation from the iterators)
+let intersections: Vec<Intersection> = polysegment.intersections_composite(&shape, e, m).collect();
+assert_eq!(intersections.len(), 4);
+let intersections: Vec<Intersection> = shape.intersections_primitive(&line, e, m).collect();
+assert_eq!(intersections.len(), 4);
+```
+
+Another use for these containers is to find the common bounding box of multiple
 different geometric types (the containers implement
 [`bounding_box::ToBoundingBox`]):
 
@@ -67,8 +105,10 @@ use serde::{Deserialize, Serialize};
 
 use bounding_box::BoundingBox;
 
+use rayon::prelude::*;
+
 use crate::Transformation;
-use crate::composite::Composite;
+use crate::composite::{Composite, Intersection, SegmentKey};
 use crate::contour::Contour;
 use crate::line::Line;
 use crate::polysegment::Polysegment;
@@ -104,14 +144,54 @@ pub enum Geometry {
 }
 
 impl Geometry {
+    /**
+    If `self` holds a [`Composite`], returns a reference to the [`Segment`]
+    specified by the given [`SegmentKey`]. Otherwise, returns `None`.
+     */
+    pub fn segment(&self, key: SegmentKey) -> Option<&Segment> {
+        match self {
+            Geometry::Point(_) => None,
+            Geometry::BoundingBox(_) => None,
+            Geometry::ArcSegment(_) => None,
+            Geometry::LineSegment(_) => None,
+            Geometry::Line(_) => None,
+            Geometry::Segment(_) => None,
+            Geometry::Polysegment(polysegment) => polysegment.segment(key),
+            Geometry::Contour(contour) => contour.segment(key),
+            Geometry::Shape(shape) => shape.segment(key),
+        }
+    }
+
+    /**
+    Returns all intersections between `self` and `other`.
+
+    See [`GeometryRef::intersections`] for details and examples.
+     */
     pub fn intersections<'b, T: Into<GeometryRef<'b>>>(
         &self,
         other: T,
         epsilon: f64,
         max_ulps: u32,
-    ) -> Vec<[f64; 2]> {
+    ) -> Vec<Intersection> {
         let this: GeometryRef = self.into();
         this.intersections(other, epsilon, max_ulps)
+    }
+
+    /**
+    Returns all intersections between `self` and `other`.
+
+    This is a parallelized version of [`Geometry::intersections`], see its
+    docstring for details. It uses parallel variants of the specialized
+    intersection algorithms, if available.
+     */
+    pub fn intersections_par<'b, T: Into<GeometryRef<'b>>>(
+        &self,
+        other: T,
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> Vec<Intersection> {
+        let this: GeometryRef = self.into();
+        this.intersections_par(other, epsilon, max_ulps)
     }
 }
 
@@ -261,12 +341,86 @@ pub enum GeometryRef<'a> {
 }
 
 impl<'a> GeometryRef<'a> {
+    /**
+    If `self` holds a [`Composite`], returns a reference to the [`Segment`]
+    specified by the given [`SegmentKey`]. Otherwise, returns `None`.
+     */
+    pub fn segment(&self, key: SegmentKey) -> Option<&Segment> {
+        match self {
+            GeometryRef::Point(_) => None,
+            GeometryRef::BoundingBox(_) => None,
+            GeometryRef::ArcSegment(_) => None,
+            GeometryRef::LineSegment(_) => None,
+            GeometryRef::Line(_) => None,
+            GeometryRef::Segment(_) => None,
+            GeometryRef::Polysegment(polysegment) => polysegment.segment(key),
+            GeometryRef::Contour(contour) => contour.segment(key),
+            GeometryRef::Shape(shape) => shape.segment(key),
+        }
+    }
+
+    /**
+    Returns all intersections between `self` and `other`.
+
+    This function uses the specialized intersection functions provided by the
+    [`Primitive`] and [`Composite`] traits, depending on the underlying types of
+    `self` and `other`:
+    - Both are [`Primitive`]s: [`Primitive::intersections_primitive`].
+    - One of them is a [`Primitive`], the other one is a [`Composite`]:
+    [`Composite::intersections_primitive`].
+    - Both are [`Composite`]s: [`Composite::intersections_composite`].
+    - One of them is a point [`f64; 2`]: [`Primitive::contains_point`] or
+    [`Composite::contains_point`].
+    - A bounding box is converted to a [`Contour`] ([`Composite`]), then one of
+    the functions listed above is used.
+
+    Since all of these underlying functions return different types (iterators,
+    enums, booleans), this function unifies the outputs into an allocated
+    vector. If allocation is undesirable, consider using the specialized
+    functions instead.
+
+    # Examples
+
+    ```
+    use planar_geo::prelude::*;
+
+    let e = DEFAULT_EPSILON;
+    let m = DEFAULT_MAX_ULPS;
+
+    let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
+    let contour = Contour::new(Polysegment::from_points(vertices));
+    let vertices = &[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
+    let hole = Contour::new(Polysegment::from_points(vertices));
+    let shape = Shape::new(vec![contour, hole]).expect("valid inputs");
+
+    let vertices = &[[2.0, 1.0], [2.0, 0.5], [0.0, 0.5]];
+    let polysegment = Polysegment::from_points(vertices);
+
+    let line = Line::from_point_angle([0.0, 0.5], 0.0);
+
+    // Using GeometryRef
+    let intersections: Vec<Intersection> = GeometryRef::from(&polysegment).intersections(&shape, e, m);
+    assert_eq!(intersections.len(), 4);
+
+    // Since all of the geometric types in this crate provide an intersection
+    // method themselves, it is not necesssary to convert them into GeometryRef
+    // explicitly (the conversion happens under the hood)
+    let intersections: Vec<Intersection> = shape.intersections(&line, e, m);
+    assert_eq!(intersections.len(), 4);
+
+    // Parallelized variants
+    let intersections: Vec<Intersection> = polysegment.intersections_par(&shape, e, m);
+    assert_eq!(intersections.len(), 4);
+    let intersections: Vec<Intersection> = shape.intersections_par(&line, e, m);
+    assert_eq!(intersections.len(), 4);
+    ```
+     */
     pub fn intersections<'b, T: Into<GeometryRef<'b>>>(
         &self,
         other: T,
         epsilon: f64,
         max_ulps: u32,
-    ) -> Vec<[f64; 2]> {
+    ) -> Vec<Intersection> {
         let geo_ref: GeometryRef = other.into();
         match self {
             GeometryRef::Point(elem) => geo_ref.intersections_primitive(*elem, epsilon, max_ulps),
@@ -289,16 +443,57 @@ impl<'a> GeometryRef<'a> {
         }
     }
 
+    /**
+    Returns all intersections between `self` and `other`.
+
+    This is a parallelized version of [`GeometryRef::intersections`], see its
+    docstring for details. It uses parallel variants of the specialized
+    intersection algorithms, if available.
+     */
+    pub fn intersections_par<'b, T: Into<GeometryRef<'b>>>(
+        &self,
+        other: T,
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> Vec<Intersection> {
+        let geo_ref: GeometryRef = other.into();
+        match self {
+            GeometryRef::Point(elem) => geo_ref.intersections_primitive(*elem, epsilon, max_ulps),
+            GeometryRef::BoundingBox(bounding_box) => geo_ref.intersections_composite_par(
+                &Contour::from(*bounding_box),
+                epsilon,
+                max_ulps,
+            ),
+            GeometryRef::ArcSegment(elem) => {
+                geo_ref.intersections_primitive(*elem, epsilon, max_ulps)
+            }
+            GeometryRef::LineSegment(elem) => {
+                geo_ref.intersections_primitive(*elem, epsilon, max_ulps)
+            }
+            GeometryRef::Line(elem) => geo_ref.intersections_primitive(*elem, epsilon, max_ulps),
+            GeometryRef::Segment(elem) => geo_ref.intersections_primitive(*elem, epsilon, max_ulps),
+            GeometryRef::Polysegment(elem) => {
+                geo_ref.intersections_composite_par(*elem, epsilon, max_ulps)
+            }
+            GeometryRef::Contour(elem) => {
+                geo_ref.intersections_composite_par(*elem, epsilon, max_ulps)
+            }
+            GeometryRef::Shape(elem) => {
+                geo_ref.intersections_composite_par(*elem, epsilon, max_ulps)
+            }
+        }
+    }
+
     pub(crate) fn intersections_primitive<T: Primitive>(
         &self,
         other: &T,
         epsilon: f64,
         max_ulps: u32,
-    ) -> Vec<[f64; 2]> {
+    ) -> Vec<Intersection> {
         match self {
             GeometryRef::Point(point) => {
                 if other.contains_point((*point).clone(), epsilon, max_ulps) {
-                    return vec![(*point).clone()];
+                    return vec![(**point).into()];
                 } else {
                     return Vec::new();
                 }
@@ -307,36 +502,36 @@ impl<'a> GeometryRef<'a> {
                 let contour = Contour::from(*bounding_box);
                 contour
                     .intersections_primitive(other, epsilon, max_ulps)
-                    .map(|i| i.point)
                     .collect()
             }
             GeometryRef::ArcSegment(elem) => other
                 .intersections_primitive(*elem, epsilon, max_ulps)
                 .into_iter()
+                .map(From::from)
                 .collect(),
             GeometryRef::LineSegment(elem) => other
                 .intersections_primitive(*elem, epsilon, max_ulps)
                 .into_iter()
+                .map(From::from)
                 .collect(),
             GeometryRef::Line(elem) => other
                 .intersections_primitive(*elem, epsilon, max_ulps)
                 .into_iter()
+                .map(From::from)
                 .collect(),
             GeometryRef::Segment(elem) => other
                 .intersections_primitive(*elem, epsilon, max_ulps)
                 .into_iter()
+                .map(From::from)
                 .collect(),
             GeometryRef::Polysegment(elem) => elem
                 .intersections_primitive(other, epsilon, max_ulps)
-                .map(|i| i.point)
                 .collect(),
             GeometryRef::Contour(elem) => elem
                 .intersections_primitive(other, epsilon, max_ulps)
-                .map(|i| i.point)
                 .collect(),
             GeometryRef::Shape(elem) => elem
                 .intersections_primitive(other, epsilon, max_ulps)
-                .map(|i| i.point)
                 .collect(),
         }
     }
@@ -346,11 +541,11 @@ impl<'a> GeometryRef<'a> {
         other: &T,
         epsilon: f64,
         max_ulps: u32,
-    ) -> Vec<[f64; 2]> {
+    ) -> Vec<Intersection> {
         match self {
             GeometryRef::Point(point) => {
                 if other.contains_point((*point).clone(), epsilon, max_ulps) {
-                    return vec![(*point).clone()];
+                    return vec![(**point).into()];
                 } else {
                     return Vec::new();
                 }
@@ -359,36 +554,72 @@ impl<'a> GeometryRef<'a> {
                 let contour = Contour::from(*bounding_box);
                 contour
                     .intersections_composite(other, epsilon, max_ulps)
-                    .map(|i| i.point)
                     .collect()
             }
             GeometryRef::ArcSegment(elem) => other
                 .intersections_primitive(*elem, epsilon, max_ulps)
-                .map(|i| i.point)
                 .collect(),
             GeometryRef::LineSegment(elem) => other
                 .intersections_primitive(*elem, epsilon, max_ulps)
-                .map(|i| i.point)
                 .collect(),
             GeometryRef::Line(elem) => other
                 .intersections_primitive(*elem, epsilon, max_ulps)
-                .map(|i| i.point)
                 .collect(),
             GeometryRef::Segment(elem) => other
                 .intersections_primitive(*elem, epsilon, max_ulps)
-                .map(|i| i.point)
                 .collect(),
             GeometryRef::Polysegment(elem) => other
                 .intersections_composite(*elem, epsilon, max_ulps)
-                .map(|i| i.point)
                 .collect(),
             GeometryRef::Contour(elem) => other
                 .intersections_composite(*elem, epsilon, max_ulps)
-                .map(|i| i.point)
                 .collect(),
             GeometryRef::Shape(elem) => other
                 .intersections_composite(*elem, epsilon, max_ulps)
-                .map(|i| i.point)
+                .collect(),
+        }
+    }
+
+    pub(crate) fn intersections_composite_par<T: Composite>(
+        &self,
+        other: &T,
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> Vec<Intersection> {
+        match self {
+            GeometryRef::Point(point) => {
+                if other.contains_point((*point).clone(), epsilon, max_ulps) {
+                    return vec![(**point).into()];
+                } else {
+                    return Vec::new();
+                }
+            }
+            GeometryRef::BoundingBox(bounding_box) => {
+                let contour = Contour::from(*bounding_box);
+                contour
+                    .intersections_composite_par(other, epsilon, max_ulps)
+                    .collect()
+            }
+            GeometryRef::ArcSegment(elem) => other
+                .intersections_primitive(*elem, epsilon, max_ulps)
+                .collect(),
+            GeometryRef::LineSegment(elem) => other
+                .intersections_primitive(*elem, epsilon, max_ulps)
+                .collect(),
+            GeometryRef::Line(elem) => other
+                .intersections_primitive(*elem, epsilon, max_ulps)
+                .collect(),
+            GeometryRef::Segment(elem) => other
+                .intersections_primitive(*elem, epsilon, max_ulps)
+                .collect(),
+            GeometryRef::Polysegment(elem) => other
+                .intersections_composite_par(*elem, epsilon, max_ulps)
+                .collect(),
+            GeometryRef::Contour(elem) => other
+                .intersections_composite_par(*elem, epsilon, max_ulps)
+                .collect(),
+            GeometryRef::Shape(elem) => other
+                .intersections_composite_par(*elem, epsilon, max_ulps)
                 .collect(),
         }
     }
@@ -507,14 +738,54 @@ pub enum GeometryCow<'a> {
 }
 
 impl<'a> GeometryCow<'a> {
+    /**
+    If `self` holds a [`Composite`], returns a reference to the [`Segment`]
+    specified by the given [`SegmentKey`]. Otherwise, returns `None`.
+     */
+    pub fn segment(&self, key: SegmentKey) -> Option<&Segment> {
+        match self {
+            GeometryCow::Point(_) => None,
+            GeometryCow::BoundingBox(_) => None,
+            GeometryCow::ArcSegment(_) => None,
+            GeometryCow::LineSegment(_) => None,
+            GeometryCow::Line(_) => None,
+            GeometryCow::Segment(_) => None,
+            GeometryCow::Polysegment(polysegment) => polysegment.segment(key),
+            GeometryCow::Contour(contour) => contour.segment(key),
+            GeometryCow::Shape(shape) => shape.segment(key),
+        }
+    }
+
+    /**
+    Returns all intersections between `self` and `other`.
+
+    See [`GeometryRef::intersections`] for details and examples.
+     */
     pub fn intersections<'b, T: Into<GeometryRef<'b>>>(
         &self,
         other: T,
         epsilon: f64,
         max_ulps: u32,
-    ) -> Vec<[f64; 2]> {
+    ) -> Vec<Intersection> {
         let this: GeometryRef = self.into();
         this.intersections(other, epsilon, max_ulps)
+    }
+
+    /**
+    Returns all intersections between `self` and `other`.
+
+    This is a parallelized version of [`GeometryCow::intersections`], see its
+    docstring for details. It uses parallel variants of the specialized
+    intersection algorithms, if available.
+     */
+    pub fn intersections_par<'b, T: Into<GeometryRef<'b>>>(
+        &self,
+        other: T,
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> Vec<Intersection> {
+        let this: GeometryRef = self.into();
+        this.intersections_par(other, epsilon, max_ulps)
     }
 }
 

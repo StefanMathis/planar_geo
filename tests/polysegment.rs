@@ -6,13 +6,13 @@ use std::f64::consts::{FRAC_PI_2, TAU};
 #[test]
 fn test_from_bounding_box() {
     let bounding_box = BoundingBox::new(0.0, 1.0, 0.0, 1.0);
-    let chain: Polysegment = bounding_box.into();
-    assert_eq!(chain.len(), 4);
+    let polysegment: Polysegment = bounding_box.into();
+    assert_eq!(polysegment.len(), 4);
 }
 
 #[test]
 fn test_from_iter() {
-    let mut chain = Polysegment::from_iter(
+    let mut polysegment = Polysegment::from_iter(
         [
             ArcSegment::fillet([-1.5, 2.0], [-1.0, 0.0], [1.0, 0.0], 0.1, 0.0, 0)
                 .unwrap()
@@ -29,24 +29,24 @@ fn test_from_iter() {
         ]
         .into_iter(),
     );
-    assert_eq!(chain.len(), 7);
+    assert_eq!(polysegment.len(), 7);
 
-    chain.close();
-    assert_eq!(chain.len(), 8);
+    polysegment.close();
+    assert_eq!(polysegment.len(), 8);
 }
 
 #[test]
 fn test_to_bounding_box() {
     {
         let bounding_box = BoundingBox::new(0.0, 1.0, 0.0, 1.0);
-        let chain: Polysegment = bounding_box.into();
-        let bb = BoundingBox::from(&chain);
+        let polysegment: Polysegment = bounding_box.into();
+        let bb = BoundingBox::from(&polysegment);
         assert_eq!(bounding_box, bb);
     }
     {
-        // Empty chain
-        let chain = Polysegment::new();
-        let bb = BoundingBox::from(&chain);
+        // Empty polysegment
+        let polysegment = Polysegment::new();
+        let bb = BoundingBox::from(&polysegment);
         assert_eq!(bb.xmin(), 0.0);
         assert_eq!(bb.xmax(), 0.0);
         assert_eq!(bb.ymin(), 0.0);
@@ -155,32 +155,32 @@ fn test_push_and_pop() {
 
 #[test]
 fn test_push_extend() {
-    let mut chain = Polysegment::new();
-    chain.push_back(
+    let mut polysegment = Polysegment::new();
+    polysegment.push_back(
         ArcSegment::fillet([0.0, 0.0], [1.0, 0.0], [1.0, 1.0], 0.5, 0.0, 0)
             .unwrap()
             .into(),
     );
-    chain.extend_front([0.0, 0.0]);
-    chain.extend_back([1.0, 1.0]);
-    chain.extend_back([0.0, 1.0]);
-    chain.extend_back([0.0, 0.0]);
+    polysegment.extend_front([0.0, 0.0]);
+    polysegment.extend_back([1.0, 1.0]);
+    polysegment.extend_back([0.0, 1.0]);
+    polysegment.extend_back([0.0, 0.0]);
 
     // Check the segments
-    assert_eq!(chain.len(), 5);
-    assert_ulps_eq!(chain[0].start(), [0.0, 0.0]);
-    assert_ulps_eq!(chain[0].stop(), [0.5, 0.0]);
-    assert_ulps_eq!(chain[1].start(), [0.5, 0.0]);
-    assert_ulps_eq!(chain[1].stop(), [1.0, 0.5]);
-    assert_ulps_eq!(chain[2].start(), [1.0, 0.5]);
-    assert_ulps_eq!(chain[2].stop(), [1.0, 1.0]);
-    assert_ulps_eq!(chain[3].start(), [1.0, 1.0]);
-    assert_ulps_eq!(chain[3].stop(), [0.0, 1.0]);
-    assert_ulps_eq!(chain[4].start(), [0.0, 1.0]);
-    assert_ulps_eq!(chain[4].stop(), [0.0, 0.0]);
+    assert_eq!(polysegment.len(), 5);
+    assert_ulps_eq!(polysegment[0].start(), [0.0, 0.0]);
+    assert_ulps_eq!(polysegment[0].stop(), [0.5, 0.0]);
+    assert_ulps_eq!(polysegment[1].start(), [0.5, 0.0]);
+    assert_ulps_eq!(polysegment[1].stop(), [1.0, 0.5]);
+    assert_ulps_eq!(polysegment[2].start(), [1.0, 0.5]);
+    assert_ulps_eq!(polysegment[2].stop(), [1.0, 1.0]);
+    assert_ulps_eq!(polysegment[3].start(), [1.0, 1.0]);
+    assert_ulps_eq!(polysegment[3].stop(), [0.0, 1.0]);
+    assert_ulps_eq!(polysegment[4].start(), [0.0, 1.0]);
+    assert_ulps_eq!(polysegment[4].stop(), [0.0, 0.0]);
 
     // Now check the vertices
-    let verts: Vec<[f64; 2]> = chain.points().collect();
+    let verts: Vec<[f64; 2]> = polysegment.points().collect();
     assert_eq!(verts.len(), 6);
     assert_ulps_eq!(verts[0], [0.0, 0.0]);
     assert_ulps_eq!(verts[1], [0.5, 0.0]);
@@ -355,20 +355,20 @@ fn test_second_segment_intersection_before_first() {
 
 #[test]
 fn test_intersection_cut() {
-    let mut chain = Polysegment::new();
-    chain.push_back(
+    let mut polysegment = Polysegment::new();
+    polysegment.push_back(
         ArcSegment::fillet([0.0, 0.0], [1.0, 0.0], [1.0, 1.0], 0.5, 0.0, 0)
             .unwrap()
             .into(),
     );
-    chain.extend_front([0.0, 0.0]);
-    chain.extend_back([1.0, 1.0]);
-    chain.extend_back([0.0, 1.0]);
+    polysegment.extend_front([0.0, 0.0]);
+    polysegment.extend_back([1.0, 1.0]);
+    polysegment.extend_back([0.0, 1.0]);
 
     let cut_vertices = vec![[0.5, 1.0], [1.0, 0.0], [1.0, -0.5], [0.5, -0.5], [0.5, 0.5]];
     let cut = Polysegment::from_points(&cut_vertices);
 
-    let separated_lines = chain.intersection_cut(&cut, DEFAULT_EPSILON, DEFAULT_MAX_ULPS);
+    let separated_lines = polysegment.intersection_cut(&cut, DEFAULT_EPSILON, DEFAULT_MAX_ULPS);
 
     // This cut results in four separate entitites
     assert_eq!(separated_lines.len(), 4);
@@ -400,17 +400,17 @@ fn test_intersection_cut() {
 fn test_self_intersection() {
     // Open polysegment
     {
-        let mut chain = Polysegment::new();
-        chain.push_back(
+        let mut polysegment = Polysegment::new();
+        polysegment.push_back(
             ArcSegment::fillet([1.0, 0.0], [1.0, 1.0], [0.0, 1.0], 0.5, 0.0, 0)
                 .unwrap()
                 .into(),
         );
-        chain.extend_front([0.0, 0.0]);
+        polysegment.extend_front([0.0, 0.0]);
 
         // Intersect the line with itself
         let intersections =
-            chain.intersections_polysegment(&chain, DEFAULT_EPSILON, DEFAULT_MAX_ULPS);
+            polysegment.intersections_polysegment(&polysegment, DEFAULT_EPSILON, DEFAULT_MAX_ULPS);
 
         // No self-intersection
         assert_eq!(intersections.count(), 0);
@@ -418,25 +418,28 @@ fn test_self_intersection() {
 
     // Closed polysegment
     {
-        let mut chain = Polysegment::new();
-        chain.push_back(
+        let mut polysegment = Polysegment::new();
+        polysegment.push_back(
             ArcSegment::fillet([1.0, 0.0], [1.0, 1.0], [0.0, 1.0], 0.5, 0.0, 0)
                 .unwrap()
                 .into(),
         );
-        chain.extend_front([0.0, 0.0]);
-        chain.extend_back([0.0, 0.0]);
+        polysegment.extend_front([0.0, 0.0]);
+        polysegment.extend_back([0.0, 0.0]);
 
         // Intersect the line with itself
         let intersections =
-            chain.intersections_polysegment(&chain, DEFAULT_EPSILON, DEFAULT_MAX_ULPS);
+            polysegment.intersections_polysegment(&polysegment, DEFAULT_EPSILON, DEFAULT_MAX_ULPS);
 
         // Polysegment touches itself at the end
         assert_eq!(intersections.count(), 1);
 
         // Intersect the line with itself
-        let intersections =
-            chain.intersections_polysegment_par(&chain, DEFAULT_EPSILON, DEFAULT_MAX_ULPS);
+        let intersections = polysegment.intersections_polysegment_par(
+            &polysegment,
+            DEFAULT_EPSILON,
+            DEFAULT_MAX_ULPS,
+        );
 
         // No self-intersection
         assert_eq!(intersections.count(), 1);
@@ -503,7 +506,7 @@ fn test_intersection_cut_fillets() {
         }
     }
 
-    let chain = Polysegment::from_iter(
+    let polysegment = Polysegment::from_iter(
         [
             ArcSegment::fillet([-1.5, 2.0], [-1.0, 0.0], [1.0, 0.0], 0.1, 0.0, 0)
                 .unwrap()
@@ -521,29 +524,29 @@ fn test_intersection_cut_fillets() {
         .into_iter(),
     );
 
-    cut_by_height(&chain, 1e-3);
-    cut_by_height(&chain, 0.5e-3);
-    cut_by_height(&chain, 0.2e-3);
-    cut_by_height(&chain, 0.1e-3);
-    cut_by_height(&chain, 0.01e-3);
+    cut_by_height(&polysegment, 1e-3);
+    cut_by_height(&polysegment, 0.5e-3);
+    cut_by_height(&polysegment, 0.2e-3);
+    cut_by_height(&polysegment, 0.1e-3);
+    cut_by_height(&polysegment, 0.01e-3);
 }
 
 #[test]
 fn test_rotational_pattern() {
-    let org_chain = Polysegment::from_points(&[[1.0, 1.0], [2.0, 1.0], [2.0, 2.0]]);
+    let org_polysegment = Polysegment::from_points(&[[1.0, 1.0], [2.0, 1.0], [2.0, 2.0]]);
     {
         // Do nothing
-        let mut mod_chain = org_chain.clone();
-        mod_chain.rotational_pattern([0.0, 1.0], FRAC_PI_2, 0);
-        assert_eq!(org_chain, mod_chain);
+        let mut mod_polysegment = org_polysegment.clone();
+        mod_polysegment.rotational_pattern([0.0, 1.0], FRAC_PI_2, 0);
+        assert_eq!(org_polysegment, mod_polysegment);
     }
     {
         // Single repetition
-        let mut mod_chain = org_chain.clone();
-        mod_chain.rotational_pattern([0.0, 1.0], FRAC_PI_2, 1);
+        let mut mod_polysegment = org_polysegment.clone();
+        mod_polysegment.rotational_pattern([0.0, 1.0], FRAC_PI_2, 1);
 
-        assert_eq!(mod_chain.num_segments(), 5);
-        let pts: Vec<_> = mod_chain.points().collect();
+        assert_eq!(mod_polysegment.num_segments(), 5);
+        let pts: Vec<_> = mod_polysegment.points().collect();
         assert_ulps_eq!(pts[0], [1.0, 1.0]);
         assert_ulps_eq!(pts[1], [2.0, 1.0]);
         assert_ulps_eq!(pts[2], [2.0, 2.0]);
@@ -553,11 +556,11 @@ fn test_rotational_pattern() {
     }
     {
         // Two repetitions
-        let mut mod_chain = org_chain.clone();
-        mod_chain.rotational_pattern([0.0, 1.0], FRAC_PI_2, 2);
+        let mut mod_polysegment = org_polysegment.clone();
+        mod_polysegment.rotational_pattern([0.0, 1.0], FRAC_PI_2, 2);
 
-        assert_eq!(mod_chain.num_segments(), 8);
-        let pts: Vec<_> = mod_chain.points().collect();
+        assert_eq!(mod_polysegment.num_segments(), 8);
+        let pts: Vec<_> = mod_polysegment.points().collect();
         assert_ulps_eq!(pts[0], [1.0, 1.0]);
         assert_ulps_eq!(pts[1], [2.0, 1.0]);
         assert_ulps_eq!(pts[2], [2.0, 2.0]);
@@ -572,20 +575,20 @@ fn test_rotational_pattern() {
 
 #[test]
 fn test_translational_pattern() {
-    let org_chain = Polysegment::from_points(&[[1.0, 1.0], [2.0, 1.0], [2.0, 2.0]]);
+    let org_polysegment = Polysegment::from_points(&[[1.0, 1.0], [2.0, 1.0], [2.0, 2.0]]);
     {
         // Do nothing
-        let mut mod_chain = org_chain.clone();
-        mod_chain.translational_pattern([0.0, 1.0], 0);
-        assert_eq!(org_chain, mod_chain);
+        let mut mod_polysegment = org_polysegment.clone();
+        mod_polysegment.translational_pattern([0.0, 1.0], 0);
+        assert_eq!(org_polysegment, mod_polysegment);
     }
     {
         // Single repetition
-        let mut mod_chain = org_chain.clone();
-        mod_chain.translational_pattern([0.0, 1.0], 1);
+        let mut mod_polysegment = org_polysegment.clone();
+        mod_polysegment.translational_pattern([0.0, 1.0], 1);
 
-        assert_eq!(mod_chain.num_segments(), 5);
-        let pts: Vec<_> = mod_chain.points().collect();
+        assert_eq!(mod_polysegment.num_segments(), 5);
+        let pts: Vec<_> = mod_polysegment.points().collect();
         assert_ulps_eq!(pts[0], [1.0, 1.0]);
         assert_ulps_eq!(pts[1], [2.0, 1.0]);
         assert_ulps_eq!(pts[2], [2.0, 2.0]);
@@ -595,11 +598,11 @@ fn test_translational_pattern() {
     }
     {
         // Two repetitions
-        let mut mod_chain = org_chain.clone();
-        mod_chain.translational_pattern([0.0, 1.0], 2);
+        let mut mod_polysegment = org_polysegment.clone();
+        mod_polysegment.translational_pattern([0.0, 1.0], 2);
 
-        assert_eq!(mod_chain.num_segments(), 8);
-        let pts: Vec<_> = mod_chain.points().collect();
+        assert_eq!(mod_polysegment.num_segments(), 8);
+        let pts: Vec<_> = mod_polysegment.points().collect();
         assert_ulps_eq!(pts[0], [1.0, 1.0]);
         assert_ulps_eq!(pts[1], [2.0, 1.0]);
         assert_ulps_eq!(pts[2], [2.0, 2.0]);
@@ -656,27 +659,27 @@ fn test_polygonize() {
 }
 
 #[test]
-fn test_straight_line_chain() {
+fn test_straight_line_polysegment() {
     let vertices = vec![[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]];
-    let chain = Polysegment::from_points(&vertices);
+    let polysegment = Polysegment::from_points(&vertices);
 
     // Points which are contained in the first segment
-    assert!(chain.contains_point([0.5, 0.0], 0.0, 0));
-    assert!(!chain.contains_point([0.5, 0.1], 0.0, 0));
-    assert!(chain.contains_point([0.5, 0.1], 0.11, 0));
-    assert!(!chain.contains_point([0.5, 0.2], 0.11, 0));
+    assert!(polysegment.contains_point([0.5, 0.0], 0.0, 0));
+    assert!(!polysegment.contains_point([0.5, 0.1], 0.0, 0));
+    assert!(polysegment.contains_point([0.5, 0.1], 0.11, 0));
+    assert!(!polysegment.contains_point([0.5, 0.2], 0.11, 0));
 
     // Points which are contained in the second segment
-    assert!(chain.contains_point([1.0, 0.5], 0.0, 0));
-    assert!(!chain.contains_point([1.1, 0.5], 0.0, 0));
-    assert!(chain.contains_point([1.1, 0.5], 0.11, 0));
-    assert!(!chain.contains_point([1.2, 0.5], 0.11, 0));
+    assert!(polysegment.contains_point([1.0, 0.5], 0.0, 0));
+    assert!(!polysegment.contains_point([1.1, 0.5], 0.0, 0));
+    assert!(polysegment.contains_point([1.1, 0.5], 0.11, 0));
+    assert!(!polysegment.contains_point([1.2, 0.5], 0.11, 0));
 
     // Points which are contained in both segments
-    assert!(chain.contains_point([1.0, 0.0], 0.0, 0));
-    assert!(!chain.contains_point([0.98, 0.02], 0.0, 0));
-    assert!(chain.contains_point([0.98, 0.02], 0.11, 0));
-    assert!(!chain.contains_point([1.1, -0.1], 0.11, 0));
+    assert!(polysegment.contains_point([1.0, 0.0], 0.0, 0));
+    assert!(!polysegment.contains_point([0.98, 0.02], 0.0, 0));
+    assert!(polysegment.contains_point([0.98, 0.02], 0.11, 0));
+    assert!(!polysegment.contains_point([1.1, -0.1], 0.11, 0));
 }
 
 #[test]
@@ -692,8 +695,8 @@ fn test_intersection_polysegments() {
         i,
         Intersection {
             point: [1.0, 0.5],
-            left: SegmentIdx(1),
-            right: SegmentIdx(0)
+            left: SegmentKey::from_segment_idx(1),
+            right: SegmentKey::from_segment_idx(0)
         }
     );
 }
@@ -701,26 +704,50 @@ fn test_intersection_polysegments() {
 #[test]
 fn test_intersection_line_polysegment() {
     let vertices = vec![[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0], [0.0, 0.0]];
-    let chain = Polysegment::from_points(&vertices);
+    let polysegment = Polysegment::from_points(&vertices);
 
     let line = Line::from_point_angle([0.5, 0.5], 0.0);
-    let mut intersections = chain.intersections_primitive(&line, 0.0, 0);
 
-    approx::assert_abs_diff_eq!(
-        intersections.next(),
-        Some(Intersection {
-            point: [1.0, 0.5],
-            left: SegmentIdx(1),
-            right: ()
-        })
-    );
-    approx::assert_abs_diff_eq!(
-        intersections.next(),
-        Some(Intersection {
-            point: [0.0, 0.5],
-            left: SegmentIdx(3),
-            right: ()
-        })
-    );
-    assert!(intersections.next().is_none());
+    {
+        let mut intersections = polysegment.intersections_primitive(&line, 0.0, 0);
+
+        approx::assert_abs_diff_eq!(
+            intersections.next(),
+            Some(Intersection {
+                point: [1.0, 0.5],
+                left: SegmentKey::from_segment_idx(1),
+                right: Default::default()
+            })
+        );
+        approx::assert_abs_diff_eq!(
+            intersections.next(),
+            Some(Intersection {
+                point: [0.0, 0.5],
+                left: SegmentKey::from_segment_idx(3),
+                right: Default::default()
+            })
+        );
+        assert!(intersections.next().is_none());
+    }
+    {
+        let mut intersections = polysegment.intersections(&line, 0.0, 0).into_iter();
+
+        approx::assert_abs_diff_eq!(
+            intersections.next(),
+            Some(Intersection {
+                point: [1.0, 0.5],
+                left: SegmentKey::from_segment_idx(1),
+                right: Default::default()
+            })
+        );
+        approx::assert_abs_diff_eq!(
+            intersections.next(),
+            Some(Intersection {
+                point: [0.0, 0.5],
+                left: SegmentKey::from_segment_idx(3),
+                right: Default::default()
+            })
+        );
+        assert!(intersections.next().is_none());
+    }
 }

@@ -1,6 +1,6 @@
 /*!
-This module contains the definition of the [`Composite`] trait and the
-[`Intersection`], the [`SegmentIdx`] and the [`ShapeIdx`] structs.
+This module contains the definition of the [`Composite`] trait as well as the
+[`Intersection`] and [`SegmentKey`] structs.
 
 The geometric types in this crate are either "primitives" (which implement the
 [`Primitive`] trait) or "composites" (which are defined from multiple primitives
@@ -16,97 +16,19 @@ use crate::segment::{Segment, SegmentPolygonizer};
 use crate::shape::Shape;
 
 /**
-Intersection point and indices of the "left" and "right" composite types.
+A key to access a [`Segment`] with the [`Composite::segment`] trait method.
 
-This struct is used as the [`Iterator::Item`] of the iterators created by the
-intersection methods of the [`Composite`] trait. It contains the intersection
-point itself as well as the segment keys of the involved composite types.
-These keys ([`SegmentIdx`] or [`ShapeIdx`]) can be used to retrieve the segments
-from the composite types where the intersection occurred (see
-[`Composite::segment`]).
- */
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct Intersection<L, R> {
-    /// The intersection point itself.
-    pub point: [f64; 2],
-    /// Key to retrieve the intersected segment of the "left" side composite
-    /// (`self` for the intersection functions in [`Composite`]).
-    pub left: L,
-    /// Key to retrieve the intersected segment of the "right" side composite
-    /// (the second argument of the intersection functions in [`Composite`]).
-    pub right: R,
-}
+The key consists of two indices: [`SegmentKey::contour_idx`] and
+[`SegmentKey::segment_idx`]. The former index is used to select the
+[`Contour`] from a [`Shape`]. In the implementations of other [`Composite`]
+types ([`Polysegment`] and [`Contour`]), it is simply ignored.
+[`SegmentKey::segment_idx`] is then used to access the [`Segment`] from the
+[`Polysegment`] or [`Contour`].
 
-impl<L, R> Intersection<L, R> {
-    /**
-    Switches the `left` and ``right` fields of `Self`.
-     */
-    pub fn switch(self) -> Intersection<R, L> {
-        return Intersection {
-            point: self.point,
-            left: self.right,
-            right: self.left,
-        };
-    }
-}
-
-impl From<Intersection<(), ()>> for [f64; 2] {
-    fn from(value: Intersection<(), ()>) -> Self {
-        value.point
-    }
-}
-
-impl From<[f64; 2]> for Intersection<(), ()> {
-    fn from(value: [f64; 2]) -> Self {
-        Intersection {
-            point: value,
-            left: (),
-            right: (),
-        }
-    }
-}
-
-/**
-A key to access a segment from a [`Polysegment`] or a [`Contour`].
-
-This is just a wrapper around an [`usize`] used to index into the underlying
-vector of [`Segment`]s which stores the data of the aforementioned [`Composite`]
-types. Its main function is to provide type safety when used e.g. as part of an
-[`Intersection`] or when accessing segments via the [`Composite::segment`]
-method.
-
-# Examples
-
-```
-use planar_geo::prelude::*;
-
-let raw_idx = 2;
-let chain = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]);
-assert_eq!(chain.segment(SegmentIdx(2)), chain.get(raw_idx));
-```
- */
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct SegmentIdx(pub usize);
-
-impl From<usize> for SegmentIdx {
-    fn from(value: usize) -> Self {
-        Self(value)
-    }
-}
-
-impl From<SegmentIdx> for usize {
-    fn from(value: SegmentIdx) -> Self {
-        value.0
-    }
-}
-
-/**
-A key to access a segment from a [`Shape`].
-
-A [`Shape`] is composed of multiple [`Contour`]s, which in turn are composed of
-multiple [`Segment`]s. The field [`ShapeIdx::contour_idx`] specifies the contour
-where the adressed segment is located, while [`ShapeIdx::segment_idx`] retrieves
-the segment itself from the corresponding contour.
+If the [`contour_idx`](SegmentKey::contour_idx) is not needed, the convenience
+constructor [`SegmentKey::from_segment_idx`] can be used (which sets the
+[`contour_idx`](SegmentKey::contour_idx) to 0). The [`Default`] implementation
+sets both indices to 0.
 
 # Examples
 
@@ -115,60 +37,148 @@ use planar_geo::prelude::*;
 
 let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
 let contour = Contour::new(Polysegment::from_points(vertices));
+
+// Indices
+let contour_idx = 1;
+let segment_idx = 2;
+
+// Comparison of using the key vs. manual retrieval
+let manually_retrieved = contour.polysegment().get(segment_idx);
+
+// Using the from_segment_idx constructor, the contour_idx is simply set to 0.
+let key = SegmentKey::from_segment_idx(segment_idx);
+assert_eq!(contour.segment(key), manually_retrieved);
+
 let vertices = &[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
 let hole = Contour::new(Polysegment::from_points(vertices));
 let shape = Shape::new(vec![contour, hole]).expect("valid inputs");
 
 // Comparison of using the key vs. manual retrieval
-let contour_idx = 1;
-let segment_idx = 2;
 let manually_retrieved = shape.contours().get(contour_idx).map(|c|c.polysegment().get(segment_idx)).flatten();
 
-let key = ShapeIdx {
+let key = SegmentKey {
     contour_idx,
-    segment_idx: SegmentIdx(segment_idx)
+    segment_idx,
 };
 assert_eq!(shape.segment(key), manually_retrieved);
 ```
  */
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ShapeIdx {
-    /// Index of the contour where the segment is located.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct SegmentKey {
+    /// Index of the [`Contour`] where the [`Segment`] is located. Ignored when
+    ///the key is not used on a [`Shape`].
     pub contour_idx: usize,
-    /// Index of the segment itself within the contour specified by
-    /// [`ShapeIdx::contour_idx`].
-    pub segment_idx: SegmentIdx,
+    /// Index of the [`Segment`] itself within the [`Contour`] or
+    /// [`Polysegment`].
+    pub segment_idx: usize,
 }
 
-impl ShapeIdx {
+impl SegmentKey {
     /**
-    Creates a new key out of any two values which can be converted into [`usize`].
-
-    # Examples
-
-    ```
-    use planar_geo::composite::{ShapeIdx, SegmentIdx};
-
-    // Create with from types used inside the struct directly
-    let idx = ShapeIdx::new(1usize, SegmentIdx(2));
-    assert_eq!(idx.contour_idx, 1);
-    assert_eq!(idx.segment_idx, SegmentIdx(2));
-
-    // From two u32
-    let idx = ShapeIdx::new(0u16, 3u16);
-    assert_eq!(idx.contour_idx, 0);
-    assert_eq!(idx.segment_idx, SegmentIdx(3));
-    ```
+    Returns a new [`SegmentKey`] instance from its components.
      */
-    pub fn new<C: Into<usize>, S: Into<usize>>(contour_idx: C, segment_idx: S) -> Self {
+    pub fn new(contour_idx: usize, segment_idx: usize) -> Self {
         return Self {
-            contour_idx: contour_idx.into(),
-            segment_idx: SegmentIdx(segment_idx.into()),
+            contour_idx,
+            segment_idx,
+        };
+    }
+
+    /**
+    Returns a [`SegmentKey`] where [`SegmentKey::contour_idx`] is set to 0.
+     */
+    pub fn from_segment_idx(segment_idx: usize) -> Self {
+        return Self {
+            contour_idx: 0,
+            segment_idx,
         };
     }
 }
 
-impl<L: PartialEq, R: PartialEq> approx::AbsDiffEq for Intersection<L, R> {
+/**
+Intersection between two [`Segment`]s of two geometric types consisting of the
+[`Intersection::point`] itself and the keys to the involved segments.
+
+This type is returned by all intersection methods of the [`Composite`] trait
+and the geometry type enums in [crate::geometry]. It consists of the
+[`Intersection::point`] and two [`SegmentKey`]s which can be used to retrieve
+the segments which intersect each other. The [`Intersection::left`] key gets the
+[`Segment`] of the first argument to the intersection method (usually `self`),
+the [`Intersection::right`] key gets that of the second argument (often called
+`&other`). If one of the arguments is not a [`Composite`], the corresponding key
+has no use and is initialized to its default values (0 for both indices).
+
+This struct implements [`approx::AbsDiffEq`], [`approx::RelativeEq`] and
+[`approx::UlpsEq`] and can therefore be used in approximate comparisons:
+
+```
+use planar_geo::prelude::*;
+
+let i1 = Intersection {
+    point: [1.0, 0.0],
+    left: SegmentKey::new(0, 1),
+    right: SegmentKey::new(1, 2),
+};
+let i2 = Intersection {
+    point: [1.1, 0.0],
+    left: SegmentKey::new(0, 1),
+    right: SegmentKey::new(1, 2),
+};
+assert_ne!(i1, i2);
+approx::assert_abs_diff_eq!(i1, i2, epsilon = 0.5);
+
+// Intersection point identical to i1, but left key different -> Unequal by default
+let i3 = Intersection {
+    point: [1.0, 0.0],
+    left: SegmentKey::new(0, 0),
+    right: SegmentKey::new(1, 2),
+};
+assert_ne!(i1, i3);
+approx::assert_abs_diff_ne!(i1, i3, epsilon = 0.5);
+```
+ */
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Intersection {
+    /// The intersection point itself.
+    pub point: [f64; 2],
+    /// Key to retrieve the intersected segment of the "left" side composite
+    /// (`&self` for intersection methods).
+    pub left: SegmentKey,
+    /// Key to retrieve the intersected segment of the "right" side composite
+    /// (second argument for intersection methods).
+    pub right: SegmentKey,
+}
+
+impl Intersection {
+    /**
+    Exchanges [`Intersection::left`] and [`Intersection::right`].
+     */
+    pub fn switch(self) -> Intersection {
+        Intersection {
+            point: self.point,
+            left: self.right,
+            right: self.left,
+        }
+    }
+}
+
+impl From<Intersection> for [f64; 2] {
+    fn from(value: Intersection) -> Self {
+        value.point
+    }
+}
+
+impl From<[f64; 2]> for Intersection {
+    fn from(value: [f64; 2]) -> Self {
+        Intersection {
+            point: value,
+            left: Default::default(),
+            right: Default::default(),
+        }
+    }
+}
+
+impl approx::AbsDiffEq for Intersection {
     type Epsilon = f64;
 
     fn default_epsilon() -> f64 {
@@ -182,7 +192,7 @@ impl<L: PartialEq, R: PartialEq> approx::AbsDiffEq for Intersection<L, R> {
     }
 }
 
-impl<L: PartialEq, R: PartialEq> approx::RelativeEq for Intersection<L, R> {
+impl approx::RelativeEq for Intersection {
     fn default_max_relative() -> f64 {
         f64::default_max_relative()
     }
@@ -194,7 +204,7 @@ impl<L: PartialEq, R: PartialEq> approx::RelativeEq for Intersection<L, R> {
     }
 }
 
-impl<L: PartialEq, R: PartialEq> approx::UlpsEq for Intersection<L, R> {
+impl approx::UlpsEq for Intersection {
     fn default_max_ulps() -> u32 {
         f64::default_max_ulps()
     }
@@ -204,6 +214,21 @@ impl<L: PartialEq, R: PartialEq> approx::UlpsEq for Intersection<L, R> {
             && self.left == other.left
             && self.right == other.right;
     }
+}
+
+impl Default for Intersection {
+    fn default() -> Self {
+        Self {
+            point: Default::default(),
+            left: Default::default(),
+            right: Default::default(),
+        }
+    }
+}
+
+pub(crate) mod private {
+    /// Sealed trait for [`Primitive`]
+    pub trait Sealed {}
 }
 
 /**
@@ -220,10 +245,8 @@ a [`ParallelIterator`] and having a `_par` suffix).`
 
 These iterators always return an [`Intersection`] object. The "left" side of the
 object refers to the first argument `self`, whereas the "right" side
-refers to the type of the other composite. Hence, the type of the left side is
-an associated type [`Composite::SegmentKey`] which depends on the implementor,
-while the right side is determined by the other composite. See the docstring of
-[`Intersection`] for more.
+refers to the type of the other composite. See the docstring of [`Intersection`]
+for more.
 
 In contrast to primitives, composites can self-intersect. The self-intersection
 points can be calculated by using `self` also as the second argument `other`:
@@ -238,7 +261,7 @@ let mut iter = sc.intersections_polysegment(&sc, DEFAULT_EPSILON, DEFAULT_MAX_UL
 // Intersection in the "cross" middle
 assert_eq!(iter.next().unwrap().point, [0.5, 0.5]);
 
-// The chain start and end point "touch", this is also counted as an intersection
+// The polysegment start and end point "touch", this is also counted as an intersection
 assert_eq!(iter.next().unwrap().point, [0.0, 0.0]);
 assert!(iter.next().is_none());
 
@@ -264,15 +287,7 @@ As with the intersection methods of [`Primitive`], each intersection function
 takes `epsilon` and `max_ulps` as additional arguments to specify a certain
 tolerance for intersection detection.
  */
-pub trait Composite {
-    /**
-    The segment key type needed to retrieve a segment from `Self` via
-    [`Composite::segment`]. This type is the "left" part of the [`Intersection`]
-    returned by the various intersection methods of the [`Composite`] trait and
-    can be used to directly retrieve the segment where the intersection occurred.
-     */
-    type SegmentKey;
-
+pub trait Composite: private::Sealed {
     /**
     Returns the segment associated with the given `key`, if it exists.
 
@@ -289,19 +304,19 @@ pub trait Composite {
 
     // Drop the reference before reusing contour later
     {
-        let segment = hole.segment(SegmentIdx(2));
+        let segment = hole.segment(SegmentKey::from_segment_idx(2));
         assert_eq!(segment, Some(&Segment::from(LineSegment::new([0.9, 0.9], [0.1, 0.9], 0.0, 0).unwrap())));
     }
 
     let shape = Shape::new(vec![contour, hole]).expect("valid inputs");
 
-    // Self::SegmentKey of Shape is ShapeIdx. This accessor retrieves the third
+    // SegmentKey of Shape is SegmentKey. This accessor retrieves the third
     // segment of the second contour / first hole of the shape
-    let segment = shape.segment(ShapeIdx {contour_idx: 1, segment_idx: SegmentIdx(2)});
+    let segment = shape.segment(SegmentKey::new(1, 2));
     assert_eq!(segment, Some(&Segment::from(LineSegment::new([0.9, 0.9], [0.1, 0.9], 0.0, 0).unwrap())));
     ```
      */
-    fn segment(&self, key: Self::SegmentKey) -> Option<&crate::segment::Segment>;
+    fn segment(&self, key: SegmentKey) -> Option<&crate::segment::Segment>;
 
     /**
     Returns the number of segments in the composite type.
@@ -383,24 +398,28 @@ pub trait Composite {
     is simply an empty tuple, because no index is needed to retrieve the
     primitive.
 
+    If eager collection of the returned [`Intersection`]s into a [`Vec`] is not
+    an issue, consider using the more generic [`Composite::intersections`]
+    instead (which can deal with both [`Primitive`]s and [`Composite`]s).
+
     # Examples
 
     ```
     use planar_geo::prelude::*;
 
     let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0], [0.0, 0.0]];
-    let chain = Polysegment::from_points(vertices);
+    let polysegment = Polysegment::from_points(vertices);
 
     let line = Line::from_point_angle([0.5, 0.5], 0.0);
-    let mut intersections = chain.intersections_primitive(&line, 0.0, 0);
+    let mut intersections = polysegment.intersections_primitive(&line, 0.0, 0);
 
     approx::assert_abs_diff_eq!(
         intersections.next(),
-        Some(Intersection {point: [1.0, 0.5], left: SegmentIdx(1), right: ()})
+        Some(Intersection {point: [1.0, 0.5], left: SegmentKey::from_segment_idx(1), right: Default::default()})
     );
     approx::assert_abs_diff_eq!(
         intersections.next(),
-        Some(Intersection {point: [0.0, 0.5], left: SegmentIdx(3), right: ()})
+        Some(Intersection {point: [0.0, 0.5], left: SegmentKey::from_segment_idx(3), right: Default::default()})
     );
     assert!(intersections.next().is_none());
     ```
@@ -410,7 +429,7 @@ pub trait Composite {
         primitive: &'a T,
         epsilon: f64,
         max_ulps: u32,
-    ) -> impl Iterator<Item = Intersection<Self::SegmentKey, ()>> + 'a;
+    ) -> impl Iterator<Item = Intersection> + 'a;
 
     /**
     Returns a parallelized iterator over all intersections of `self` with the
@@ -424,10 +443,13 @@ pub trait Composite {
         primitive: &'a T,
         epsilon: f64,
         max_ulps: u32,
-    ) -> impl ParallelIterator<Item = Intersection<Self::SegmentKey, ()>> + 'a;
+    ) -> impl ParallelIterator<Item = Intersection> + 'a;
 
     /**
     Returns a iterator over all intersections of `self` with the `polysegment`.
+
+    This method is mainly used to implement
+    [`Composite::intersections_composite`], consider using that method instead.
 
     # Examples
 
@@ -444,11 +466,24 @@ pub trait Composite {
 
     approx::assert_abs_diff_eq!(
         intersections.next(),
-        Some(Intersection {point: [1.0, 0.5], left: SegmentIdx(1), right: SegmentIdx(1)})
+        Some(Intersection {point: [1.0, 0.5], left: SegmentKey::from_segment_idx(1), right: SegmentKey::from_segment_idx(1)})
     );
     approx::assert_abs_diff_eq!(
         intersections.next(),
-        Some(Intersection {point: [0.0, 0.5], left: SegmentIdx(3), right: SegmentIdx(1)})
+        Some(Intersection {point: [0.0, 0.5], left: SegmentKey::from_segment_idx(3), right: SegmentKey::from_segment_idx(1)})
+    );
+    assert!(intersections.next().is_none());
+
+    // Same result can be achieved with the generic method
+    let mut intersections = left.intersections_composite(&right, 0.0, 0);
+
+    approx::assert_abs_diff_eq!(
+        intersections.next(),
+        Some(Intersection {point: [1.0, 0.5], left: SegmentKey::from_segment_idx(1), right: SegmentKey::from_segment_idx(1)})
+    );
+    approx::assert_abs_diff_eq!(
+        intersections.next(),
+        Some(Intersection {point: [0.0, 0.5], left: SegmentKey::from_segment_idx(3), right: SegmentKey::from_segment_idx(1)})
     );
     assert!(intersections.next().is_none());
     ```
@@ -458,7 +493,7 @@ pub trait Composite {
         polysegment: &'a Polysegment,
         epsilon: f64,
         max_ulps: u32,
-    ) -> impl Iterator<Item = Intersection<Self::SegmentKey, SegmentIdx>> + 'a;
+    ) -> impl Iterator<Item = Intersection> + 'a;
 
     /**
     Returns a parallelized iterator over all intersections of `self` with the
@@ -472,10 +507,13 @@ pub trait Composite {
         polysegment: &'a Polysegment,
         epsilon: f64,
         max_ulps: u32,
-    ) -> impl ParallelIterator<Item = Intersection<Self::SegmentKey, SegmentIdx>> + 'a;
+    ) -> impl ParallelIterator<Item = Intersection> + 'a;
 
     /**
     Returns a iterator over all intersections of `self` with the `contour`.
+
+    This method is mainly used to implement
+    [`Composite::intersections_composite`], consider using that method instead.
 
     # Examples
 
@@ -483,20 +521,33 @@ pub trait Composite {
     use planar_geo::prelude::*;
 
     let vertices = &[[2.0, 1.0], [2.0, 0.5], [0.0, 0.5]];
-    let chain = Polysegment::from_points(vertices);
+    let polysegment = Polysegment::from_points(vertices);
 
     let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
     let contour = Contour::new(Polysegment::from_points(vertices));
 
-    let mut intersections = chain.intersections_contour(&contour, 0.0, 0);
+    let mut intersections = polysegment.intersections_contour(&contour, 0.0, 0);
 
     approx::assert_abs_diff_eq!(
         intersections.next(),
-        Some(Intersection {point: [1.0, 0.5], left: SegmentIdx(1), right: SegmentIdx(1)})
+        Some(Intersection {point: [1.0, 0.5], left: SegmentKey::from_segment_idx(1), right: SegmentKey::from_segment_idx(1)})
     );
     approx::assert_abs_diff_eq!(
         intersections.next(),
-        Some(Intersection {point: [0.0, 0.5], left: SegmentIdx(1), right: SegmentIdx(3)})
+        Some(Intersection {point: [0.0, 0.5], left: SegmentKey::from_segment_idx(1), right: SegmentKey::from_segment_idx(3)})
+    );
+    assert!(intersections.next().is_none());
+
+    // Same result can be achieved with the generic method
+    let mut intersections = polysegment.intersections_composite(&contour, 0.0, 0);
+
+    approx::assert_abs_diff_eq!(
+        intersections.next(),
+        Some(Intersection {point: [1.0, 0.5], left: SegmentKey::from_segment_idx(1), right: SegmentKey::from_segment_idx(1)})
+    );
+    approx::assert_abs_diff_eq!(
+        intersections.next(),
+        Some(Intersection {point: [0.0, 0.5], left: SegmentKey::from_segment_idx(1), right: SegmentKey::from_segment_idx(3)})
     );
     assert!(intersections.next().is_none());
     ```
@@ -506,7 +557,7 @@ pub trait Composite {
         contour: &'a Contour,
         epsilon: f64,
         max_ulps: u32,
-    ) -> impl Iterator<Item = Intersection<Self::SegmentKey, SegmentIdx>> + 'a;
+    ) -> impl Iterator<Item = Intersection> + 'a;
 
     /**
     Returns a parallelized iterator over all intersections of `self` with the
@@ -520,10 +571,13 @@ pub trait Composite {
         contour: &'a Contour,
         epsilon: f64,
         max_ulps: u32,
-    ) -> impl ParallelIterator<Item = Intersection<Self::SegmentKey, SegmentIdx>> + 'a;
+    ) -> impl ParallelIterator<Item = Intersection> + 'a;
 
     /**
     Returns an iterator over all intersections of `self` with the `shape`.
+
+    This method is mainly used to implement
+    [`Composite::intersections_composite`], consider using that method instead.
 
     # Examples
 
@@ -537,16 +591,28 @@ pub trait Composite {
     let shape = Shape::new(vec![contour, hole]).expect("valid inputs");
 
     let vertices = &[[2.0, 1.0], [2.0, 0.5], [0.0, 0.5]];
-    let chain = Polysegment::from_points(vertices);
+    let polysegment = Polysegment::from_points(vertices);
 
-    let mut intersections = chain.intersections_shape(&shape, 0.0, 0);
+    let mut intersections = polysegment.intersections_shape(&shape, 0.0, 0);
 
     approx::assert_abs_diff_eq!(
         intersections.next(),
         Some(Intersection {
             point: [1.0, 0.5],
-            left: SegmentIdx(1),
-            right: ShapeIdx {contour_idx: 0, segment_idx: SegmentIdx(1)}
+            left: SegmentKey::from_segment_idx(1),
+            right: SegmentKey::new(0, 1)
+        })
+    );
+
+    // Same result can be achieved with the generic method
+    let mut intersections = polysegment.intersections_composite(&shape, 0.0, 0);
+
+    approx::assert_abs_diff_eq!(
+        intersections.next(),
+        Some(Intersection {
+            point: [1.0, 0.5],
+            left: SegmentKey::from_segment_idx(1),
+            right: SegmentKey::new(0, 1)
         })
     );
     ```
@@ -556,7 +622,7 @@ pub trait Composite {
         shape: &'a Shape,
         epsilon: f64,
         max_ulps: u32,
-    ) -> impl Iterator<Item = Intersection<Self::SegmentKey, ShapeIdx>> + 'a;
+    ) -> impl Iterator<Item = Intersection> + 'a;
 
     /**
     Returns a parallelized iterator over all intersections of `self` with the
@@ -571,10 +637,10 @@ pub trait Composite {
         shape: &'a Shape,
         epsilon: f64,
         max_ulps: u32,
-    ) -> impl ParallelIterator<Item = Intersection<Self::SegmentKey, ShapeIdx>> + 'a;
+    ) -> impl ParallelIterator<Item = Intersection> + 'a;
 
     /**
-    Returns the intersection between `self` and another type implementing
+    Returns the intersections between `self` and another type implementing
     [`Composite`].
 
     This is a generalized interface to all specialized intersection functions.
@@ -595,13 +661,21 @@ pub trait Composite {
         }
     }
     ```
+
+    It is recommended to use this function instead of the specialized methods
+    such as [`Composite::intersections_polysegment`] for composite intersection
+    to simplify the usage of this trait.
+
+    If eager collection of the returned [`Intersection`]s into a [`Vec`] is not
+    an issue, consider using the even more generic [`Composite::intersections`]
+    instead (which can deal with both [`Primitive`]s and [`Composite`]s).
      */
     fn intersections_composite<'a, T: Composite>(
         &'a self,
         other: &'a T,
         epsilon: f64,
         max_ulps: u32,
-    ) -> impl Iterator<Item = Intersection<Self::SegmentKey, T::SegmentKey>> + 'a
+    ) -> impl Iterator<Item = Intersection> + 'a
     where
         Self: Sized;
 
@@ -616,22 +690,93 @@ pub trait Composite {
         other: &'a T,
         epsilon: f64,
         max_ulps: u32,
-    ) -> impl ParallelIterator<Item = Intersection<Self::SegmentKey, T::SegmentKey>> + 'a
+    ) -> impl ParallelIterator<Item = Intersection> + 'a
     where
-        Self: Sized,
-        <T as Composite>::SegmentKey: Send;
+        Self: Sized;
 
+    /**
+    Returns the intersections between a [`Composite`] and any other geometric
+    type.
+
+    This method is based on
+    [`GeometryRef::intersections`](crate::geometry::GeometryRef::intersections).
+    It can handle any geometric type ([`Primitive`] or [`Composite`]) defined in
+    this crate and can therefore be seen as a combination of
+    [`Composite::intersections_primitive`] and
+    [`Composite::intersections_composite`]. Its downside is that it is not lazy
+    (because the aforementioned methods return different iterator types which
+    need to be collected into a [`Vec<Intersection>`]). If that is an issue,
+    consider using the specialized methods instead (which are lazy).
+
+    [`Composite::intersections_par`] is a parallelized variant of this method.
+
+    # Examples
+
+    ```
+    use planar_geo::prelude::*;
+
+    let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
+    let contour = Contour::new(Polysegment::from_points(vertices));
+    let vertices = &[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
+    let hole = Contour::new(Polysegment::from_points(vertices));
+    let shape = Shape::new(vec![contour, hole]).expect("valid inputs");
+
+    let vertices = &[[2.0, 1.0], [2.0, 0.5], [0.0, 0.5]];
+    let polysegment = Polysegment::from_points(vertices);
+
+    let intersections = polysegment.intersections(&shape, 0.0, 0);
+    assert_eq!(intersections.len(), 4);
+    ```
+     */
     fn intersections<'a, T: Into<crate::geometry::GeometryRef<'a>>>(
         &self,
         other: T,
         epsilon: f64,
         max_ulps: u32,
-    ) -> Vec<[f64; 2]>
+    ) -> Vec<Intersection>
     where
         Self: Sized,
     {
         let geo_ref: crate::geometry::GeometryRef = other.into();
         return geo_ref.intersections_composite(self, epsilon, max_ulps);
+    }
+
+    /**
+    Returns the intersections between a [`Composite`] and any other geometric
+    type.
+
+    This is the parallelized variant of [`Composite::intersections`].
+    See its docstring for more information.
+
+    # Examples
+
+    ```
+    use planar_geo::prelude::*;
+
+    let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
+    let contour = Contour::new(Polysegment::from_points(vertices));
+    let vertices = &[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
+    let hole = Contour::new(Polysegment::from_points(vertices));
+    let shape = Shape::new(vec![contour, hole]).expect("valid inputs");
+
+    let vertices = &[[2.0, 1.0], [2.0, 0.5], [0.0, 0.5]];
+    let polysegment = Polysegment::from_points(vertices);
+
+    let intersections = polysegment.intersections_par(&shape, 0.0, 0);
+    assert_eq!(intersections.len(), 4);
+    ```
+     */
+    fn intersections_par<'a, T: Into<crate::geometry::GeometryRef<'a>>>(
+        &self,
+        other: T,
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> Vec<Intersection>
+    where
+        Self: Sized,
+    {
+        let geo_ref: crate::geometry::GeometryRef = other.into();
+        return geo_ref.intersections_composite_par(self, epsilon, max_ulps);
     }
 
     /**

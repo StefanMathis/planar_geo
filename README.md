@@ -11,6 +11,7 @@ planar_geo
 [`Composite`]: https://docs.rs/planar_geo/0.3.0/planar_geo/composite/trait.Composite.html
 [`Transformation`]: https://docs.rs/planar_geo/0.3.0/planar_geo/trait.Transformation.html
 [`Geometry`]: https://docs.rs/planar_geo/0.3.0/planar_geo/geometry/enum.Geometry.html
+[`intersections`]: https://docs.rs/planar_geo/0.3.0/planar_geo/geometry/enum.GeometryRef.html#method.intersections
 [`DEFAULT_EPSILON`]: https://docs.rs/planar_geo/0.3.0/planar_geo/constant.DEFAULT_EPSILON.html
 [`DEFAULT_MAX_ULPS`]: https://docs.rs/planar_geo/0.3.0/planar_geo/constant.DEFAULT_MAX_ULPS.html
 [crate_index]: https://docs.rs/planar_geo/0.3.0/planar_geo/.
@@ -101,22 +102,22 @@ let second_arc = ArcSegment::from_start_center_angle([3.5, 1.5], [3.5, 0.0], -FR
     .expect("radius is positive and offset angle is not zero");
 
 // Build a polysegment from these three segments
-let mut chain = Polysegment::new();
+let mut polysegment = Polysegment::new();
 
-// Initially, the chain is empty (has no segments)
-assert_eq!(chain.num_segments(), 0);
+// Initially, the polysegment is empty (has no segments)
+assert_eq!(polysegment.num_segments(), 0);
 
 // Now add the three segments
-chain.push_back(first_arc.into());
-chain.push_back(line.into());
-chain.push_back(second_arc.into());
-assert_eq!(chain.num_segments(), 3);
+polysegment.push_back(first_arc.into());
+polysegment.push_back(line.into());
+polysegment.push_back(second_arc.into());
+assert_eq!(polysegment.num_segments(), 3);
 
-// Create a contour out of the chain. If start and end of the chain are not
+// Create a contour out of the polysegment. If start and end of the polysegment are not
 // identical, a line segment is automatically added.
-let contour = Contour::new(chain);
+let contour = Contour::new(polysegment);
 
-// During the conversion to a contour, a line segment has been added which closes the chain
+// During the conversion to a contour, a line segment has been added which closes the polysegment
 assert_eq!(contour.num_segments(), 4);
 
 // Create a second contour by creating multiple line segments directly from vertices.
@@ -173,16 +174,16 @@ approx::assert_abs_diff_eq!(ls.start(), [1.0, 2.0], epsilon = 1e-15);
 approx::assert_abs_diff_eq!(ls.stop(), [0.0, 2.0], epsilon = 1e-15);
 
 // Scale a polysegment
-let mut chain = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]);
-chain.scale(3.0);
+let mut polysegment = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]);
+polysegment.scale(3.0);
 
-let mut pts = chain.points();
+let mut pts = polysegment.points();
 assert_eq!(pts.next(), Some([0.0, 0.0]));
 assert_eq!(pts.next(), Some([3.0, 0.0]));
 assert_eq!(pts.next(), Some([3.0, 3.0]));
 
 // Mirror a contour
-let mut contour = Contour::new(chain);
+let mut contour = Contour::new(polysegment);
 contour.line_reflection([0.0, 0.0], [0.0, 1.0]);
 
 let mut pts = contour.points();
@@ -252,6 +253,29 @@ It is also possible to calculate the intersections between composite types, as
 shown in `examples/intersection_composites.rs`:
 
 ![](https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/docs/img/intersection_composites.svg "Intersection between contours and a polysegment")
+
+These intersections have been calculated using the generic [`intersections`]
+interface, which is available for any of the geometric types defined in this
+crate:
+
+```rust
+use planar_geo::prelude::*;
+
+let e = DEFAULT_EPSILON;
+let m = DEFAULT_MAX_ULPS;
+
+let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
+let contour = Contour::new(Polysegment::from_points(vertices));
+let vertices = &[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
+let hole = Contour::new(Polysegment::from_points(vertices));
+let shape = Shape::new(vec![contour, hole]).expect("valid inputs");
+
+let vertices = &[[2.0, 1.0], [2.0, 0.5], [0.0, 0.5]];
+let polysegment = Polysegment::from_points(vertices);
+
+let intersections: Vec<Intersection> = polysegment.intersections(&shape, e, m);
+assert_eq!(intersections.len(), 4);
+```
 
 # Features
 

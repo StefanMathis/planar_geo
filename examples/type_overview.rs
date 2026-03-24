@@ -73,18 +73,18 @@ fn main() {
         0.0,
     );
 
-    let mut c_chain = Polysegment::new();
-    c_chain.push_back(
+    let mut c_polysegment = Polysegment::new();
+    c_polysegment.push_back(
         LineSegment::new([0.0, -4.0], [0.0, -5.2], e, m)
             .unwrap()
             .into(),
     );
-    c_chain.push_back(
+    c_polysegment.push_back(
         ArcSegment::from_start_middle_stop([0.0, -5.2], [1.3, -4.0], [-1.3, -4.0], e, m)
             .unwrap()
             .into(),
     );
-    let mut contour = Contour::new(c_chain);
+    let mut contour = Contour::new(c_polysegment);
     contour.translate([9.2, 0.0]);
 
     let contour_text = Text::new(
@@ -98,17 +98,17 @@ fn main() {
     );
 
     // Define the shape
-    let mut s_chain = Polysegment::new();
-    s_chain.push_back(
+    let mut s_polysegment = Polysegment::new();
+    s_polysegment.push_back(
         ArcSegment::from_start_center_angle([1.0, -4.0], [0.0, -4.0], 0.5 * PI, e, m)
             .unwrap()
             .into(),
     );
-    s_chain.extend_back([-1.0, -3.0]);
-    s_chain.extend_back([-1.0, -5.0]);
-    s_chain.extend_back([1.0, -5.0]);
+    s_polysegment.extend_back([-1.0, -3.0]);
+    s_polysegment.extend_back([-1.0, -5.0]);
+    s_polysegment.extend_back([1.0, -5.0]);
 
-    let outer: Contour = s_chain.into();
+    let outer: Contour = s_polysegment.into();
     let hole: Contour = Polysegment::from_points(&[[-0.5, -3.5], [-0.5, -4.5], [0.5, -4.5]]).into();
     let mut shape = Shape::new(vec![outer, hole]).expect("valid inputs");
     shape.translate([13.0, 0.0]);

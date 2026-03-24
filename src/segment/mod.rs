@@ -31,8 +31,8 @@ use serde::Serialize;
 use deserialize_untagged_verbose_error::DeserializeUntaggedVerboseError;
 
 use crate::{
-    Transformation,
     primitive::{Primitive, PrimitiveIntersections},
+    {CentroidData, Transformation},
 };
 
 /**
@@ -191,7 +191,7 @@ impl Segment {
     }
 
     /**
-    Returns the points of a polygon chain which approximates `self`. The number
+    Returns the points of a polygon polysegment which approximates `self`. The number
     of points is defined by the [`SegmentPolygonizer`] (see its docstring). The
     points are regularily distributed over the segment, which means that two
     subsequent points always have the same euclidian distance from each other.
@@ -255,7 +255,7 @@ impl Segment {
     ```
      */
     pub fn centroid(&self) -> [f64; 2] {
-        return crate::CentroidData::from(self).into();
+        return CentroidData::from(self).into();
     }
 }
 
@@ -356,7 +356,7 @@ impl From<&Segment> for BoundingBox {
     }
 }
 
-impl From<&Segment> for crate::CentroidData {
+impl From<&Segment> for CentroidData {
     fn from(value: &Segment) -> Self {
         match value {
             Segment::LineSegment(line_segment) => line_segment.into(),
@@ -423,7 +423,7 @@ assert_eq!(iter.count(), 4);
 #[derive(Debug, Clone, Copy)]
 pub enum SegmentPolygonizer {
     /**
-    Inner of line segments of the polygon chains given explicitly
+    Inner of line segments of the polygon polysegments given explicitly
     -> Inner of points is equal to this plus one (end point of the last
     segment). If the number of line segments is specified to be 0, only the
     start point of the input is returned.

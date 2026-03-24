@@ -11,6 +11,7 @@ planar_geo
 [`Composite`]: https://docs.rs/planar_geo/{{VERSION}}/planar_geo/composite/trait.Composite.html
 [`Transformation`]: https://docs.rs/planar_geo/{{VERSION}}/planar_geo/trait.Transformation.html
 [`Geometry`]: https://docs.rs/planar_geo/{{VERSION}}/planar_geo/geometry/enum.Geometry.html
+[`intersections`]: https://docs.rs/planar_geo/{{VERSION}}/planar_geo/geometry/enum.GeometryRef.html#method.intersections
 [`DEFAULT_EPSILON`]: https://docs.rs/planar_geo/{{VERSION}}/planar_geo/constant.DEFAULT_EPSILON.html
 [`DEFAULT_MAX_ULPS`]: https://docs.rs/planar_geo/{{VERSION}}/planar_geo/constant.DEFAULT_MAX_ULPS.html
 [crate_index]: https://docs.rs/planar_geo/{{VERSION}}/planar_geo/.

@@ -2,7 +2,7 @@
 Defines the [`Polysegment`] type, a foundational [`Composite`] used throughout
 this crate.
 
-Segment chains serve as the basis for higher-level geometric types such as
+Segment polysegments serve as the basis for higher-level geometric types such as
 [`Contour`](crate::contour::Contour) and [`Shape`](crate::shape::Shape). They
 represent connected sequences of segments and provide the core functionality
 required by composite geometries.
@@ -14,13 +14,12 @@ usage.
 
 use std::collections::VecDeque;
 
-use crate::Transformation;
-use crate::composite::*;
 use crate::primitive::Primitive;
 use crate::segment::Segment;
 use crate::segment::arc_segment::ArcSegment;
 use crate::segment::line_segment::LineSegment;
 use crate::{DEFAULT_EPSILON, DEFAULT_MAX_ULPS};
+use crate::{Transformation, composite::*};
 use approx::ulps_eq;
 use bounding_box::BoundingBox;
 use rayon::prelude::*;
@@ -53,7 +52,7 @@ The approximate equality of start and end point is defined by
 [`DEFAULT_EPSILON`] and [`DEFAULT_MAX_ULPS`]:
 
 ```ignore
-approx::ulps_eq!(chain[i].stop(), chain[i+1].start(), epsilon = DEFAULT_EPSILON, max_ulps = DEFAULT_MAX_ULPS)
+approx::ulps_eq!(polysegment[i].stop(), polysegment[i+1].start(), epsilon = DEFAULT_EPSILON, max_ulps = DEFAULT_MAX_ULPS)
 ```
 
 A polysegment can intersect itself (i.e. at least two of its segments
@@ -63,8 +62,8 @@ implementation:
 ```
 use planar_geo::prelude::*;
 
-let chain = Polysegment::from_points(&[[0.0, 0.0], [2.0, 2.0], [0.0, 2.0], [2.0, 0.0]]);
-assert_eq!(chain.intersections_polysegment(&chain, 0.0, 0).count(), 1);
+let polysegment = Polysegment::from_points(&[[0.0, 0.0], [2.0, 2.0], [0.0, 2.0], [2.0, 0.0]]);
+assert_eq!(polysegment.intersections_polysegment(&polysegment, 0.0, 0).count(), 1);
 ```
 
 # Constructing a polysegment
@@ -94,7 +93,7 @@ To uphold the "connection" property, it is not possible to manipulate arbitrary
 segments, which is why methods like [`VecDeque::get_mut`] are missing.
 It is however possible to manipulate the whole polysegment via the
 [`Transformation`] implementation. Additionally, individual segments can be
-removed from the ends of the chain with [`pop_front`](Polysegment::pop_front)
+removed from the ends of the polysegment with [`pop_front`](Polysegment::pop_front)
 and [`pop_back`](Polysegment::pop_back).
 
 # Access of individual segments
@@ -126,7 +125,7 @@ impl Polysegment {
     ```
     use planar_geo::prelude::Polysegment;
 
-    let chain = Polysegment::new();
+    let polysegment = Polysegment::new();
     ```
      */
     pub fn new() -> Self {
@@ -142,7 +141,7 @@ impl Polysegment {
     ```
     use planar_geo::prelude::Polysegment;
 
-    let chain = Polysegment::with_capacity(10);
+    let polysegment = Polysegment::with_capacity(10);
     ```
      */
     pub fn with_capacity(capacity: usize) -> Self {
@@ -161,12 +160,12 @@ impl Polysegment {
     use planar_geo::prelude::Polysegment;
 
     // Three points -> Two line segments
-    let chain = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]);
-    assert_eq!(chain.len(), 2);
+    let polysegment = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]);
+    assert_eq!(polysegment.len(), 2);
 
     // Two consecutive points are equal
-    let chain = Polysegment::from_points(&[[0.0, 0.0], [0.0, 0.0], [0.0, 1.0]]);
-    assert_eq!(chain.len(), 1);
+    let polysegment = Polysegment::from_points(&[[0.0, 0.0], [0.0, 0.0], [0.0, 1.0]]);
+    assert_eq!(polysegment.len(), 1);
     ```
      */
     pub fn from_points(points: &[[f64; 2]]) -> Self {
@@ -201,12 +200,12 @@ impl Polysegment {
     use planar_geo::prelude::Polysegment;
 
     // Three points -> Two line segments
-    let mut chain = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]);
-    assert_eq!(chain.len(), 2);
+    let mut polysegment = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]);
+    assert_eq!(polysegment.len(), 2);
 
-    // Close the chain
-    chain.close();
-    assert_eq!(chain.len(), 3);
+    // Close the polysegment
+    polysegment.close();
+    assert_eq!(polysegment.len(), 3);
     ```
      */
     pub fn close(&mut self) -> () {
@@ -253,7 +252,7 @@ impl Polysegment {
     /**
     Appends a [`Segment`] to the back of the [`Polysegment`].
 
-    If the chain already has a "back" segment ([`Polysegment::back`] returns
+    If the polysegment already has a "back" segment ([`Polysegment::back`] returns
     [`Some`]), the start point of `segment` is compared to the stop point of
     the back segment. If they aren't equal within the tolerances defined by
     [`DEFAULT_EPSILON`] and [`DEFAULT_MAX_ULPS`], a filler line segment is
@@ -264,20 +263,20 @@ impl Polysegment {
     ```
     use planar_geo::prelude::*;
 
-    let mut chain = Polysegment::new();
-    assert_eq!(chain.len(), 0);
+    let mut polysegment = Polysegment::new();
+    assert_eq!(polysegment.len(), 0);
 
-    chain.push_back(LineSegment::new([0.0, 0.0], [1.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap().into());
-    assert_eq!(chain.len(), 1);
+    polysegment.push_back(LineSegment::new([0.0, 0.0], [1.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap().into());
+    assert_eq!(polysegment.len(), 1);
 
     // The start point of this segment matches the stop point of the already
     // inserted segment
-    chain.push_back(LineSegment::new([1.0, 0.0], [1.0, 1.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap().into());
-    assert_eq!(chain.len(), 2);
+    polysegment.push_back(LineSegment::new([1.0, 0.0], [1.0, 1.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap().into());
+    assert_eq!(polysegment.len(), 2);
 
     // Start and stop point don't match -> A filler segment is introduced
-    chain.push_back(LineSegment::new([2.0, 1.0], [2.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap().into());
-    assert_eq!(chain.len(), 4);
+    polysegment.push_back(LineSegment::new([2.0, 1.0], [2.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap().into());
+    assert_eq!(polysegment.len(), 4);
     ```
      */
     pub fn push_back(&mut self, segment: Segment) {
@@ -295,7 +294,7 @@ impl Polysegment {
     /**
     Prepends a [`Segment`] to the front of the [`Polysegment`].
 
-    If the chain already has a "front" segment ([`Polysegment::front`] returns
+    If the polysegment already has a "front" segment ([`Polysegment::front`] returns
     [`Some`]), the stop point of `segment` is compared to the start point of
     the front segment. If they aren't equal within the tolerances defined by
     [`DEFAULT_EPSILON`] and [`DEFAULT_MAX_ULPS`], a filler line segment is
@@ -306,20 +305,20 @@ impl Polysegment {
     ```
     use planar_geo::prelude::*;
 
-    let mut chain = Polysegment::new();
-    assert_eq!(chain.len(), 0);
+    let mut polysegment = Polysegment::new();
+    assert_eq!(polysegment.len(), 0);
 
-    chain.push_front(LineSegment::new([0.0, 0.0], [1.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap().into());
-    assert_eq!(chain.len(), 1);
+    polysegment.push_front(LineSegment::new([0.0, 0.0], [1.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap().into());
+    assert_eq!(polysegment.len(), 1);
 
     // The stop point of this segment matches the start point of the already
     // inserted segment
-    chain.push_front(LineSegment::new([0.0, 1.0], [0.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap().into());
-    assert_eq!(chain.len(), 2);
+    polysegment.push_front(LineSegment::new([0.0, 1.0], [0.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap().into());
+    assert_eq!(polysegment.len(), 2);
 
     // Start and stop point don't match -> A filler segment is introduced
-    chain.push_front(LineSegment::new([2.0, 1.0], [2.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap().into());
-    assert_eq!(chain.len(), 4);
+    polysegment.push_front(LineSegment::new([2.0, 1.0], [2.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap().into());
+    assert_eq!(polysegment.len(), 4);
     ```
      */
     pub fn push_front(&mut self, segment: Segment) {
@@ -335,7 +334,7 @@ impl Polysegment {
     }
 
     /**
-    Removes the last / back element from the chain and returns it, or [`None`]
+    Removes the last / back element from the polysegment and returns it, or [`None`]
     if it is empty.
 
     # Examples
@@ -343,22 +342,22 @@ impl Polysegment {
     ```
     use planar_geo::prelude::*;
 
-    let mut chain = Polysegment::new();
+    let mut polysegment = Polysegment::new();
 
     let ls: Segment = LineSegment::new([0.0, 0.0], [1.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap().into();
 
-    chain.push_back(ls.clone());
-    assert_eq!(chain.len(), 1);
+    polysegment.push_back(ls.clone());
+    assert_eq!(polysegment.len(), 1);
 
-    assert_eq!(chain.pop_back(), Some(ls));
-    assert_eq!(chain.pop_back(), None);
+    assert_eq!(polysegment.pop_back(), Some(ls));
+    assert_eq!(polysegment.pop_back(), None);
      */
     pub fn pop_back(&mut self) -> Option<Segment> {
         return self.0.pop_back();
     }
 
     /**
-    Removes the first / front element from the chain and returns it, or [`None`]
+    Removes the first / front element from the polysegment and returns it, or [`None`]
     if it is empty.
 
     # Examples
@@ -366,32 +365,32 @@ impl Polysegment {
     ```
     use planar_geo::prelude::*;
 
-    let mut chain = Polysegment::new();
+    let mut polysegment = Polysegment::new();
 
     let ls: Segment = LineSegment::new([0.0, 0.0], [1.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap().into();
 
-    chain.push_front(ls.clone());
-    assert_eq!(chain.len(), 1);
+    polysegment.push_front(ls.clone());
+    assert_eq!(polysegment.len(), 1);
 
-    assert_eq!(chain.pop_front(), Some(ls));
-    assert_eq!(chain.pop_front(), None);
+    assert_eq!(polysegment.pop_front(), Some(ls));
+    assert_eq!(polysegment.pop_front(), None);
      */
     pub fn pop_front(&mut self) -> Option<Segment> {
         return self.0.pop_front();
     }
 
     /**
-    Provides a reference to the back element, or [`None`] if the chain is empty.
+    Provides a reference to the back element, or [`None`] if the polysegment is empty.
 
     # Examples
 
     ```
     use planar_geo::prelude::*;
 
-    let chain = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]);
+    let polysegment = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]);
     let ls: Segment = LineSegment::new([1.0, 0.0], [0.0, 1.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap().into();
 
-    assert_eq!(chain.back(), Some(&ls));
+    assert_eq!(polysegment.back(), Some(&ls));
     ```
      */
     pub fn back(&self) -> Option<&Segment> {
@@ -399,17 +398,17 @@ impl Polysegment {
     }
 
     /**
-    Provides a reference to the front element, or [`None`] if the chain is empty.
+    Provides a reference to the front element, or [`None`] if the polysegment is empty.
 
     # Examples
 
     ```
     use planar_geo::prelude::*;
 
-    let chain = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]);
+    let polysegment = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]);
     let ls: Segment = LineSegment::new([0.0, 0.0], [1.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap().into();
 
-    assert_eq!(chain.front(), Some(&ls));
+    assert_eq!(polysegment.front(), Some(&ls));
      */
     pub fn front(&self) -> Option<&Segment> {
         return self.0.front();
@@ -426,20 +425,20 @@ impl Polysegment {
     ```
     use planar_geo::prelude::*;
 
-    let mut chain = Polysegment::new();
-    assert_eq!(chain.len(), 0);
+    let mut polysegment = Polysegment::new();
+    assert_eq!(polysegment.len(), 0);
 
-    // No-op, since the chain is empty
-    chain.extend_back([0.0, 0.0]);
-    assert_eq!(chain.len(), 0);
+    // No-op, since the polysegment is empty
+    polysegment.extend_back([0.0, 0.0]);
+    assert_eq!(polysegment.len(), 0);
 
     // Now add a line
-    chain.push_back(LineSegment::new([1.0, 0.0], [1.0, 1.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap().into());
-    assert_eq!(chain.len(), 1);
+    polysegment.push_back(LineSegment::new([1.0, 0.0], [1.0, 1.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap().into());
+    assert_eq!(polysegment.len(), 1);
 
     // Now adding the point works
-    chain.extend_back([0.0, 0.0]);
-    assert_eq!(chain.len(), 2);
+    polysegment.extend_back([0.0, 0.0]);
+    assert_eq!(polysegment.len(), 2);
     ```
      */
     pub fn extend_back(&mut self, point: [f64; 2]) {
@@ -462,20 +461,20 @@ impl Polysegment {
     ```
     use planar_geo::prelude::*;
 
-    let mut chain = Polysegment::new();
-    assert_eq!(chain.len(), 0);
+    let mut polysegment = Polysegment::new();
+    assert_eq!(polysegment.len(), 0);
 
-    // No-op, since the chain is empty
-    chain.extend_front([0.0, 0.0]);
-    assert_eq!(chain.len(), 0);
+    // No-op, since the polysegment is empty
+    polysegment.extend_front([0.0, 0.0]);
+    assert_eq!(polysegment.len(), 0);
 
     // Now add a line
-    chain.push_front(LineSegment::new([1.0, 0.0], [1.0, 1.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap().into());
-    assert_eq!(chain.len(), 1);
+    polysegment.push_front(LineSegment::new([1.0, 0.0], [1.0, 1.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap().into());
+    assert_eq!(polysegment.len(), 1);
 
     // Now adding the point works
-    chain.extend_front([0.0, 0.0]);
-    assert_eq!(chain.len(), 2);
+    polysegment.extend_front([0.0, 0.0]);
+    assert_eq!(polysegment.len(), 2);
     ```
      */
     pub fn extend_front(&mut self, point: [f64; 2]) {
@@ -488,18 +487,18 @@ impl Polysegment {
     }
 
     /**
-    Returns whether the chain / the underlying [`VecDeque`] is empty or not.
+    Returns whether the polysegment / the underlying [`VecDeque`] is empty or not.
 
     # Examples
 
     ```
      use planar_geo::prelude::*;
 
-    let mut chain = Polysegment::new();
-    assert!(chain.is_empty());
+    let mut polysegment = Polysegment::new();
+    assert!(polysegment.is_empty());
 
-    chain.push_back(LineSegment::new([0.0, 0.0], [1.0, 0.0], 0.0, 0).unwrap().into());
-    assert!(!chain.is_empty());
+    polysegment.push_back(LineSegment::new([0.0, 0.0], [1.0, 0.0], 0.0, 0).unwrap().into());
+    assert!(!polysegment.is_empty());
     ```
      */
     pub fn is_empty(&self) -> bool {
@@ -509,16 +508,16 @@ impl Polysegment {
     /**
     Provides a reference to the [`Segment`] at the given index.
 
-    The segment at index 0 is the front of the chain.
+    The segment at index 0 is the front of the polysegment.
 
     # Examples
 
     ```
      use planar_geo::prelude::*;
 
-    let chain = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]);
-    assert!(chain.get(0).is_some());
-    assert!(chain.get(3).is_none());
+    let polysegment = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]);
+    assert!(polysegment.get(0).is_some());
+    assert!(polysegment.get(3).is_none());
     ```
      */
     pub fn get(&self, index: usize) -> Option<&Segment> {
@@ -533,8 +532,8 @@ impl Polysegment {
     ```
     use planar_geo::prelude::*;
 
-    let chain = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]);
-    assert_eq!(chain.len(), 2);
+    let polysegment = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]);
+    assert_eq!(polysegment.len(), 2);
     ```
      */
     pub fn len(&self) -> usize {
@@ -549,8 +548,8 @@ impl Polysegment {
     ```
     use planar_geo::prelude::*;
 
-    let chain = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]);
-    let mut iter = chain.iter();
+    let polysegment = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]);
+    let mut iter = polysegment.iter();
     assert!(iter.next().is_some());
     assert!(iter.next().is_some());
     assert!(iter.next().is_none());
@@ -569,8 +568,8 @@ impl Polysegment {
     use rayon::prelude::*;
     use planar_geo::prelude::*;
 
-    let chain = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]);
-    let vec: Vec<_> = chain.par_iter().collect();
+    let polysegment = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]);
+    let vec: Vec<_> = polysegment.par_iter().collect();
     assert_eq!(vec.len(), 2);
     ```
      */
@@ -593,19 +592,19 @@ impl Polysegment {
     ```
     use planar_geo::prelude::*;
 
-    let mut chain1 = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]);
-    let mut chain2 = Polysegment::from_points(&[[1.0, 1.0], [0.0, 1.0]]);
-    let mut chain3 = Polysegment::from_points(&[[0.0, 2.0], [0.0, 3.0]]);
+    let mut polysegment1 = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]);
+    let mut polysegment2 = Polysegment::from_points(&[[1.0, 1.0], [0.0, 1.0]]);
+    let mut polysegment3 = Polysegment::from_points(&[[0.0, 2.0], [0.0, 3.0]]);
 
-    assert_eq!(chain1.len(), 2);
-    assert_eq!(chain2.len(), 1);
-    assert_eq!(chain3.len(), 1);
+    assert_eq!(polysegment1.len(), 2);
+    assert_eq!(polysegment2.len(), 1);
+    assert_eq!(polysegment3.len(), 1);
 
-    chain1.append(&mut chain2);
-    assert_eq!(chain1.len(), 3);
+    polysegment1.append(&mut polysegment2);
+    assert_eq!(polysegment1.len(), 3);
 
-    chain1.append(&mut chain3);
-    assert_eq!(chain1.len(), 5);
+    polysegment1.append(&mut polysegment3);
+    assert_eq!(polysegment1.len(), 5);
     ```
      */
     pub fn append(&mut self, other: &mut Polysegment) -> () {
@@ -624,16 +623,16 @@ impl Polysegment {
     }
 
     /**
-    Returns an iterator over all points of the chain.
+    Returns an iterator over all points of the polysegment.
 
     # Examples
 
     ```
     use planar_geo::prelude::*;
 
-    let chain = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]);
+    let polysegment = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]);
 
-    let mut iter = chain.points();
+    let mut iter = polysegment.points();
     assert_eq!(iter.next(), Some([0.0, 0.0]));
     assert_eq!(iter.next(), Some([1.0, 0.0]));
     assert_eq!(iter.next(), Some([1.0, 1.0]));
@@ -645,7 +644,7 @@ impl Polysegment {
     }
 
     /**
-    Returns the points of a polygon chain which approximates `self`. The
+    Returns the points of a polygon polysegment which approximates `self`. The
     individual segments are "polygonized" via [`Segment::polygonize`] and
     an [`SegmentPolygonizer`](crate::segment::SegmentPolygonizer) specified
     within [`Polygonizer`]. See the docstring of the latter fore more.
@@ -690,7 +689,7 @@ impl Polysegment {
     }
 
     /**
-    Cuts `self` into multiple chains by intersecting it with `other` and returns
+    Cuts `self` into multiple polysegments by intersecting it with `other` and returns
     those them.
 
     The specified tolerances `epsilon` and `max_ulps` are used to determine
@@ -708,7 +707,7 @@ impl Polysegment {
 
     let separated_lines = line.intersection_cut(&cut, DEFAULT_EPSILON, DEFAULT_MAX_ULPS);
 
-    // This cut results in two separate chains
+    // This cut results in two separate polysegments
     assert_eq!(separated_lines.len(), 2);
     ```
      */
@@ -836,22 +835,22 @@ impl Polysegment {
                             if segments_of_current_line.is_empty() {
                                 lines.push(Polysegment::from(segment));
                             } else {
-                                let mut chain =
+                                let mut polysegment =
                                     Polysegment::with_capacity(segments_of_current_line.len());
                                 for s in segments_of_current_line.into_iter() {
-                                    chain.push_back(s);
+                                    polysegment.push_back(s);
                                 }
-                                chain.push_back(segment);
-                                lines.push(chain);
+                                polysegment.push_back(segment);
+                                lines.push(polysegment);
                             }
                         } else {
                             if !segments_of_current_line.is_empty() {
-                                let mut chain =
+                                let mut polysegment =
                                     Polysegment::with_capacity(segments_of_current_line.len());
                                 for s in segments_of_current_line.into_iter() {
-                                    chain.push_back(s);
+                                    polysegment.push_back(s);
                                 }
-                                lines.push(chain);
+                                lines.push(polysegment);
                             }
                         }
 
@@ -893,17 +892,17 @@ impl Polysegment {
         }
 
         // Store the last segments as a line into the lines vector
-        let mut chain = Polysegment::with_capacity(segments_of_current_line.len());
+        let mut polysegment = Polysegment::with_capacity(segments_of_current_line.len());
         for s in segments_of_current_line.into_iter() {
-            chain.push_back(s);
+            polysegment.push_back(s);
         }
-        lines.push(chain);
+        lines.push(polysegment);
 
         return lines;
     }
 
     /**
-    Reverses all [`Segment`]s of the chain by switching their start and stop
+    Reverses all [`Segment`]s of the polysegment by switching their start and stop
     points (see [`Segment::reverse`]). To ensure the "connected" property holds
     true, the ordering of the segments itself is exchanged as well.
 
@@ -915,13 +914,13 @@ impl Polysegment {
     ```
     use planar_geo::prelude::*;
 
-    let mut chain = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]);
-    assert_eq!(chain.front().unwrap().start(), [0.0, 0.0]);
-    assert_eq!(chain.back().unwrap().stop(), [0.0, 1.0]);
+    let mut polysegment = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]);
+    assert_eq!(polysegment.front().unwrap().start(), [0.0, 0.0]);
+    assert_eq!(polysegment.back().unwrap().stop(), [0.0, 1.0]);
 
-    chain.reverse();
-    assert_eq!(chain.front().unwrap().start(), [0.0, 1.0]);
-    assert_eq!(chain.back().unwrap().stop(), [0.0, 0.0]);
+    polysegment.reverse();
+    assert_eq!(polysegment.front().unwrap().start(), [0.0, 1.0]);
+    assert_eq!(polysegment.back().unwrap().stop(), [0.0, 0.0]);
     ```
      */
     pub fn reverse(&mut self) -> () {
@@ -947,19 +946,19 @@ impl Polysegment {
     use planar_geo::prelude::*;
     use std::f64::consts::FRAC_PI_2;
 
-    let mut chain = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0]]);
+    let mut polysegment = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0]]);
 
-    // 0 repetitions => The original chain is left unchanged
-    chain.rotational_pattern([1.0, 1.0], FRAC_PI_2, 0);
-    let points: Vec<[f64; 2]> = chain.points().collect();
+    // 0 repetitions => The original polysegment is left unchanged
+    polysegment.rotational_pattern([1.0, 1.0], FRAC_PI_2, 0);
+    let points: Vec<[f64; 2]> = polysegment.points().collect();
     assert_eq!(points.len(), 2);
     approx::assert_abs_diff_eq!(points[0], [0.0, 0.0], epsilon = 1e-10);
     approx::assert_abs_diff_eq!(points[1], [1.0, 0.0], epsilon = 1e-10);
 
     // Two repetitions: The points are rotated by 90° and 180° respectively.
-    // The chain has 6 points after the extension
-    chain.rotational_pattern([1.0, 1.0], FRAC_PI_2, 2);
-    let points: Vec<[f64; 2]> = chain.points().collect();
+    // The polysegment has 6 points after the extension
+    polysegment.rotational_pattern([1.0, 1.0], FRAC_PI_2, 2);
+    let points: Vec<[f64; 2]> = polysegment.points().collect();
     assert_eq!(points.len(), 6);
     approx::assert_abs_diff_eq!(points[0], [0.0, 0.0], epsilon = 1e-10);
     approx::assert_abs_diff_eq!(points[1], [1.0, 0.0], epsilon = 1e-10);
@@ -995,18 +994,18 @@ impl Polysegment {
     use planar_geo::prelude::*;
     use std::f64::consts::FRAC_PI_2;
 
-    let mut chain = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0]]);
+    let mut polysegment = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0]]);
 
-    // 0 repetitions => The original chain is left unchanged
-    chain.translational_pattern([1.0, 1.0], 0);
-    let points: Vec<[f64; 2]> = chain.points().collect();
+    // 0 repetitions => The original polysegment is left unchanged
+    polysegment.translational_pattern([1.0, 1.0], 0);
+    let points: Vec<[f64; 2]> = polysegment.points().collect();
     assert_eq!(points.len(), 2);
     approx::assert_abs_diff_eq!(points[0], [0.0, 0.0], epsilon = 1e-10);
     approx::assert_abs_diff_eq!(points[1], [1.0, 0.0], epsilon = 1e-10);
 
     // Two repetitions: A "stair" polysegment is created
-    chain.translational_pattern([1.0, 1.0], 2);
-    let points: Vec<[f64; 2]> = chain.points().collect();
+    polysegment.translational_pattern([1.0, 1.0], 2);
+    let points: Vec<[f64; 2]> = polysegment.points().collect();
     assert_eq!(points.len(), 6);
     approx::assert_abs_diff_eq!(points[0], [0.0, 0.0], epsilon = 1e-10);
     approx::assert_abs_diff_eq!(points[1], [1.0, 0.0], epsilon = 1e-10);
@@ -1034,19 +1033,19 @@ impl Polysegment {
 
 impl FromIterator<Segment> for Polysegment {
     fn from_iter<T: IntoIterator<Item = Segment>>(iter: T) -> Self {
-        let mut chain = Polysegment::new();
+        let mut polysegment = Polysegment::new();
         for segment in iter {
-            chain.push_back(segment);
+            polysegment.push_back(segment);
         }
-        return chain;
+        return polysegment;
     }
 }
 
-impl Composite for Polysegment {
-    type SegmentKey = SegmentIdx;
+impl crate::composite::private::Sealed for Polysegment {}
 
-    fn segment(&self, key: Self::SegmentKey) -> Option<&crate::segment::Segment> {
-        return self.get(key.0);
+impl Composite for Polysegment {
+    fn segment(&self, key: SegmentKey) -> Option<&crate::segment::Segment> {
+        return self.get(key.segment_idx);
     }
 
     fn num_segments(&self) -> usize {
@@ -1062,7 +1061,7 @@ impl Composite for Polysegment {
         primitive: &'a T,
         epsilon: f64,
         max_ulps: u32,
-    ) -> impl Iterator<Item = Intersection<Self::SegmentKey, ()>> + 'a {
+    ) -> impl Iterator<Item = Intersection> + 'a {
         self.iter()
             .enumerate()
             .map(move |(idx, s)| {
@@ -1070,8 +1069,8 @@ impl Composite for Polysegment {
                     .into_iter()
                     .map(move |point| Intersection {
                         point,
-                        left: SegmentIdx(idx),
-                        right: (),
+                        left: SegmentKey::from_segment_idx(idx),
+                        right: Default::default(),
                     })
             })
             .flatten()
@@ -1082,7 +1081,7 @@ impl Composite for Polysegment {
         primitive: &'a T,
         epsilon: f64,
         max_ulps: u32,
-    ) -> impl ParallelIterator<Item = Intersection<Self::SegmentKey, ()>> + 'a {
+    ) -> impl ParallelIterator<Item = Intersection> + 'a {
         self.par_iter()
             .enumerate()
             .map(move |(idx, s)| {
@@ -1091,8 +1090,8 @@ impl Composite for Polysegment {
                     .par_bridge()
                     .map(move |point| Intersection {
                         point,
-                        left: SegmentIdx(idx),
-                        right: (),
+                        left: SegmentKey::from_segment_idx(idx),
+                        right: Default::default(),
                     })
             })
             .flatten()
@@ -1103,7 +1102,7 @@ impl Composite for Polysegment {
         other: &'a Self,
         epsilon: f64,
         max_ulps: u32,
-    ) -> impl Iterator<Item = Intersection<Self::SegmentKey, SegmentIdx>> + 'a {
+    ) -> impl Iterator<Item = Intersection> + 'a {
         let same_polysegment_len = if std::ptr::eq(self, other) {
             Some(self.num_segments())
         } else {
@@ -1134,7 +1133,7 @@ impl Composite for Polysegment {
         other: &'a Self,
         epsilon: f64,
         max_ulps: u32,
-    ) -> impl ParallelIterator<Item = Intersection<Self::SegmentKey, SegmentIdx>> + 'a {
+    ) -> impl ParallelIterator<Item = Intersection> + 'a {
         let same_polysegment_len = if std::ptr::eq(self, other) {
             Some(self.num_segments())
         } else {
@@ -1166,7 +1165,7 @@ impl Composite for Polysegment {
         contour: &'a crate::prelude::Contour,
         epsilon: f64,
         max_ulps: u32,
-    ) -> impl Iterator<Item = Intersection<Self::SegmentKey, SegmentIdx>> {
+    ) -> impl Iterator<Item = Intersection> {
         return self.intersections_polysegment(contour.polysegment(), epsilon, max_ulps);
     }
 
@@ -1175,7 +1174,7 @@ impl Composite for Polysegment {
         contour: &'a crate::prelude::Contour,
         epsilon: f64,
         max_ulps: u32,
-    ) -> impl ParallelIterator<Item = Intersection<Self::SegmentKey, SegmentIdx>> + 'a {
+    ) -> impl ParallelIterator<Item = Intersection> + 'a {
         return self.intersections_polysegment_par(contour.polysegment(), epsilon, max_ulps);
     }
 
@@ -1184,7 +1183,7 @@ impl Composite for Polysegment {
         shape: &'a crate::prelude::Shape,
         epsilon: f64,
         max_ulps: u32,
-    ) -> impl Iterator<Item = Intersection<Self::SegmentKey, ShapeIdx>> {
+    ) -> impl Iterator<Item = Intersection> {
         shape
             .intersections_polysegment(self, epsilon, max_ulps)
             .map(Intersection::switch)
@@ -1195,7 +1194,7 @@ impl Composite for Polysegment {
         shape: &'a crate::prelude::Shape,
         epsilon: f64,
         max_ulps: u32,
-    ) -> impl ParallelIterator<Item = Intersection<Self::SegmentKey, ShapeIdx>> {
+    ) -> impl ParallelIterator<Item = Intersection> {
         shape
             .intersections_polysegment_par(self, epsilon, max_ulps)
             .map(Intersection::switch)
@@ -1206,7 +1205,7 @@ impl Composite for Polysegment {
         other: &'a T,
         epsilon: f64,
         max_ulps: u32,
-    ) -> impl Iterator<Item = Intersection<Self::SegmentKey, T::SegmentKey>> + 'a
+    ) -> impl Iterator<Item = Intersection> + 'a
     where
         Self: Sized,
     {
@@ -1220,10 +1219,9 @@ impl Composite for Polysegment {
         other: &'a T,
         epsilon: f64,
         max_ulps: u32,
-    ) -> impl ParallelIterator<Item = Intersection<Self::SegmentKey, T::SegmentKey>> + 'a
+    ) -> impl ParallelIterator<Item = Intersection> + 'a
     where
         Self: Sized,
-        <T as Composite>::SegmentKey: Send,
     {
         return other
             .intersections_polysegment_par(self, epsilon, max_ulps)
@@ -1248,9 +1246,9 @@ impl std::ops::Index<usize> for Polysegment {
 
 impl From<Segment> for Polysegment {
     fn from(value: Segment) -> Self {
-        let mut chain = Polysegment::new();
-        chain.push_back(value);
-        return chain;
+        let mut polysegment = Polysegment::new();
+        polysegment.push_back(value);
+        return polysegment;
     }
 }
 
@@ -1266,7 +1264,7 @@ impl From<ArcSegment> for Polysegment {
     }
 }
 
-impl Transformation for Polysegment {
+impl crate::Transformation for Polysegment {
     fn rotate(&mut self, center: [f64; 2], angle: f64) -> () {
         self.0.par_iter_mut().for_each(|segment| {
             segment.rotate(center, angle);
@@ -1328,7 +1326,7 @@ fn intersections_between_polysegment_and_segment_priv<'a, L>(
     same_polysegment_len: Option<usize>,
     epsilon: f64,
     max_ulps: u32,
-) -> impl Iterator<Item = Intersection<SegmentIdx, SegmentIdx>> + 'a
+) -> impl Iterator<Item = Intersection> + 'a
 where
     L: Iterator<Item = &'a Segment> + 'a,
 {
@@ -1354,7 +1352,7 @@ fn intersections_between_polysegment_and_segment_priv_par<'a, L>(
     same_polysegment_len: Option<usize>,
     epsilon: f64,
     max_ulps: u32,
-) -> impl ParallelIterator<Item = Intersection<SegmentIdx, SegmentIdx>> + 'a
+) -> impl ParallelIterator<Item = Intersection> + 'a
 where
     L: IndexedParallelIterator<Item = &'a Segment> + 'a,
 {
@@ -1382,7 +1380,7 @@ fn segment_intersections<'a>(
     same_polysegment_len: Option<usize>,
     epsilon: f64,
     max_ulps: u32,
-) -> Option<impl Iterator<Item = Intersection<SegmentIdx, SegmentIdx>> + 'a> {
+) -> Option<impl Iterator<Item = Intersection> + 'a> {
     /*
     If the two segments are identical, they have no intersection by definition.
 
@@ -1438,8 +1436,8 @@ fn segment_intersections<'a>(
 
             Some(Intersection {
                 point,
-                left: SegmentIdx(left_idx),
-                right: SegmentIdx(right_idx),
+                left: SegmentKey::from_segment_idx(left_idx),
+                right: SegmentKey::from_segment_idx(right_idx),
             })
         });
 
@@ -1526,8 +1524,8 @@ where
 
     let mut area = 0.0;
 
-    // The chained element covers the end value x_n*y_0 - x_0*y_n, where n equals
-    // the last iterator element
+    // The polysegmented element covers the end value x_n*y_0 - x_0*y_n, where n
+    // equals the last iterator element
     for current_vertex in points.chain(std::iter::once(first_vertex)) {
         area += (previous_vertex[1] + current_vertex[1]) * (previous_vertex[0] - current_vertex[0]);
         previous_vertex = current_vertex.clone();

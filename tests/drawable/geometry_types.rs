@@ -2,14 +2,7 @@ use std::f64::consts::{FRAC_PI_2, TAU};
 
 use bounding_box::BoundingBox;
 use cairo_viewport::*;
-use planar_geo::{
-    DEFAULT_EPSILON, DEFAULT_MAX_ULPS, Transformation,
-    contour::Contour,
-    draw::{Anchor, Color, LineStyle, Style, Text},
-    segment::{ArcSegment, LineSegment, Segment},
-    polysegment::Polysegment,
-    shape::Shape,
-};
+use planar_geo::prelude::*;
 
 #[test]
 fn test_segment_line() {
@@ -226,19 +219,19 @@ fn test_shape_and_text_separated() {
     let e = planar_geo::DEFAULT_EPSILON;
     let m = planar_geo::DEFAULT_MAX_ULPS;
 
-    let mut chain = Polysegment::new();
-    chain.push_back(
+    let mut polysegment = Polysegment::new();
+    polysegment.push_back(
         ArcSegment::fillet([0.0, 100.0], [0.0, 0.0], [100.0, 0.0], 50.0, e, m)
             .unwrap()
             .into(),
     );
-    chain.extend_back([100.0, 0.0]);
-    chain.push_back(
+    polysegment.extend_back([100.0, 0.0]);
+    polysegment.push_back(
         ArcSegment::fillet([100.0, 0.0], [0.0, 100.0], [0.0, 0.0], 10.0, e, m)
             .unwrap()
             .into(),
     );
-    let shape = Shape::new(vec![Contour::new(chain)]).unwrap();
+    let shape = Shape::new(vec![Contour::new(polysegment)]).unwrap();
 
     let style = Style::new(
         Color::new(0.0, 0.0, 0.0, 1.0),
@@ -284,19 +277,19 @@ fn test_shape_scaled_text() {
     let e = planar_geo::DEFAULT_EPSILON;
     let m = planar_geo::DEFAULT_MAX_ULPS;
 
-    let mut chain = Polysegment::new();
-    chain.push_back(
+    let mut polysegment = Polysegment::new();
+    polysegment.push_back(
         ArcSegment::fillet([0.0, 100.0], [0.0, 0.0], [100.0, 0.0], 50.0, e, m)
             .unwrap()
             .into(),
     );
-    chain.extend_back([100.0, 0.0]);
-    chain.push_back(
+    polysegment.extend_back([100.0, 0.0]);
+    polysegment.push_back(
         ArcSegment::fillet([100.0, 0.0], [0.0, 100.0], [0.0, 0.0], 10.0, e, m)
             .unwrap()
             .into(),
     );
-    let shape = Shape::new(vec![Contour::new(chain)]).unwrap();
+    let shape = Shape::new(vec![Contour::new(polysegment)]).unwrap();
 
     let black = Color::new(0.0, 0.0, 0.0, 1.0);
     let mut style = Style::new(
@@ -518,14 +511,14 @@ fn setup_rotated_text() -> (Shape, Style, Viewport) {
     let e = planar_geo::DEFAULT_EPSILON;
     let m = planar_geo::DEFAULT_MAX_ULPS;
 
-    let mut chain = Polysegment::new();
-    chain.push_back(
+    let mut polysegment = Polysegment::new();
+    polysegment.push_back(
         ArcSegment::fillet([0.0, 100.0], [0.0, 0.0], [100.0, 0.0], 50.0, e, m)
             .unwrap()
             .into(),
     );
-    chain.extend_back([100.0, 0.0]);
-    chain.extend_back([0.0, 100.0]);
+    polysegment.extend_back([100.0, 0.0]);
+    polysegment.extend_back([0.0, 100.0]);
 
     let style = Style::new(
         Color::new(0.0, 0.0, 1.0, 1.0),
@@ -536,7 +529,7 @@ fn setup_rotated_text() -> (Shape, Style, Viewport) {
         cairo::LineJoin::Miter,
         None,
     );
-    let shape = Shape::new(vec![chain.into()]).unwrap();
+    let shape = Shape::new(vec![polysegment.into()]).unwrap();
     let config = Viewport::from_bounded_entity(&shape, SideLength::Long(500));
     return (shape, style, config);
 }
@@ -986,8 +979,7 @@ fn test_quarter_arc() {
     let mut style = Style::default();
     style.line_width = 3.0;
 
-    let view =
-        Viewport::from_bounding_box(&BoundingBox::from(&polysegment), SideLength::Long(500));
+    let view = Viewport::from_bounding_box(&BoundingBox::from(&polysegment), SideLength::Long(500));
 
     assert!(
         view.compare_or_create(
@@ -1042,29 +1034,29 @@ fn test_block_with_fillets() {
     let e = planar_geo::DEFAULT_EPSILON;
     let m = planar_geo::DEFAULT_MAX_ULPS;
 
-    let mut chain = Polysegment::new();
-    chain.push_back(
+    let mut polysegment = Polysegment::new();
+    polysegment.push_back(
         ArcSegment::fillet([-10f64, 0.0], [10f64, 0.0], [10f64, 10f64], 1.0, e, m)
             .unwrap()
             .into(),
     );
-    chain.push_back(
+    polysegment.push_back(
         ArcSegment::fillet([10f64, 0.0], [10f64, 10f64], [-10f64, 10f64], 1.0, e, m)
             .unwrap()
             .into(),
     );
-    chain.push_back(
+    polysegment.push_back(
         ArcSegment::fillet([10f64, 10f64], [-10f64, 10f64], [-10f64, 0.0], 1.0, e, m)
             .unwrap()
             .into(),
     );
-    chain.push_back(
+    polysegment.push_back(
         ArcSegment::fillet([-10f64, 10f64], [-10f64, 0.0], [10f64, 0.0], 1.0, e, m)
             .unwrap()
             .into(),
     );
 
-    let mut shape = Shape::new(vec![chain.into()]).unwrap();
+    let mut shape = Shape::new(vec![polysegment.into()]).unwrap();
 
     let mut style = Style::default();
     style.background_color = Color::new(1.0, 0.0, 0.0, 1.0);

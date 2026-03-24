@@ -1,3 +1,26 @@
+These intersections have been calculated using the generic [`intersections`]
+interface, which is available for any of the geometric types defined in this
+crate:
+
+```rust
+use planar_geo::prelude::*;
+
+let e = DEFAULT_EPSILON;
+let m = DEFAULT_MAX_ULPS;
+
+let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
+let contour = Contour::new(Polysegment::from_points(vertices));
+let vertices = &[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
+let hole = Contour::new(Polysegment::from_points(vertices));
+let shape = Shape::new(vec![contour, hole]).expect("valid inputs");
+
+let vertices = &[[2.0, 1.0], [2.0, 0.5], [0.0, 0.5]];
+let polysegment = Polysegment::from_points(vertices);
+
+let intersections: Vec<Intersection> = polysegment.intersections(&shape, e, m);
+assert_eq!(intersections.len(), 4);
+```
+
 # Features
 
 ## Serialization and deserialization

@@ -4,7 +4,6 @@ The [`ErrorType`] represents all the possible failures which can occur when
 using this crate. See the docstrings of struct and enum for details.
 */
 
-use crate::composite::{SegmentIdx, ShapeIdx};
 use crate::contour::Contour;
 use compare_variables::*;
 use core::result;
@@ -17,7 +16,7 @@ An enum representing all errors which can occur when constructing / modifying a
 [`Shape`](crate::shape::Shape).
  */
 #[derive(Clone, Debug, PartialEq)]
-pub enum ShapeConstructorError<T, I> {
+pub enum ShapeConstructorError<T> {
     /// Contour vector used in [`Shape::new`](crate::shape::Shape::new) is
     /// empty.
     EmptyVec,
@@ -74,11 +73,11 @@ pub enum ShapeConstructorError<T, I> {
         /// using a function of an existing shape, the left side is the index
         /// of the shape contours and the right side is the index of the
         /// `input`.
-        intersection: crate::composite::Intersection<ShapeIdx, I>,
+        intersection: crate::composite::Intersection,
     },
 }
 
-impl<T> std::fmt::Display for ShapeConstructorError<T, ShapeIdx> {
+impl<T> std::fmt::Display for ShapeConstructorError<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ShapeConstructorError::EmptyVec => write!(f, "given contour vector was empty"),
@@ -108,9 +107,9 @@ impl<T> std::fmt::Display for ShapeConstructorError<T, ShapeIdx> {
                 write!(
                     f,
                     "segment {} of contour {} intersects segment {} of contour {} at point x = {}, y = {}",
-                    intersection.left.segment_idx.0,
+                    intersection.left.segment_idx,
                     intersection.left.contour_idx,
-                    intersection.right.segment_idx.0,
+                    intersection.right.segment_idx,
                     intersection.right.contour_idx,
                     intersection.point[0],
                     intersection.point[1]
@@ -120,47 +119,7 @@ impl<T> std::fmt::Display for ShapeConstructorError<T, ShapeIdx> {
     }
 }
 
-impl<T: std::fmt::Debug> std::error::Error for ShapeConstructorError<T, ShapeIdx> {}
-
-impl<T> std::fmt::Display for ShapeConstructorError<T, SegmentIdx> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ShapeConstructorError::EmptyVec => write!(f, "given contour vector was empty"),
-            ShapeConstructorError::EmptyContour { input: _, idx: _ } => {
-                write!(f, "given hole contour is empty")
-            }
-            ShapeConstructorError::HoleOutsideContour { input: _, idx: _ } => {
-                write!(f, "given hole contour is outside the outer contour")
-            }
-            ShapeConstructorError::HoleInsideHole {
-                input: _,
-                outer_hole_idx,
-                inner_hole_idx: _,
-            } => write!(
-                f,
-                "given hole contour is inside the hole contour {} of the shape",
-                outer_hole_idx
-            ),
-            ShapeConstructorError::Intersection {
-                input: _,
-                intersection,
-            } => {
-                write!(
-                    f,
-                    "segment {} of contour {} intersects segment {} of the given hole contour",
-                    intersection.left.segment_idx.0,
-                    intersection.left.contour_idx,
-                    intersection.right.0,
-                )
-            }
-        }
-    }
-}
-
-impl<T: std::fmt::Debug> std::error::Error
-    for ShapeConstructorError<T, crate::composite::SegmentIdx>
-{
-}
+impl<T: std::fmt::Debug> std::error::Error for ShapeConstructorError<T> {}
 
 /**
 This struct represents all errors which can occur when using this crate. This is
@@ -224,10 +183,10 @@ pub enum ErrorType {
     },
     /// Creating a new shape failed because of the contained
     /// [`ShapeConstructorError].
-    NewShape(ShapeConstructorError<Vec<Contour>, ShapeIdx>),
+    NewShape(ShapeConstructorError<Vec<Contour>>),
     /// Adding a new hole to an existing shape failed because of the contained
     /// [`ShapeConstructorError].
-    AddHole(ShapeConstructorError<Contour, SegmentIdx>),
+    AddHole(ShapeConstructorError<Contour>),
 }
 
 impl std::fmt::Display for ErrorType {
@@ -256,26 +215,26 @@ impl std::fmt::Display for ErrorType {
 
 impl std::error::Error for ErrorType {}
 
-impl From<ShapeConstructorError<Vec<Contour>, ShapeIdx>> for ErrorType {
-    fn from(value: ShapeConstructorError<Vec<Contour>, ShapeIdx>) -> Self {
+impl From<ShapeConstructorError<Vec<Contour>>> for ErrorType {
+    fn from(value: ShapeConstructorError<Vec<Contour>>) -> Self {
         return ErrorType::NewShape(value);
     }
 }
 
-impl From<ShapeConstructorError<Contour, SegmentIdx>> for ErrorType {
-    fn from(value: ShapeConstructorError<Contour, SegmentIdx>) -> Self {
+impl From<ShapeConstructorError<Contour>> for ErrorType {
+    fn from(value: ShapeConstructorError<Contour>) -> Self {
         return ErrorType::AddHole(value);
     }
 }
 
-impl From<ShapeConstructorError<Vec<Contour>, ShapeIdx>> for Error {
-    fn from(value: ShapeConstructorError<Vec<Contour>, ShapeIdx>) -> Self {
+impl From<ShapeConstructorError<Vec<Contour>>> for Error {
+    fn from(value: ShapeConstructorError<Vec<Contour>>) -> Self {
         return ErrorType::from(value).into();
     }
 }
 
-impl From<ShapeConstructorError<Contour, SegmentIdx>> for Error {
-    fn from(value: ShapeConstructorError<Contour, SegmentIdx>) -> Self {
+impl From<ShapeConstructorError<Contour>> for Error {
+    fn from(value: ShapeConstructorError<Contour>) -> Self {
         return ErrorType::from(value).into();
     }
 }

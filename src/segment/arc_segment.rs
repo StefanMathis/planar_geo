@@ -21,8 +21,8 @@ use compare_variables::compare_variables;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Rotation2, Transformation,
     primitive::{Primitive, PrimitiveIntersections},
+    {CentroidData, Rotation2, Transformation},
 };
 use bounding_box::BoundingBox;
 
@@ -652,7 +652,7 @@ impl ArcSegment {
     ```
      */
     pub fn centroid(&self) -> [f64; 2] {
-        return crate::CentroidData::from(self).into();
+        return CentroidData::from(self).into();
     }
 
     /**
@@ -710,7 +710,7 @@ impl ArcSegment {
     }
 
     /**
-    Returns the points of a polygon chain which approximates `self`. The number
+    Returns the points of a polygon polysegment which approximates `self`. The number
     of points is defined by the
     [`SegmentPolygonizer`](crate::segment::SegmentPolygonizer) (see its
     docstring). The points are regularily distributed over the segment, which
@@ -1096,7 +1096,7 @@ impl From<&ArcSegment> for BoundingBox {
     }
 }
 
-impl From<&ArcSegment> for crate::CentroidData {
+impl From<&ArcSegment> for CentroidData {
     fn from(value: &ArcSegment) -> Self {
         let inv_3 = 1.0 / 3.0;
 
@@ -1108,7 +1108,7 @@ impl From<&ArcSegment> for crate::CentroidData {
         let x = (value.start()[0] + value.stop()[0]) * inv_3;
         let y = (value.start()[1] + value.stop()[1]) * inv_3;
         let area = 0.5 * (value.start()[0] * value.stop()[1] - value.stop()[0] * value.start()[1]);
-        let data_shape_1 = crate::CentroidData { area, x, y };
+        let data_shape_1 = CentroidData { area, x, y };
 
         // centroid and area for shape 2
         // Centroid of a circular segment is calculated by moving the segment so that:

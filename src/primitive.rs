@@ -405,6 +405,9 @@ pub trait Primitive: private::Sealed {
     [`Primitive::contains_point`] returned `true` and returns
     [`PrimitiveIntersections::Zero`] otherwise.
 
+    This method is mainly used to implement
+    [`Primitive::intersections_primitive`], consider using that method instead.
+
     # Examples
 
     ```
@@ -449,6 +452,9 @@ pub trait Primitive: private::Sealed {
     is contained in the former.
     In both cases, the returned result is [`PrimitiveIntersections::Zero`] (see
     examples).
+
+    This method is mainly used to implement
+    [`Primitive::intersections_primitive`], consider using that method instead.
 
     # Examples
 
@@ -499,6 +505,9 @@ pub trait Primitive: private::Sealed {
     [`PrimitiveIntersections::Zero`]. In the latter case, the "common endpoints"
     are returned (see examples).
 
+    This method is mainly used to implement
+    [`Primitive::intersections_primitive`], consider using that method instead.
+
     # Examples
 
     ```
@@ -542,6 +551,9 @@ pub trait Primitive: private::Sealed {
     As with the [`LineSegment`] case, the "common endpoints" are returned (see
     examples).
 
+    This method is mainly used to implement
+    [`Primitive::intersections_primitive`], consider using that method instead.
+
     # Examples
 
     ```
@@ -580,6 +592,9 @@ pub trait Primitive: private::Sealed {
      [`Primitive::intersections_line_segment`] or
     [`Primitive::intersections_arc_segment`] respectively (especially for
     degenerate cases, see the function docstrings).
+
+    This method is mainly used to implement
+    [`Primitive::intersections_primitive`], consider using that method instead.
 
     # Examples
 
@@ -634,6 +649,10 @@ pub trait Primitive: private::Sealed {
         }
     }
     ```
+
+    It is recommended to use this function instead of the specialized methods
+    such as [`Primitive::intersections_line_segment`] for primitive intersection
+    to simplify the usage of this trait.
      */
     fn intersections_primitive<T: Primitive>(
         &self,
@@ -644,12 +663,52 @@ pub trait Primitive: private::Sealed {
     where
         Self: Sized;
 
+    /**
+    Returns the intersections between a [`Primitive`] and any other geometric
+    type.
+
+    This method is based on
+    [`GeometryRef::intersections`](crate::geometry::GeometryRef::intersections).
+    It can handle any geometric type ([`Primitive`] or
+    [`Composite`](crate::composite::Composite)) defined in this crate, but it
+    needs to allocate a vector for the results. For intersections between two
+    primitives, [`Primitive::intersections_primitive`] is therefore to be
+     preferred. If `other` is a [`Composite`](crate::composite::Composite), the
+    [`Composite::intersections_primitive`](crate::composite::Composite::intersections_primitive)
+    method offers a non-allocating (lazy) alternative.
+
+    The main advantage of this method is its genericness. If allocating a vector
+    for the results is not an issue, consider using this method instead of the
+    specialized variants mentioned above to simplify the interface to this
+    trait.
+
+    # Examples
+
+    ```
+    use std::f64::consts::PI;
+    use planar_geo::prelude::*;
+
+    let arc1 = ArcSegment::from_center_radius_start_offset_angle([0.0, 0.0], 2.0, 0.0, PI, DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap();
+    let arc2 = ArcSegment::from_center_radius_start_offset_angle([0.0, 0.0], 2.0, 0.5*PI, PI, DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap();
+
+    let intersections = arc1.intersections(&arc2, DEFAULT_EPSILON, DEFAULT_MAX_ULPS);
+    assert_eq!(intersections.len(), 2);
+    approx::assert_abs_diff_eq!(intersections[0].point, [-2.0, 0.0], epsilon = DEFAULT_EPSILON);
+    approx::assert_abs_diff_eq!(intersections[1].point, [0.0, 2.0], epsilon = DEFAULT_EPSILON);
+
+    // Comparison to specialized function:
+    approx::assert_abs_diff_eq!(
+        arc1.intersections_primitive(&arc2, DEFAULT_EPSILON, DEFAULT_MAX_ULPS),
+        PrimitiveIntersections::Two([[0.0, 2.0], [-2.0, 0.0]]), epsilon = DEFAULT_EPSILON
+    );
+    ```
+     */
     fn intersections<'a, T: Into<crate::geometry::GeometryRef<'a>>>(
         &self,
         other: T,
         epsilon: f64,
         max_ulps: u32,
-    ) -> Vec<[f64; 2]>
+    ) -> Vec<crate::composite::Intersection>
     where
         Self: Sized,
     {

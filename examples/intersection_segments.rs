@@ -93,14 +93,14 @@ fn main() {
 
         let i_style = IntersectionStyle::default();
 
-        let i: Intersection<(), ()> = [1.5, 0.0].into();
-        i.draw(&i_style, cr)?;
+        let i: Intersection = [1.5, 0.0].into();
+        i.draw(&i_style, None, None, cr)?;
 
-        let i: Intersection<(), ()> = [2.0, 0.0].into();
-        i.draw(&i_style, cr)?;
+        let i: Intersection = [2.0, 0.0].into();
+        i.draw(&i_style, None, None, cr)?;
 
-        let i: Intersection<(), ()> = [0.5, 0.0].into();
-        i.draw(&i_style, cr)?;
+        let i: Intersection = [0.5, 0.0].into();
+        i.draw(&i_style, None, None, cr)?;
         return Ok(());
     };
 

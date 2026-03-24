@@ -17,15 +17,14 @@ usage.
 use std::f64::INFINITY;
 
 use crate::{
-    Rotation2,
     primitive::{Primitive, PrimitiveIntersections},
+    {CentroidData, Rotation2, Transformation},
 };
 
 use approx::ulps_eq;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-use crate::Transformation;
 use bounding_box::BoundingBox;
 
 /**
@@ -450,7 +449,7 @@ impl LineSegment {
     }
 
     /**
-    Returns the points of a polygon chain which approximates `self`. The number
+    Returns the points of a polygon polysegment which approximates `self`. The number
     of points is defined by the
     [`SegmentPolygonizer`](crate::segment::SegmentPolygonizer) (see its
     docstring). The points are regularily distributed over the segment, which
@@ -708,7 +707,7 @@ impl From<&LineSegment> for BoundingBox {
     }
 }
 
-impl From<&LineSegment> for crate::CentroidData {
+impl From<&LineSegment> for CentroidData {
     fn from(value: &LineSegment) -> Self {
         // Apply the formula for a triangle with one vertex being (0,0)
         let x = (value.start()[0] + value.stop()[0]) / 3.0;

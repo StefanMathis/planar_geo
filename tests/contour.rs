@@ -5,23 +5,23 @@ use std::f64::consts::{FRAC_PI_2, PI, TAU};
 
 #[test]
 fn test_from_segments() {
-    let mut chain = Polysegment::new();
-    chain.push_back(
+    let mut polysegment = Polysegment::new();
+    polysegment.push_back(
         ArcSegment::from_center_radius_start_offset_angle([0.0, 0.0], 2.0, PI, FRAC_PI_2, 0.0, 0)
             .unwrap()
             .into(),
     );
-    chain.push_back(
+    polysegment.push_back(
         LineSegment::new([0.0, -2.0], [-2.0, -2.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS)
             .unwrap()
             .into(),
     );
-    chain.push_back(
+    polysegment.push_back(
         LineSegment::new([-2.0, -2.0], [-2.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS)
             .unwrap()
             .into(),
     );
-    let contour = Contour::new(chain);
+    let contour = Contour::new(polysegment);
     assert_eq!(contour.num_segments(), 3);
 }
 
@@ -202,8 +202,8 @@ fn test_area() {
 
     // Square with concave radius in one corner
     {
-        let mut chain = Polysegment::new();
-        chain.push_back(
+        let mut polysegment = Polysegment::new();
+        polysegment.push_back(
             ArcSegment::from_center_radius_start_offset_angle(
                 [0.0, 0.0],
                 2.0,
@@ -215,24 +215,24 @@ fn test_area() {
             .unwrap()
             .into(),
         );
-        chain.push_back(
+        polysegment.push_back(
             LineSegment::new([0.0, -2.0], [-2.0, -2.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS)
                 .unwrap()
                 .into(),
         );
-        chain.push_back(
+        polysegment.push_back(
             LineSegment::new([-2.0, -2.0], [-2.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS)
                 .unwrap()
                 .into(),
         );
-        let contour = Contour::new(chain);
+        let contour = Contour::new(polysegment);
         assert_ulps_eq!(contour.area(), 4.0 - 0.25 * PI * 2.0_f64.powi(2));
     }
 
     // Square with concave radius in another corner
     {
-        let mut chain = Polysegment::new();
-        chain.push_back(
+        let mut polysegment = Polysegment::new();
+        polysegment.push_back(
             ArcSegment::from_center_radius_start_offset_angle(
                 [0.0, 0.0],
                 2.0,
@@ -244,17 +244,17 @@ fn test_area() {
             .unwrap()
             .into(),
         );
-        chain.push_back(
+        polysegment.push_back(
             LineSegment::new([0.0, -2.0], [2.0, -2.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS)
                 .unwrap()
                 .into(),
         );
-        chain.push_back(
+        polysegment.push_back(
             LineSegment::new([2.0, -2.0], [2.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS)
                 .unwrap()
                 .into(),
         );
-        let contour = Contour::new(chain);
+        let contour = Contour::new(polysegment);
         assert_ulps_eq!(
             contour.area(),
             4.0 - 0.25 * PI * 2.0_f64.powi(2),
@@ -264,28 +264,28 @@ fn test_area() {
 
     // Square with rounded edges
     {
-        let mut chain = Polysegment::new();
-        chain.push_back(
+        let mut polysegment = Polysegment::new();
+        polysegment.push_back(
             ArcSegment::fillet([-1.0, 2.0], [-1.0, 0.0], [1.0, 0.0], 0.1, 0.0, 0)
                 .unwrap()
                 .into(),
         );
-        chain.push_back(
+        polysegment.push_back(
             ArcSegment::fillet([-1.0, 0.0], [1.0, 0.0], [1.0, 2.0], 0.1, 0.0, 0)
                 .unwrap()
                 .into(),
         );
-        chain.push_back(
+        polysegment.push_back(
             ArcSegment::fillet([1.0, 0.0], [1.0, 2.0], [-1.0, 2.0], 0.2, 0.0, 0)
                 .unwrap()
                 .into(),
         );
-        chain.push_back(
+        polysegment.push_back(
             ArcSegment::fillet([1.0, 2.0], [-1.0, 2.0], [-1.0, 0.0], 0.2, 0.0, 0)
                 .unwrap()
                 .into(),
         );
-        let contour = Contour::new(chain);
+        let contour = Contour::new(polysegment);
 
         assert_ulps_eq!(
             contour.area(),
@@ -297,30 +297,30 @@ fn test_area() {
 
     // "Pie" section with a straight connection between the end points of the arc
     {
-        let mut chain = Polysegment::new();
-        chain.push_back(
+        let mut polysegment = Polysegment::new();
+        polysegment.push_back(
             ArcSegment::fillet([1.0, 0.0], [1.0, 1.0], [0.0, 1.0], 1.0, 0.0, 0)
                 .unwrap()
                 .into(),
         );
-        let contour = Contour::new(chain);
+        let contour = Contour::new(polysegment);
         assert_ulps_eq!(contour.area(), 0.25 * PI - 0.5, epsilon = DEFAULT_EPSILON);
     }
 
     // "Pie" section with a square cut out at the origin
     {
-        let mut chain = Polysegment::new();
-        chain.push_back(
+        let mut polysegment = Polysegment::new();
+        polysegment.push_back(
             ArcSegment::fillet([0.0, -1.0], [-1.0, -1.0], [-1.0, 0.0], 1.0, 0.0, 0)
                 .unwrap()
                 .into(),
         );
-        chain.extend_back([-1.0, 0.0]);
-        chain.extend_back([-0.5, 0.0]);
-        chain.extend_back([-0.5, -0.5]);
-        chain.extend_back([0.0, -0.5]);
-        chain.extend_back([0.0, -1.0]);
-        let contour = Contour::new(chain);
+        polysegment.extend_back([-1.0, 0.0]);
+        polysegment.extend_back([-0.5, 0.0]);
+        polysegment.extend_back([-0.5, -0.5]);
+        polysegment.extend_back([0.0, -0.5]);
+        polysegment.extend_back([0.0, -1.0]);
+        let contour = Contour::new(polysegment);
         assert_ulps_eq!(contour.area(), 0.25 * PI - 0.25, epsilon = DEFAULT_EPSILON);
     }
 }
@@ -348,6 +348,13 @@ fn test_self_intersection() {
         // Intersect the line with itself
         let intersections = c.intersections_contour_par(&c, DEFAULT_EPSILON, DEFAULT_MAX_ULPS);
         assert_eq!(intersections.count(), 0);
+
+        // Intersect the line with itself
+        let intersections = c.intersections(&c, DEFAULT_EPSILON, DEFAULT_MAX_ULPS);
+        assert_eq!(intersections.len(), 0);
+
+        let intersections = c.intersections_par(&c, DEFAULT_EPSILON, DEFAULT_MAX_ULPS);
+        assert_eq!(intersections.len(), 0);
     }
 
     // Closed polysegment
@@ -388,8 +395,8 @@ fn test_centroid() {
         assert_abs_diff_eq!(&contour.centroid(), &center, epsilon = DEFAULT_EPSILON);
 
         // Quarter-circle => Compare with analytical solution
-        let mut chain = Polysegment::new();
-        chain.push_back(
+        let mut polysegment = Polysegment::new();
+        polysegment.push_back(
             ArcSegment::fillet(
                 [0.0, 2.0],
                 [1.0, 2.0],
@@ -401,8 +408,8 @@ fn test_centroid() {
             .unwrap()
             .into(),
         );
-        chain.extend_back([0.0, 1.0]);
-        let contour = Contour::new(chain);
+        polysegment.extend_back([0.0, 1.0]);
+        let contour = Contour::new(polysegment);
         let centroid = 4.0 / (3.0 * PI);
         assert_abs_diff_eq!(
             &contour.centroid(),
@@ -411,7 +418,8 @@ fn test_centroid() {
         );
     }
 
-    // Regression test which was introduced after encountering a bug with a bread loaf magnet shape.
+    // Regression test which was introduced after encountering a bug with a bread
+    // loaf magnet shape.
     {
         let width: f64 = 20e-3;
         let height = 10e-3;
@@ -419,8 +427,8 @@ fn test_centroid() {
         let arc_segment_height =
             outer_radius - 0.5 * (4.0 * outer_radius.powi(2) - width.powi(2)).sqrt();
 
-        let mut chain = Polysegment::with_capacity(5);
-        chain.push_back(
+        let mut polysegment = Polysegment::with_capacity(5);
+        polysegment.push_back(
             LineSegment::new(
                 [0.0, 0.0],
                 [width / 2.0, 0.0],
@@ -430,7 +438,7 @@ fn test_centroid() {
             .unwrap()
             .into(),
         );
-        chain.push_back(
+        polysegment.push_back(
             LineSegment::new(
                 [width / 2.0, 0.0],
                 [width / 2.0, height],
@@ -449,8 +457,8 @@ fn test_centroid() {
         )
         .unwrap()
         .into();
-        chain.push_back(arc);
-        chain.push_back(
+        polysegment.push_back(arc);
+        polysegment.push_back(
             LineSegment::new(
                 [-width / 2.0, height],
                 [-width / 2.0, 0.0],
@@ -460,7 +468,7 @@ fn test_centroid() {
             .unwrap()
             .into(),
         );
-        chain.push_back(
+        polysegment.push_back(
             LineSegment::new(
                 [-width / 2.0, 0.0],
                 [0.0, 0.0],
@@ -471,7 +479,7 @@ fn test_centroid() {
             .into(),
         );
 
-        let contour = Contour::new(chain);
+        let contour = Contour::new(polysegment);
         approx::assert_abs_diff_eq!(&contour.centroid(), &[0.0, 5.341657e-3], epsilon = 1e-9);
     }
 }

@@ -4,6 +4,31 @@ use approx;
 use planar_geo::{DEFAULT_EPSILON, DEFAULT_MAX_ULPS, prelude::*};
 
 #[test]
+fn test_convert_to_geo() {
+    {
+        let line = Line::from_point_angle([0.0, 0.0], -FRAC_PI_4);
+        let geo = Geometry::from(line);
+        let _ = GeometryRef::from(&geo);
+        let geo_cow = GeometryCow::from(geo);
+        let _ = GeometryRef::from(&geo_cow);
+    }
+    {
+        let line = Line::from_point_angle([0.0, 0.0], -FRAC_PI_4);
+        let _ = GeometryRef::from(&line);
+    }
+    {
+        let line = Line::from_point_angle([0.0, 0.0], -FRAC_PI_4);
+        let geo_cow = GeometryCow::from(line);
+        let _ = GeometryRef::from(&geo_cow);
+    }
+    {
+        let line = Line::from_point_angle([0.0, 0.0], -FRAC_PI_4);
+        let geo_cow = GeometryCow::from(&line);
+        let _ = GeometryRef::from(&geo_cow);
+    }
+}
+
+#[test]
 fn test_contains_point() {
     {
         let line = Line::from_point_angle([0.0, 0.0], -FRAC_PI_4);
@@ -56,7 +81,8 @@ fn test_contains_point() {
         // But not outside this tolerance
         assert!(!line.contains_point(point, 0.99999, 0));
 
-        // Repeat the test with a point located on a straight extension of the original line
+        // Repeat the test with a point located on a straight extension of the original
+        // line
         let point = [2.0, 0.0];
         assert!(!line.contains_point(point, 0.0, 0));
         assert!(line.contains_point(point, 1.0, 0));
@@ -73,7 +99,8 @@ fn test_contains_point() {
         let line =
             LineSegment::new([0.0, 0.0], [1000.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap();
 
-        // This point is outside of the circular radius around the endpoint [1000.0, 0.0]
+        // This point is outside of the circular radius around the endpoint [1000.0,
+        // 0.0]
         assert!(!line.contains_point([1100.0, -100.0], 110.0, 0));
         assert!(!line.contains_point([1100.0, -100.0], 100.0, 0));
     }

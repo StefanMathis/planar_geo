@@ -28,14 +28,14 @@ fn main() {
     .expect("radius is positive and offset angle is not zero");
 
     // Connect those three segments to a polysegment
-    let mut chain = Polysegment::new();
-    chain.push_back(first_arc.into());
-    chain.push_back(line.into());
-    chain.push_back(second_arc.into());
+    let mut polysegment = Polysegment::new();
+    polysegment.push_back(first_arc.into());
+    polysegment.push_back(line.into());
+    polysegment.push_back(second_arc.into());
 
-    // Create a contour out of the chain. If start and end of the chain are not
+    // Create a contour out of the polysegment. If start and end of the polysegment are not
     // identical, a line segment is automatically added
-    let outer_contour = Contour::new(chain);
+    let outer_contour = Contour::new(polysegment);
 
     // Create a second contour via a simplified constructor
     let rect_hole = Contour::new(Polysegment::from_points(&[

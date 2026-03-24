@@ -8,19 +8,19 @@ fn test_new() {
         let e = planar_geo::DEFAULT_EPSILON;
         let m = planar_geo::DEFAULT_MAX_ULPS;
 
-        let mut chain = Polysegment::new();
-        chain.push_back(
+        let mut polysegment = Polysegment::new();
+        polysegment.push_back(
             ArcSegment::fillet([0.0, 100.0], [0.0, 0.0], [100.0, 0.0], 50.0, e, m)
                 .unwrap()
                 .into(),
         );
-        chain.extend_back([100.0, 0.0]);
-        chain.push_back(
+        polysegment.extend_back([100.0, 0.0]);
+        polysegment.push_back(
             ArcSegment::fillet([100.0, 0.0], [0.0, 100.0], [0.0, 0.0], 10.0, e, m)
                 .unwrap()
                 .into(),
         );
-        assert!(Shape::new(vec![chain.into()]).is_ok());
+        assert!(Shape::new(vec![polysegment.into()]).is_ok());
     }
 
     // Shape without any hole
@@ -104,13 +104,13 @@ fn test_new() {
                 intersection,
                 Intersection {
                     point: [0.5, 0.5],
-                    left: ShapeIdx {
+                    left: SegmentKey {
                         contour_idx: 0,
-                        segment_idx: 0.into()
+                        segment_idx: 0
                     },
-                    right: ShapeIdx {
+                    right: SegmentKey {
                         contour_idx: 0,
-                        segment_idx: 2.into()
+                        segment_idx: 2
                     }
                 }
             ),
@@ -272,7 +272,7 @@ fn test_rectangle_with_hole() {
 }
 
 #[test]
-fn test_intersection_with_chain() {
+fn test_intersection_with_polysegment() {
     let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
     let contour = Contour::new(Polysegment::from_points(vertices));
 
@@ -281,7 +281,7 @@ fn test_intersection_with_chain() {
 
     let shape = Shape::new(vec![contour, hole]).unwrap();
 
-    let chain = Polysegment::from_points(&[
+    let polysegment = Polysegment::from_points(&[
         [-1.0, 1.0],
         [-1.0, 0.5],
         [2.0, 0.5],
@@ -290,18 +290,13 @@ fn test_intersection_with_chain() {
         [0.0, 2.0],
     ]);
 
-    let intersections_sc: Vec<_> = shape
-        .intersections_polysegment(&chain, DEFAULT_EPSILON, DEFAULT_MAX_ULPS)
-        .collect();
-    let intersections_cs: Vec<_> = chain
-        .intersections_shape(&shape, DEFAULT_EPSILON, DEFAULT_MAX_ULPS)
-        .map(Intersection::switch)
-        .collect();
+    let intersections_sc = shape.intersections(&polysegment, DEFAULT_EPSILON, DEFAULT_MAX_ULPS);
+    let mut intersections_cs = polysegment.intersections(&shape, DEFAULT_EPSILON, DEFAULT_MAX_ULPS);
+    intersections_cs
+        .iter_mut()
+        .for_each(|i| *i = Intersection::switch(*i));
 
-    fn slice_approx_contains(
-        slice: &[Intersection<ShapeIdx, SegmentIdx>],
-        check: &Intersection<ShapeIdx, SegmentIdx>,
-    ) -> bool {
+    fn slice_approx_contains(slice: &[Intersection], check: &Intersection) -> bool {
         for elem in slice {
             if approx::ulps_eq!(elem, check) {
                 return true;
@@ -316,90 +311,110 @@ fn test_intersection_with_chain() {
             slice,
             &Intersection {
                 point: [0.0, 0.5],
-                left: ShapeIdx {
+                left: SegmentKey {
                     contour_idx: 0,
-                    segment_idx: SegmentIdx(3)
+                    segment_idx: 3
                 },
-                right: SegmentIdx(1)
+                right: SegmentKey::from_segment_idx(1)
             }
         ));
         assert!(slice_approx_contains(
             slice,
             &Intersection {
                 point: [0.1, 0.5],
-                left: ShapeIdx {
+                left: SegmentKey {
                     contour_idx: 1,
-                    segment_idx: SegmentIdx(3)
+                    segment_idx: 3
                 },
-                right: SegmentIdx(1)
+                right: SegmentKey::from_segment_idx(1)
             }
         ));
         assert!(slice_approx_contains(
             slice,
             &Intersection {
                 point: [0.9, 0.5],
-                left: ShapeIdx {
+                left: SegmentKey {
                     contour_idx: 1,
-                    segment_idx: SegmentIdx(1)
+                    segment_idx: 1
                 },
-                right: SegmentIdx(1)
+                right: SegmentKey::from_segment_idx(1)
             }
         ));
         assert!(slice_approx_contains(
             slice,
             &Intersection {
                 point: [1.0, 0.5],
-                left: ShapeIdx {
-                    contour_idx: 0,
-                    segment_idx: SegmentIdx(1)
-                },
-                right: SegmentIdx(1)
+                left: SegmentKey::from_segment_idx(1),
+                right: SegmentKey::from_segment_idx(1)
             }
         ));
         assert!(slice_approx_contains(
             slice,
             &Intersection {
                 point: [0.5, 0.0],
-                left: ShapeIdx {
+                left: SegmentKey {
                     contour_idx: 0,
-                    segment_idx: SegmentIdx(0)
+                    segment_idx: 0
                 },
-                right: SegmentIdx(3)
+                right: SegmentKey::from_segment_idx(3)
             }
         ));
         assert!(slice_approx_contains(
             slice,
             &Intersection {
                 point: [0.5, 0.1],
-                left: ShapeIdx {
+                left: SegmentKey {
                     contour_idx: 1,
-                    segment_idx: SegmentIdx(0)
+                    segment_idx: 0
                 },
-                right: SegmentIdx(3)
+                right: SegmentKey::from_segment_idx(3)
             }
         ));
         assert!(slice_approx_contains(
             slice,
             &Intersection {
                 point: [0.5, 0.9],
-                left: ShapeIdx {
+                left: SegmentKey {
                     contour_idx: 1,
-                    segment_idx: SegmentIdx(2)
+                    segment_idx: 2
                 },
-                right: SegmentIdx(3)
+                right: SegmentKey::from_segment_idx(3)
             }
         ));
         assert!(slice_approx_contains(
             slice,
             &Intersection {
                 point: [0.5, 1.0],
-                left: ShapeIdx {
+                left: SegmentKey {
                     contour_idx: 0,
-                    segment_idx: SegmentIdx(2)
+                    segment_idx: 2
                 },
-                right: SegmentIdx(3)
+                right: SegmentKey::from_segment_idx(3)
             }
         ));
+    }
+
+    {
+        let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
+        let contour = Contour::new(Polysegment::from_points(vertices));
+        let vertices = &[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
+        let hole = Contour::new(Polysegment::from_points(vertices));
+        let shape = Shape::new(vec![contour, hole]).expect("valid inputs");
+
+        let vertices = &[[2.0, 1.0], [2.0, 0.5], [0.0, 0.5]];
+        let polysegment = Polysegment::from_points(vertices);
+
+        let intersections = polysegment.intersections(&shape, 0.0, 0);
+        assert_eq!(intersections.len(), 4);
+
+        approx::assert_abs_diff_eq!(
+            intersections.get(0),
+            Some(&Intersection {
+                point: [1.0, 0.5],
+                left: SegmentKey::from_segment_idx(1),
+                right: SegmentKey::new(0, 1)
+            })
+        );
     }
 }
 

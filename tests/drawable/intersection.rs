@@ -11,7 +11,7 @@ fn test_intersection_visualization() {
 
     let shape = Shape::new(contours).unwrap();
 
-    let chain = Polysegment::from_points(&[
+    let polysegment = Polysegment::from_points(&[
         [-1.0, 1.0],
         [-1.0, 0.5],
         [2.0, 0.5],
@@ -44,12 +44,15 @@ fn test_intersection_visualization() {
         cr.paint()?;
 
         shape.draw(&style, cr)?;
-        chain.draw(&style, cr)?;
-        for i in shape.intersections_polysegment(&chain, DEFAULT_EPSILON, DEFAULT_MAX_ULPS) {
+        polysegment.draw(&style, cr)?;
+        for i in shape.intersections_polysegment(&polysegment, DEFAULT_EPSILON, DEFAULT_MAX_ULPS) {
             i.draw(
                 &intersection_style,
-                Some((&shape, &intersected_segments_style)),
-                Some((&chain, &intersected_segments_style)),
+                Some(DrawableRef::new(&shape, intersected_segments_style.clone())),
+                Some(DrawableRef::new(
+                    &polysegment,
+                    intersected_segments_style.clone(),
+                )),
                 cr,
             )?;
         }
@@ -59,7 +62,7 @@ fn test_intersection_visualization() {
 
     assert!(
         view.compare_or_create(
-            std::path::Path::new("tests/img/intersection_shape_chain.png"),
+            std::path::Path::new("tests/img/intersection_shape_polysegment.png"),
             draw_fn,
             0.99
         )

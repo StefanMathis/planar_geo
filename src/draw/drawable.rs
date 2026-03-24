@@ -29,6 +29,10 @@ A wrapper around a [`Geometry`] and its corresponding [`Style`].
 It provides the [`Drawable::draw`] method for drawing itself onto a
 [`cairo::Context`]. See the [module level documentation](crate::draw::drawable)
 for more.
+
+A special feature of [`Geometry`] compared to [`GeometryRef`] and
+[`GeometryCow`] is the fact that it owns its [`Drawable::geometry`]. Therefore,
+it implements [`Transformation`].
  */
 pub struct Drawable {
     /// Underlying geometry object.
@@ -38,6 +42,17 @@ pub struct Drawable {
 }
 
 impl Drawable {
+    /**
+    Returns a new instance of a [`Drawable`] from any [`Geometry`] and its
+    [`Style`].
+     */
+    pub fn new<G: Into<Geometry>>(geo: G, style: Style) -> Self {
+        Drawable {
+            geometry: geo.into(),
+            style,
+        }
+    }
+
     /**
     Draws the wrapped [`Geometry`] onto the `context` using the [`Style`]
     provided by the [`Drawable::style`] field.
@@ -88,6 +103,17 @@ pub struct DrawableRef<'a> {
 }
 
 impl<'a> DrawableRef<'a> {
+    /**
+    Returns a new instance of a [`DrawableRef`] from any [`GeometryRef`] and its
+    [`Style`].
+     */
+    pub fn new<G: Into<GeometryRef<'a>>>(geo: G, style: Style) -> Self {
+        DrawableRef {
+            geometry: geo.into(),
+            style,
+        }
+    }
+
     /**
     Draws the wrapped [`GeometryRef`] onto the `context` using the [`Style`]
     provided by the [`DrawableRef::style`] field.
@@ -141,6 +167,17 @@ pub struct DrawableCow<'a> {
 }
 
 impl<'a> DrawableCow<'a> {
+    /**
+    Returns a new instance of a [`GeometryCow`] from any [`GeometryCow`] and its
+    [`Style`].
+     */
+    pub fn new<G: Into<GeometryCow<'a>>>(geo: G, style: Style) -> Self {
+        DrawableCow {
+            geometry: geo.into(),
+            style,
+        }
+    }
+
     /**
     Draws the wrapped [`GeometryCow`] onto the `context` using the [`Style`]
     provided by the [`DrawableCow::style`] field.
