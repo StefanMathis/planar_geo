@@ -1012,3 +1012,57 @@ impl<'a> From<&'a Shape> for GeometryCow<'a> {
         GeometryCow::Shape(Cow::Borrowed(value))
     }
 }
+
+impl<'a> From<Cow<'a, [f64; 2]>> for GeometryCow<'a> {
+    fn from(value: Cow<'a, [f64; 2]>) -> Self {
+        GeometryCow::Point(value)
+    }
+}
+
+impl<'a> From<Cow<'a, BoundingBox>> for GeometryCow<'a> {
+    fn from(value: Cow<'a, BoundingBox>) -> Self {
+        GeometryCow::BoundingBox(value)
+    }
+}
+
+impl<'a> From<Cow<'a, ArcSegment>> for GeometryCow<'a> {
+    fn from(value: Cow<'a, ArcSegment>) -> Self {
+        GeometryCow::ArcSegment(value)
+    }
+}
+
+impl<'a> From<Cow<'a, LineSegment>> for GeometryCow<'a> {
+    fn from(value: Cow<'a, LineSegment>) -> Self {
+        GeometryCow::LineSegment(value)
+    }
+}
+
+impl<'a> From<Cow<'a, Line>> for GeometryCow<'a> {
+    fn from(value: Cow<'a, Line>) -> Self {
+        GeometryCow::Line(value)
+    }
+}
+
+impl<'a> From<Cow<'a, Segment>> for GeometryCow<'a> {
+    fn from(value: Cow<'a, Segment>) -> Self {
+        GeometryCow::Segment(value)
+    }
+}
+
+impl<'a> From<Cow<'a, Polysegment>> for GeometryCow<'a> {
+    fn from(value: Cow<'a, Polysegment>) -> Self {
+        GeometryCow::Polysegment(value)
+    }
+}
+
+impl<'a> From<Cow<'a, Contour>> for GeometryCow<'a> {
+    fn from(value: Cow<'a, Contour>) -> Self {
+        GeometryCow::Contour(value)
+    }
+}
+
+impl<'a> From<Cow<'a, Shape>> for GeometryCow<'a> {
+    fn from(value: Cow<'a, Shape>) -> Self {
+        GeometryCow::Shape(value)
+    }
+}

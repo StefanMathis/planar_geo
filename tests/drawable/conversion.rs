@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use planar_geo::prelude::*;
 
 fn line_and_style() -> (Segment, Style) {
@@ -21,6 +23,15 @@ fn to_drawable_ref() {
 #[test]
 fn to_drawable_cow() {
     let _ = DrawableCow::from(line_and_style());
+
     let (line, style) = line_and_style();
     let _ = DrawableCow::from((&line, style));
+
+    let (line, style) = line_and_style();
+    let line: Cow<'_, Segment> = Cow::Owned(line);
+    let _ = DrawableCow::from((line, style));
+
+    let (line, style) = line_and_style();
+    let line = Cow::Borrowed(&line);
+    let _ = DrawableCow::from((line, style));
 }
