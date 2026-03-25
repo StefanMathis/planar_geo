@@ -253,6 +253,54 @@ impl Transformation for Geometry {
     }
 }
 
+impl<'a> From<&'a Geometry> for GeometryRef<'a> {
+    fn from(value: &'a Geometry) -> Self {
+        match value {
+            Geometry::Point(elem) => GeometryRef::Point(elem),
+            Geometry::BoundingBox(elem) => GeometryRef::BoundingBox(elem),
+            Geometry::ArcSegment(elem) => GeometryRef::ArcSegment(elem),
+            Geometry::LineSegment(elem) => GeometryRef::LineSegment(elem),
+            Geometry::Line(elem) => GeometryRef::Line(elem),
+            Geometry::Segment(elem) => GeometryRef::Segment(elem),
+            Geometry::Polysegment(elem) => GeometryRef::Polysegment(elem),
+            Geometry::Contour(elem) => GeometryRef::Contour(elem),
+            Geometry::Shape(elem) => GeometryRef::Shape(elem),
+        }
+    }
+}
+
+impl<'a> From<Geometry> for GeometryCow<'a> {
+    fn from(value: Geometry) -> Self {
+        match value {
+            Geometry::Point(elem) => GeometryCow::Point(Cow::Owned(elem)),
+            Geometry::BoundingBox(elem) => GeometryCow::BoundingBox(Cow::Owned(elem)),
+            Geometry::ArcSegment(elem) => GeometryCow::ArcSegment(Cow::Owned(elem)),
+            Geometry::LineSegment(elem) => GeometryCow::LineSegment(Cow::Owned(elem)),
+            Geometry::Line(elem) => GeometryCow::Line(Cow::Owned(elem)),
+            Geometry::Segment(elem) => GeometryCow::Segment(Cow::Owned(elem)),
+            Geometry::Polysegment(elem) => GeometryCow::Polysegment(Cow::Owned(elem)),
+            Geometry::Contour(elem) => GeometryCow::Contour(Cow::Owned(elem)),
+            Geometry::Shape(elem) => GeometryCow::Shape(Cow::Owned(elem)),
+        }
+    }
+}
+
+impl<'a> From<&'a Geometry> for GeometryCow<'a> {
+    fn from(value: &'a Geometry) -> Self {
+        match value {
+            Geometry::Point(elem) => GeometryCow::Point(Cow::Borrowed(elem)),
+            Geometry::BoundingBox(elem) => GeometryCow::BoundingBox(Cow::Borrowed(elem)),
+            Geometry::ArcSegment(elem) => GeometryCow::ArcSegment(Cow::Borrowed(elem)),
+            Geometry::LineSegment(elem) => GeometryCow::LineSegment(Cow::Borrowed(elem)),
+            Geometry::Line(elem) => GeometryCow::Line(Cow::Borrowed(elem)),
+            Geometry::Segment(elem) => GeometryCow::Segment(Cow::Borrowed(elem)),
+            Geometry::Polysegment(elem) => GeometryCow::Polysegment(Cow::Borrowed(elem)),
+            Geometry::Contour(elem) => GeometryCow::Contour(Cow::Borrowed(elem)),
+            Geometry::Shape(elem) => GeometryCow::Shape(Cow::Borrowed(elem)),
+        }
+    }
+}
+
 impl From<&Geometry> for BoundingBox {
     fn from(value: &Geometry) -> Self {
         let geom_ref = GeometryRef::from(value);
@@ -623,20 +671,44 @@ impl<'a> GeometryRef<'a> {
                 .collect(),
         }
     }
+
+    /**
+    Converts `self` to a [`Geometry`] where the underlying type is owned instead
+    of borrowed.
+     */
+    pub fn to_owned(&self) -> Geometry {
+        Geometry::from(self.clone())
+    }
 }
 
-impl<'a> From<&'a Geometry> for GeometryRef<'a> {
-    fn from(value: &'a Geometry) -> Self {
+impl<'a> From<GeometryRef<'a>> for Geometry {
+    fn from(value: GeometryRef<'a>) -> Self {
         match value {
-            Geometry::Point(elem) => GeometryRef::Point(elem),
-            Geometry::BoundingBox(elem) => GeometryRef::BoundingBox(elem),
-            Geometry::ArcSegment(elem) => GeometryRef::ArcSegment(elem),
-            Geometry::LineSegment(elem) => GeometryRef::LineSegment(elem),
-            Geometry::Line(elem) => GeometryRef::Line(elem),
-            Geometry::Segment(elem) => GeometryRef::Segment(elem),
-            Geometry::Polysegment(elem) => GeometryRef::Polysegment(elem),
-            Geometry::Contour(elem) => GeometryRef::Contour(elem),
-            Geometry::Shape(elem) => GeometryRef::Shape(elem),
+            GeometryRef::Point(elem) => Geometry::Point(elem.to_owned()),
+            GeometryRef::BoundingBox(elem) => Geometry::BoundingBox(elem.to_owned()),
+            GeometryRef::ArcSegment(elem) => Geometry::ArcSegment(elem.to_owned()),
+            GeometryRef::LineSegment(elem) => Geometry::LineSegment(elem.to_owned()),
+            GeometryRef::Line(elem) => Geometry::Line(elem.to_owned()),
+            GeometryRef::Segment(elem) => Geometry::Segment(elem.to_owned()),
+            GeometryRef::Polysegment(elem) => Geometry::Polysegment(elem.to_owned()),
+            GeometryRef::Contour(elem) => Geometry::Contour(elem.to_owned()),
+            GeometryRef::Shape(elem) => Geometry::Shape(elem.to_owned()),
+        }
+    }
+}
+
+impl<'a> From<GeometryRef<'a>> for GeometryCow<'a> {
+    fn from(value: GeometryRef<'a>) -> Self {
+        match value {
+            GeometryRef::Point(elem) => GeometryCow::Point(Cow::Borrowed(elem)),
+            GeometryRef::BoundingBox(elem) => GeometryCow::BoundingBox(Cow::Borrowed(elem)),
+            GeometryRef::ArcSegment(elem) => GeometryCow::ArcSegment(Cow::Borrowed(elem)),
+            GeometryRef::LineSegment(elem) => GeometryCow::LineSegment(Cow::Borrowed(elem)),
+            GeometryRef::Line(elem) => GeometryCow::Line(Cow::Borrowed(elem)),
+            GeometryRef::Segment(elem) => GeometryCow::Segment(Cow::Borrowed(elem)),
+            GeometryRef::Polysegment(elem) => GeometryCow::Polysegment(Cow::Borrowed(elem)),
+            GeometryRef::Contour(elem) => GeometryCow::Contour(Cow::Borrowed(elem)),
+            GeometryRef::Shape(elem) => GeometryCow::Shape(Cow::Borrowed(elem)),
         }
     }
 }
@@ -789,38 +861,6 @@ impl<'a> GeometryCow<'a> {
     }
 }
 
-impl<'a> From<Geometry> for GeometryCow<'a> {
-    fn from(value: Geometry) -> Self {
-        match value {
-            Geometry::Point(elem) => GeometryCow::Point(Cow::Owned(elem)),
-            Geometry::BoundingBox(elem) => GeometryCow::BoundingBox(Cow::Owned(elem)),
-            Geometry::ArcSegment(elem) => GeometryCow::ArcSegment(Cow::Owned(elem)),
-            Geometry::LineSegment(elem) => GeometryCow::LineSegment(Cow::Owned(elem)),
-            Geometry::Line(elem) => GeometryCow::Line(Cow::Owned(elem)),
-            Geometry::Segment(elem) => GeometryCow::Segment(Cow::Owned(elem)),
-            Geometry::Polysegment(elem) => GeometryCow::Polysegment(Cow::Owned(elem)),
-            Geometry::Contour(elem) => GeometryCow::Contour(Cow::Owned(elem)),
-            Geometry::Shape(elem) => GeometryCow::Shape(Cow::Owned(elem)),
-        }
-    }
-}
-
-impl<'a> From<&'a Geometry> for GeometryCow<'a> {
-    fn from(value: &'a Geometry) -> Self {
-        match value {
-            Geometry::Point(elem) => GeometryCow::Point(Cow::Borrowed(elem)),
-            Geometry::BoundingBox(elem) => GeometryCow::BoundingBox(Cow::Borrowed(elem)),
-            Geometry::ArcSegment(elem) => GeometryCow::ArcSegment(Cow::Borrowed(elem)),
-            Geometry::LineSegment(elem) => GeometryCow::LineSegment(Cow::Borrowed(elem)),
-            Geometry::Line(elem) => GeometryCow::Line(Cow::Borrowed(elem)),
-            Geometry::Segment(elem) => GeometryCow::Segment(Cow::Borrowed(elem)),
-            Geometry::Polysegment(elem) => GeometryCow::Polysegment(Cow::Borrowed(elem)),
-            Geometry::Contour(elem) => GeometryCow::Contour(Cow::Borrowed(elem)),
-            Geometry::Shape(elem) => GeometryCow::Shape(Cow::Borrowed(elem)),
-        }
-    }
-}
-
 impl<'a> From<&'a GeometryCow<'a>> for GeometryRef<'a> {
     fn from(value: &'a GeometryCow<'a>) -> Self {
         match value {
@@ -833,6 +873,22 @@ impl<'a> From<&'a GeometryCow<'a>> for GeometryRef<'a> {
             GeometryCow::Polysegment(elem) => GeometryRef::Polysegment(elem.as_ref()),
             GeometryCow::Contour(elem) => GeometryRef::Contour(elem.as_ref()),
             GeometryCow::Shape(elem) => GeometryRef::Shape(elem.as_ref()),
+        }
+    }
+}
+
+impl<'a> From<GeometryCow<'a>> for Geometry {
+    fn from(value: GeometryCow<'a>) -> Self {
+        match value {
+            GeometryCow::Point(elem) => Geometry::Point(elem.into_owned()),
+            GeometryCow::BoundingBox(elem) => Geometry::BoundingBox(elem.into_owned()),
+            GeometryCow::ArcSegment(elem) => Geometry::ArcSegment(elem.into_owned()),
+            GeometryCow::LineSegment(elem) => Geometry::LineSegment(elem.into_owned()),
+            GeometryCow::Line(elem) => Geometry::Line(elem.into_owned()),
+            GeometryCow::Segment(elem) => Geometry::Segment(elem.into_owned()),
+            GeometryCow::Polysegment(elem) => Geometry::Polysegment(elem.into_owned()),
+            GeometryCow::Contour(elem) => Geometry::Contour(elem.into_owned()),
+            GeometryCow::Shape(elem) => Geometry::Shape(elem.into_owned()),
         }
     }
 }

@@ -88,6 +88,18 @@ impl From<&Drawable> for BoundingBox {
     }
 }
 
+impl<I> From<(I, Style)> for Drawable
+where
+    I: Into<Geometry>,
+{
+    fn from(value: (I, Style)) -> Self {
+        return Drawable {
+            geometry: value.0.into(),
+            style: value.1,
+        };
+    }
+}
+
 /**
 A wrapper around a [`GeometryRef`] and its corresponding [`Style`].
 
@@ -152,6 +164,18 @@ impl<'a> From<&'a Drawable> for DrawableRef<'a> {
     }
 }
 
+impl<'a, I> From<(I, Style)> for DrawableRef<'a>
+where
+    I: Into<GeometryRef<'a>>,
+{
+    fn from(value: (I, Style)) -> Self {
+        return DrawableRef {
+            geometry: value.0.into(),
+            style: value.1,
+        };
+    }
+}
+
 /**
 A wrapper around a [`GeometryCow`] and its corresponding [`Style`].
 
@@ -209,6 +233,18 @@ impl<'a> From<&'a DrawableCow<'a>> for DrawableRef<'a> {
         return DrawableRef {
             geometry: (&value.geometry).into(),
             style: value.style.clone(),
+        };
+    }
+}
+
+impl<'a, I> From<(I, Style)> for DrawableCow<'a>
+where
+    I: Into<GeometryCow<'a>>,
+{
+    fn from(value: (I, Style)) -> Self {
+        return DrawableCow {
+            geometry: value.0.into(),
+            style: value.1,
         };
     }
 }

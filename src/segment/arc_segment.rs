@@ -384,6 +384,7 @@ impl ArcSegment {
     ///
     /// ```
     /// use planar_geo::segment::ArcSegment;
+    /// use std::f64::consts::PI;
     ///
     /// let start = [0.0, 2.0];
     /// let stop = [2.0, 0.0];
