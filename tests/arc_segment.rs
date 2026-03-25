@@ -607,6 +607,75 @@ fn test_arc_from_start_middle_stop() {
 }
 
 #[test]
+fn test_from_center_radius_start_offset_angle() {
+    {
+        let arc = ArcSegment::from_center_radius_start_offset_angle(
+            [2.0, 2.0],
+            2.0,
+            PI,
+            0.5 * PI,
+            0.0,
+            0,
+        )
+        .unwrap();
+        approx::assert_abs_diff_eq!(arc.radius(), 2.0);
+        approx::assert_abs_diff_eq!(arc.center(), [2.0, 2.0]);
+        approx::assert_abs_diff_eq!(arc.offset_angle(), 0.5 * PI);
+    }
+}
+
+#[test]
+fn test_from_start_stop_radius() {
+    let start = [0.0, 2.0];
+    let stop = [2.0, 0.0];
+    let radius: f64 = 2.0;
+
+    {
+        // Counter-clockwise small arc (positive)
+        let arc =
+            ArcSegment::from_start_stop_radius(start, stop, radius, true, false, 0.0, 0).unwrap();
+        approx::assert_abs_diff_eq!(arc.radius(), 2.0);
+        approx::assert_abs_diff_eq!(arc.center(), [2.0, 2.0]);
+        approx::assert_abs_diff_eq!(arc.offset_angle(), 0.5 * PI, epsilon = 1e-3);
+    }
+    {
+        // Counter-clockwise large arc (positive)
+        let arc =
+            ArcSegment::from_start_stop_radius(start, stop, radius, true, true, 0.0, 0).unwrap();
+        approx::assert_abs_diff_eq!(arc.radius(), 2.0);
+        approx::assert_abs_diff_eq!(arc.center(), [0.0, 0.0]);
+        approx::assert_abs_diff_eq!(arc.offset_angle(), 1.5 * PI, epsilon = 1e-3);
+    }
+    {
+        // Clockwise small arc (negative)
+        let arc =
+            ArcSegment::from_start_stop_radius(start, stop, radius, false, false, 0.0, 0).unwrap();
+        approx::assert_abs_diff_eq!(arc.radius(), 2.0);
+        approx::assert_abs_diff_eq!(arc.center(), [0.0, 0.0]);
+        approx::assert_abs_diff_eq!(arc.offset_angle(), -0.5 * PI, epsilon = 1e-3);
+    }
+    {
+        // Clockwise large arc (negative)
+        let arc =
+            ArcSegment::from_start_stop_radius(start, stop, radius, false, true, 0.0, 0).unwrap();
+        approx::assert_abs_diff_eq!(arc.radius(), 2.0);
+        approx::assert_abs_diff_eq!(arc.center(), [2.0, 2.0]);
+        approx::assert_abs_diff_eq!(arc.offset_angle(), -1.5 * PI, epsilon = 1e-3);
+    }
+
+    // Error cases
+    {
+        // Start and stop are identical
+        assert!(
+            ArcSegment::from_start_stop_radius(start, start, radius, true, true, 0.0, 0).is_err()
+        );
+
+        // Radius too small
+        assert!(ArcSegment::from_start_stop_radius(start, stop, 0.1, true, true, 0.0, 0).is_err());
+    }
+}
+
+#[test]
 fn test_fillet_construction() {
     {
         let prev: [f64; 2] = [0.0, 1.0];

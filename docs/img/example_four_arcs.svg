@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="600" height="600" viewBox="0 0 600 600">
+<rect x="-60" y="-60" width="720" height="720" fill="rgb(100%, 100%, 100%)" fill-opacity="1"/>
+<path fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="miter" stroke="rgb(100%, 0%, 0%)" stroke-opacity="1" stroke-miterlimit="10" d="M 203.226562 203.226562 C 203.226562 310.121094 289.878906 396.773438 396.773438 396.773438 "/>
+<path fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="miter" stroke="rgb(0%, 0%, 100%)" stroke-opacity="1" stroke-miterlimit="10" d="M 203.226562 203.226562 C 124.941406 203.226562 54.367188 250.382812 24.410156 322.707031 C -5.546875 395.03125 11.011719 478.277344 66.367188 533.632812 C 121.722656 588.988281 204.96875 605.546875 277.292969 575.589844 C 349.617188 545.632812 396.773438 475.058594 396.773438 396.773438 "/>
+<path fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="miter" stroke="rgb(0%, 100%, 0%)" stroke-opacity="1" stroke-miterlimit="10" d="M 203.226562 203.226562 C 310.121094 203.226562 396.773438 289.878906 396.773438 396.773438 "/>
+<path fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="miter" stroke="rgb(100%, 100%, 0%)" stroke-opacity="1" stroke-miterlimit="10" d="M 203.226562 203.226562 C 203.226562 124.941406 250.382812 54.367188 322.707031 24.410156 C 395.03125 -5.546875 478.277344 11.011719 533.632812 66.367188 C 588.988281 121.722656 605.546875 204.96875 575.589844 277.292969 C 545.632812 349.617188 475.058594 396.773438 396.773438 396.773438 "/>
+</svg>

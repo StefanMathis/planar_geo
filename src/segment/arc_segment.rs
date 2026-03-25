@@ -53,12 +53,14 @@ The endpoints of an arc can be identical (in this case, the arc segment is a
 circle), but the radius must be positive.
 
 Of particular interest are the various constructors available for an
-[`ArcSegment`]. These always start with `from_` and can construct an instance
-of [`ArcSegment`] from various inputs. Some examples:
-- From its center, radius, start and offset angle: [`ArcSegment::from_center_radius_start_offset_angle`].
-- From its center, radius, start and stop angle: [`ArcSegment::from_center_radius_start_stop_angle`].
+[`ArcSegment`]. These always start with `from_` and can construct an
+[`ArcSegment`] from various inputs. Some examples:
+- From its center, radius, start angle and offset angle: [`ArcSegment::from_center_radius_start_offset_angle`].
+- From its center, radius, start angle and stop angle: [`ArcSegment::from_center_radius_start_stop_angle`].
 - From three points on the arc: [`ArcSegment::from_start_middle_stop`].
 - From its start, center and offset angle: [`ArcSegment::from_start_center_angle`].
+- From its radius, start and stop points: [`ArcSegment::from_start_stop_radius`].
+
 These constructors can fail if either the radius becomes non-positive or
 infinite (which degenerates the arc segment to a line segment) or if the
 offset angle becomes zero. The latter is checked using [`approx::ulps_eq`],
@@ -366,6 +368,168 @@ impl ArcSegment {
             epsilon,
             max_ulps,
         );
+    }
+
+    /// Creates an [`ArcSegment`] from its `start` point, `stop` point and
+    /// `radius`. This fails in the following cases:
+    /// - `start` is identical to `stop`.
+    /// - `radius` is smaller than half the euclidian distance between `start`
+    /// and `stop`.
+    ///   
+    /// If these error cases are not met, there are actually four different
+    /// possible arc segments. Therefore, it is also necessary to specify the
+    /// arc direction (`positive` means mathematically positive /
+    /// counter-clockwise) and whether to pick the `large_arc` or not. The
+    /// example below shows all four possibilities:
+    ///
+    /// ```
+    /// use planar_geo::segment::ArcSegment;
+    ///
+    /// let start = [0.0, 2.0];
+    /// let stop = [2.0, 0.0];
+    /// let radius: f64 = 2.0;
+    ///
+    /// let red_arc = ArcSegment::from_start_stop_radius(start, stop, radius, true, false, 0.0, 0).unwrap();
+    /// approx::assert_abs_diff_eq!(red_arc.center(), [2.0, 2.0]);
+    /// approx::assert_abs_diff_eq!(red_arc.offset_angle(), 0.5 * PI, epsilon = 1e-3);
+    ///
+    /// let blue_arc = ArcSegment::from_start_stop_radius(start, stop, radius, true, true, 0.0, 0).unwrap();
+    /// approx::assert_abs_diff_eq!(blue_arc.center(), [0.0, 0.0]);
+    /// approx::assert_abs_diff_eq!(blue_arc.offset_angle(), 1.5 * PI, epsilon = 1e-3);
+    ///
+    /// let green_arc = ArcSegment::from_start_stop_radius(start, stop, radius, false, false, 0.0, 0).unwrap();
+    /// approx::assert_abs_diff_eq!(green_arc.center(), [0.0, 0.0]);
+    /// approx::assert_abs_diff_eq!(green_arc.offset_angle(), -0.5 * PI, epsilon = 1e-3);
+    ///
+    /// let yellow_arc = ArcSegment::from_start_stop_radius(start, stop, radius, false, true, 0.0, 0).unwrap();
+    /// approx::assert_abs_diff_eq!(yellow_arc.center(), [2.0, 2.0]);
+    /// approx::assert_abs_diff_eq!(yellow_arc.offset_angle(), -1.5 * PI, epsilon = 1e-3);
+    /// ```
+    #[doc = ""]
+    #[cfg_attr(feature = "doc-images", doc = "![Four possible arcs][four_arcs]")]
+    #[cfg_attr(
+        feature = "doc-images",
+        embed_doc_image::embed_doc_image("four_arcs", "docs/img/example_four_arcs.svg")
+    )]
+    #[cfg_attr(
+        not(feature = "doc-images"),
+        doc = "**Doc images not enabled**. Compile docs with `cargo doc --features 'doc-images'` and Rust version >= 1.54."
+    )]
+    pub fn from_start_stop_radius(
+        start: [f64; 2],
+        stop: [f64; 2],
+        radius: f64,
+        positive: bool,
+        large_arc: bool,
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> crate::error::Result<Self> {
+        fn compute_offset_angle(
+            start: [f64; 2],
+            stop: [f64; 2],
+            center: [f64; 2],
+            positive: bool,
+        ) -> (f64, f64) {
+            let start_angle = (start[1] - center[1]).atan2(start[0] - center[0]);
+            let stop_angle = (stop[1] - center[1]).atan2(stop[0] - center[0]);
+            let mut delta = stop_angle - start_angle;
+            if positive {
+                if delta < 0.0 {
+                    delta += TAU;
+                }
+            } else {
+                if delta > 0.0 {
+                    delta -= TAU;
+                }
+            }
+            (start_angle, delta)
+        }
+
+        compare_variables!(radius > 0.0)?;
+
+        let (x1, y1) = (start[0], start[1]);
+        let (x2, y2) = (stop[0], stop[1]);
+
+        // Vector from start to stop
+        let dx = x2 - x1;
+        let dy = y2 - y1;
+        let distance_start_stop = (dx * dx + dy * dy).sqrt();
+        let given_diameter = 2.0 * radius;
+
+        // If the distance is zero, start and stop are identical
+        if approx::ulps_eq!(
+            distance_start_stop,
+            0.0,
+            epsilon = epsilon,
+            max_ulps = max_ulps
+        ) {
+            return Err(crate::error::ErrorType::PointsIdentical { start, stop }.into());
+        }
+
+        // If the points are further apart than twice the radius, no arc segment
+        // can be constructed.
+        compare_variables!(distance_start_stop < given_diameter)?;
+
+        // --- Midpoint ---
+        let mx = (x1 + x2) * 0.5;
+        let my = (y1 + y2) * 0.5;
+
+        // --- Distance from midpoint to center ---
+        let half_d = distance_start_stop * 0.5;
+        let h = (radius * radius - half_d * half_d).sqrt();
+
+        // --- Normalized perpendicular vector ---
+        let inv_d = 1.0 / distance_start_stop;
+        let px = -dy * inv_d;
+        let py = dx * inv_d;
+
+        // Two possible centers
+        let c1 = [mx + px * h, my + py * h];
+        let c2 = [mx - px * h, my - py * h];
+
+        // Choose correct center based on orientation
+        let (start_angle_1, offset_angle_1) = compute_offset_angle(start, stop, c1, positive);
+        let (start_angle_2, offset_angle_2) = compute_offset_angle(start, stop, c2, positive);
+
+        let is_large1 = offset_angle_1.abs() > std::f64::consts::PI;
+        let is_large2 = offset_angle_2.abs() > std::f64::consts::PI;
+
+        let (center, start_angle, offset_angle) =
+            match (is_large1 == large_arc, is_large2 == large_arc) {
+                (true, false) => (c1, start_angle_1, offset_angle_1),
+                (false, true) => (c2, start_angle_2, offset_angle_2),
+                (true, true) => {
+                    // This can happen numerically near PI — pick one consistently
+                    (c1, start_angle_1, offset_angle_1)
+                }
+                (false, false) => {
+                    // Numerical issue near π — pick the closer one
+                    let target = if large_arc {
+                        std::f64::consts::PI * 1.5
+                    } else {
+                        std::f64::consts::PI * 0.5
+                    };
+
+                    // Calculate the deviation from the "target" arc
+                    let err1 = (offset_angle_1.abs() - target).abs();
+                    let err2 = (offset_angle_2.abs() - target).abs();
+
+                    if err1 < err2 {
+                        (c1, start_angle_1, offset_angle_1)
+                    } else {
+                        (c2, start_angle_2, offset_angle_2)
+                    }
+                }
+            };
+
+        Self::from_center_radius_start_offset_angle(
+            center,
+            radius,
+            start_angle,
+            offset_angle,
+            epsilon,
+            max_ulps,
+        )
     }
 
     /**
