@@ -19,6 +19,8 @@
 [approxim]: approx
 [serde]: serde
 [`ulps_eq`]: approx::ulps_eq
+
+A Rust library for 2D geometry: geometric objects, algorithms and visualization.
  */
 #![doc = include_str!("../docs/readme_parts/type_overview.svg.md")]
 #![doc = r#"

@@ -30,6 +30,7 @@ use crate::Rotation2;
 use crate::composite::Composite;
 use crate::contour::Contour;
 use crate::polysegment::Polysegment;
+use crate::prelude::ArrowHeadSize;
 use crate::segment::{ArcSegment, LineSegment, Segment};
 use crate::shape::Shape;
 
@@ -69,7 +70,7 @@ impl ArcSegment {
         }
 
         // Code shared between line and arc segments
-        draw_common(style, context)?;
+        stroke_line(style, context)?;
 
         if let Some(txt) = &style.text {
             let bb = if txt.anchor == crate::draw::Anchor::Centroid {
@@ -95,7 +96,7 @@ impl LineSegment {
         context.line_to(self.stop()[0], self.stop()[1]);
 
         // Code shared between line and arc segments
-        draw_common(style, context)?;
+        stroke_line(style, context)?;
 
         if let Some(txt) = &style.text {
             let bb = if txt.anchor == crate::draw::Anchor::Centroid {
@@ -110,7 +111,144 @@ impl LineSegment {
     }
 }
 
-fn draw_common(style: &Style, context: &cairo::Context) -> Result<(), cairo::Error> {
+/// Draws an uniform grid onto the `context`.
+///
+/// - `bounding_box` defines the extents of the grid.
+/// - `spacing` defines the space between the grid lines. If this value is 0 or
+/// negative, no lines are drawn.
+/// - `offset` shifts the grid against the natural origin `[0, 0]`.
+/// - `style` defines the style of the individual grid lines.
+///
+/// The image below was drawn using `examples/grid_and_coordinate_system.rs`.
+#[doc = ""]
+#[cfg_attr(feature = "doc-images", doc = "![Grid][example_grid]")]
+#[cfg_attr(
+    feature = "doc-images",
+    embed_doc_image::embed_doc_image("example_grid", "docs/img/example_grid.svg")
+)]
+#[cfg_attr(
+    not(feature = "doc-images"),
+    doc = "**Doc images not enabled**. Compile docs with `cargo doc --features 'doc-images'` and Rust version >= 1.54."
+)]
+pub fn grid(
+    bounding_box: &BoundingBox,
+    spacing: f64,
+    offset: [f64; 2],
+    style: &Style,
+    context: &cairo::Context,
+) -> Result<(), cairo::Error> {
+    fn draw_line(
+        x1: f64,
+        y1: f64,
+        x2: f64,
+        y2: f64,
+        style: &Style,
+        context: &cairo::Context,
+    ) -> Result<(), cairo::Error> {
+        context.move_to(x1, y1);
+        context.line_to(x2, y2);
+        stroke_line(style, context)
+    }
+
+    // Spacing must be positive, otherwise nothing is drawn
+    if spacing <= 0.0 {
+        return Ok(());
+    }
+
+    // Normalize the offset
+    let o_x = offset[0].rem_euclid(spacing);
+    let o_y = offset[1].rem_euclid(spacing);
+
+    // Add a bit of additional extents to account for the normalized offset
+    let xmin = bounding_box.xmin() - spacing;
+    let xmax = bounding_box.xmax() + spacing;
+    let ymin = bounding_box.ymin() - spacing;
+    let ymax = bounding_box.ymax() + spacing;
+
+    // Vertical lines
+    let mut x = (xmin / spacing).ceil() * spacing + o_x;
+    while x <= xmax {
+        draw_line(x, ymin, x, ymax, style, context)?;
+        x += spacing;
+    }
+
+    // Horizontal lines
+    let mut y = (ymin / spacing).ceil() * spacing + o_y;
+    while y <= ymax {
+        draw_line(xmin, y, xmax, y, style, context)?;
+        y += spacing;
+    }
+
+    return Ok(());
+}
+
+/// Draws a 2d-coordinate system (two perpendicular arrows aligned to the x- and
+/// y-axis) onto the `context`.
+///
+/// - `origin` defines the origin of the drawn coordinate system in relation to
+/// the context coordinate system.
+/// - `x` defines the total length of the x-arrow. A negative value inverts the
+/// arrow so it points in negative x-direction.
+/// - `y` defines the total length of the y-arrow. A negative value inverts the
+/// arrow so it points in negative y-direction.
+/// - `arrow_head_size` defines the size of the equilateral triangle
+/// representing the arrow head. See [`ArrowHeadSize`].
+/// - `style` defines the style of the individual grid lines.
+///
+/// The image below was drawn using `examples/grid_and_coordinate_system.rs`.
+#[doc = ""]
+#[cfg_attr(feature = "doc-images", doc = "![Coordinate system][example_cs]")]
+#[cfg_attr(
+    feature = "doc-images",
+    embed_doc_image::embed_doc_image("example_cs", "docs/img/example_cs.svg")
+)]
+#[cfg_attr(
+    not(feature = "doc-images"),
+    doc = "**Doc images not enabled**. Compile docs with `cargo doc --features 'doc-images'` and Rust version >= 1.54."
+)]
+pub fn coordinate_system(
+    origin: [f64; 2],
+    x: f64,
+    y: f64,
+    arrow_head_size: ArrowHeadSize,
+    style: &Style,
+    context: &cairo::Context,
+) -> Result<(), cairo::Error> {
+    let arrow_height = arrow_head_size.height();
+    let side_length = arrow_head_size.side_length();
+
+    // arrow x-axis
+    let h = if x > 0.0 { arrow_height } else { -arrow_height };
+    context.move_to(origin[0], origin[1]);
+    context.line_to(origin[0] + x - h, origin[1]);
+    context.line_to(origin[0] + x - h, origin[1] + 0.5 * side_length);
+    context.line_to(origin[0] + x, origin[1]);
+    context.line_to(origin[0] + x - h, origin[1] - 0.5 * side_length);
+    context.line_to(origin[0] + x - h, origin[1]);
+    context.close_path();
+    let fc = &style.background_color;
+    context.set_source_rgba(fc.r.into(), fc.g.into(), fc.b.into(), fc.a.into());
+    context.fill_preserve()?;
+    stroke_line(style, context)?;
+
+    // arrow y-axis
+    let h = if y > 0.0 { arrow_height } else { -arrow_height };
+    context.move_to(origin[0], origin[1]);
+    context.line_to(origin[0], origin[1] + y - h);
+    context.line_to(origin[0] + 0.5 * side_length, origin[1] + y - h);
+    context.line_to(origin[0], origin[1] + y);
+    context.line_to(origin[0] - 0.5 * side_length, origin[1] + y - h);
+    context.line_to(origin[0], origin[1] + y - h);
+    context.close_path();
+    let fc = &style.background_color;
+    context.set_source_rgba(fc.r.into(), fc.g.into(), fc.b.into(), fc.a.into());
+    context.fill_preserve()?;
+    stroke_line(style, context)?;
+
+    return Ok(());
+}
+
+fn stroke_line(style: &Style, context: &cairo::Context) -> Result<(), cairo::Error> {
     // Set the style
     match &style.line_style {
         LineStyle::None => {}

@@ -21,3 +21,9 @@ planar_geo
 [approxim]: https://docs.rs/approxim/latest/approxim/
 [serde]: https://serde.rs/
 [`ulps_eq`]: https://docs.rs/approxim/latest/approxim/macro.ulps_eq.html
+
+[![Documentation](https://docs.rs/planar_geo/badge.svg)](https://docs.rs/planar_geo)
+
+A Rust library for 2D geometry: geometric objects, algorithms and visualization.
+
+The full API documentation is available at https://docs.rs/planar_geo/{{VERSION}}/planar_geo.

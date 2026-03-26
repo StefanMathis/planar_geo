@@ -105,12 +105,12 @@ impl Intersection {
     /// The image below shows a [`Shape`] and an intersecting [`Polysegment`].
     /// The intersecting segments have been colored yellow.
     #[doc = ""]
-    #[cfg_attr(feature = "doc-images", doc = "![Intersection][intersection_example]")]
+    #[cfg_attr(feature = "doc-images", doc = "![Intersection][example_intersection]")]
     #[cfg_attr(
         feature = "doc-images",
         embed_doc_image::embed_doc_image(
-            "intersection_example",
-            "docs/img/intersection_example.svg"
+            "example_intersection",
+            "docs/img/example_intersection.svg"
         )
     )]
     #[cfg_attr(
@@ -172,7 +172,7 @@ impl Intersection {
     /// };
     ///
     /// // Comment this in to actually create the shown image
-    /// // view.write_to_file("docs/img/intersection_example.svg", draw_fn).expect("image could not be created");
+    /// // view.write_to_file("docs/img/example_intersection.svg", draw_fn).expect("image could not be created");
     /// # assert!(
     /// #     view.compare_or_create(
     /// #         std::path::Path::new("tests/img/intersection_polysegment_shape.png"),
