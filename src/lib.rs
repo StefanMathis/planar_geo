@@ -40,7 +40,7 @@ doc = ::embed_doc_image::embed_image!("intersection_segments.svg", "docs/img/int
 ))]
 #![cfg_attr(feature = "doc-images",
 cfg_attr(all(),
-doc = ::embed_doc_image::embed_image!("intersection_composites", "docs/img/intersection_composites.svg"),
+doc = ::embed_doc_image::embed_image!("intersection_composites.svg", "docs/img/intersection_composites.svg"),
 ))]
 #![doc = include_str!("../docs/main.md")]
 #![deny(missing_docs)]
