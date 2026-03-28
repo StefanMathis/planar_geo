@@ -22,63 +22,27 @@
 
 A Rust library for 2D geometry: geometric objects, algorithms and visualization.
  */
-#![doc = include_str!("../docs/readme_parts/type_overview.svg.md")]
-#![doc = r#"
-
-![Overview geometric types of the planar_geo crate][type_overview]
-
-"#]
 #![cfg_attr(feature = "doc-images",
 cfg_attr(all(),
-doc = ::embed_doc_image::embed_image!("type_overview", "docs/img/type_overview.svg"),
+doc = ::embed_doc_image::embed_image!("type_overview.svg", "docs/img/type_overview.svg"),
+))]
+#![cfg_attr(feature = "doc-images",
+cfg_attr(all(),
+doc = ::embed_doc_image::embed_image!("shape.svg", "docs/img/shape.svg"),
 ))]
 #![cfg_attr(
     not(feature = "doc-images"),
     doc = "**Doc images not enabled**. Compile docs with `cargo doc --features 'doc-images'` and Rust version >= 1.54."
 )]
-#![doc = include_str!("../docs/readme_parts/shape.svg.md")]
-#![doc = r#"
-
-![Example shape][shape]
-
-"#]
 #![cfg_attr(feature = "doc-images",
 cfg_attr(all(),
-doc = ::embed_doc_image::embed_image!("shape", "docs/img/shape.svg"),
+doc = ::embed_doc_image::embed_image!("intersection_segments.svg", "docs/img/intersection_segments.svg"),
 ))]
-#![cfg_attr(
-    not(feature = "doc-images"),
-    doc = "**Doc images not enabled**. Compile docs with `cargo doc --features 'doc-images'` and Rust version >= 1.54."
-)]
-#![doc = include_str!("../docs/readme_parts/intersection_segments.svg.md")]
-#![doc = r#"
-
-![Point and segment intersection][intersection_segments]
-
-"#]
-#![cfg_attr(feature = "doc-images",
-cfg_attr(all(),
-doc = ::embed_doc_image::embed_image!("intersection_segments", "docs/img/intersection_segments.svg"),
-))]
-#![cfg_attr(
-    not(feature = "doc-images"),
-    doc = "**Doc images not enabled**. Compile docs with `cargo doc --features 'doc-images'` and Rust version >= 1.54."
-)]
-#![doc = include_str!("../docs/readme_parts/intersection_composites.svg.md")]
-#![doc = r#"
-
-![Intersection between contours and a polysegment][intersection_composites]
-
-"#]
 #![cfg_attr(feature = "doc-images",
 cfg_attr(all(),
 doc = ::embed_doc_image::embed_image!("intersection_composites", "docs/img/intersection_composites.svg"),
 ))]
-#![cfg_attr(
-    not(feature = "doc-images"),
-    doc = "**Doc images not enabled**. Compile docs with `cargo doc --features 'doc-images'` and Rust version >= 1.54."
-)]
-#![doc = include_str!("../docs/readme_parts/end.md")]
+#![doc = include_str!("../docs/main.md")]
 #![deny(missing_docs)]
 
 use bounding_box::BoundingBox;

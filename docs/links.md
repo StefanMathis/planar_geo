@@ -1,6 +1,10 @@
 planar_geo
 ==========
 
+<!-- This file has ben generated with build.rs by concatenating docs/links.md,
+docs/main.md and (if available docs/end.md). Do not modify this file, instead
+modify the components. -->
+
 [`ArcSegment`]: https://docs.rs/planar_geo/{{VERSION}}/planar_geo/segment/arc_segment/struct.ArcSegment.html
 [`LineSegment`]: https://docs.rs/planar_geo/{{VERSION}}/planar_geo/segment/line_segment/struct.LineSegment.html
 [`Segment`]: https://docs.rs/planar_geo/{{VERSION}}/planar_geo/segment/enum.Segment.html
@@ -21,6 +25,10 @@ planar_geo
 [approxim]: https://docs.rs/approxim/latest/approxim/
 [serde]: https://serde.rs/
 [`ulps_eq`]: https://docs.rs/approxim/latest/approxim/macro.ulps_eq.html
+[intersection_composites.svg]: https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/docs/img/intersection_composites.svg
+[intersection_segments.svg]: https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/docs/img/intersection_segments.svg
+[shape.svg]: https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/docs/img/shape.svg
+[type_overview.svg]: https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/docs/img/type_overview.svg
 
 [![Documentation](https://docs.rs/planar_geo/badge.svg)](https://docs.rs/planar_geo)
 

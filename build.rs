@@ -7,44 +7,20 @@ fn main() {
     }
 
     /*
-    Compose README.md from the building blocks in docs/readme_parts,
-    interleaving image links in between. Finally, all {{VERSION}} placeholders
-    are replaced by the actual version read from Cargo.toml.
+    Compose README.md from docs/links.md, docs/main.md and (if available) end.md
+    All {{VERSION}} placeholders in links.md are replaced by the actual version read from Cargo.toml.
      */
+    let mut readme = fs::read_to_string("docs/links.md")
+        .expect("Failed to read links.md")
+        .replace(
+            "{{VERSION}}",
+            &std::env::var("CARGO_PKG_VERSION")
+                .expect("version is available when running build.rs"),
+        );
+    readme.push_str(&fs::read_to_string("docs/main.md").expect("Failed to read main.md"));
+    if let Ok(end) = fs::read_to_string("docs/end.md") {
+        readme.push_str(&end);
+    }
 
-    let mut readme =
-        fs::read_to_string("docs/readme_parts/links.md").expect("Failed to read template");
-    readme.push('\n');
-    readme.push_str(
-        &fs::read_to_string("docs/readme_parts/type_overview.svg.md")
-            .expect("Failed to read template"),
-    );
-    readme.push_str("\n\n![](https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/docs/img/type_overview.svg \"Overview geometric types of the planar_geo crate\")\n\n");
-
-    readme.push_str(
-        &fs::read_to_string("docs/readme_parts/shape.svg.md").expect("Failed to read template"),
-    );
-    readme.push_str("\n\n![](https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/docs/img/shape.svg \"Example shape\")\n\n");
-
-    readme.push_str(
-        &fs::read_to_string("docs/readme_parts/intersection_segments.svg.md")
-            .expect("Failed to read template"),
-    );
-    readme.push_str("\n\n![](https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/docs/img/intersection_segments.svg \"Point and segment intersection\")\n\n");
-
-    readme.push_str(
-        &fs::read_to_string("docs/readme_parts/intersection_composites.svg.md")
-            .expect("Failed to read template"),
-    );
-    readme.push_str("\n\n![](https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/docs/img/intersection_composites.svg \"Intersection between contours and a polysegment\")\n\n");
-
-    readme.push_str(
-        &fs::read_to_string("docs/readme_parts/end.md").expect("Failed to read template"),
-    );
-
-    let readme = readme.replace(
-        "{{VERSION}}",
-        &std::env::var("CARGO_PKG_VERSION").expect("version is available in build.rs"),
-    );
     let _ = fs::write("README.md", readme);
 }
