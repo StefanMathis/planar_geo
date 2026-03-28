@@ -715,16 +715,22 @@ impl<'a> From<GeometryRef<'a>> for GeometryCow<'a> {
 
 impl<'a> From<GeometryRef<'a>> for BoundingBox {
     fn from(value: GeometryRef<'a>) -> Self {
+        (&value).into()
+    }
+}
+
+impl<'a> From<&'_ GeometryRef<'a>> for BoundingBox {
+    fn from(value: &GeometryRef<'a>) -> Self {
         match value {
-            GeometryRef::Point(elem) => elem.into(),
-            GeometryRef::BoundingBox(elem) => elem.clone(),
-            GeometryRef::ArcSegment(elem) => elem.into(),
-            GeometryRef::LineSegment(elem) => elem.into(),
-            GeometryRef::Line(elem) => elem.into(),
-            GeometryRef::Segment(elem) => elem.into(),
-            GeometryRef::Polysegment(elem) => elem.into(),
-            GeometryRef::Contour(elem) => elem.into(),
-            GeometryRef::Shape(elem) => elem.into(),
+            GeometryRef::Point(elem) => (*elem).into(),
+            GeometryRef::BoundingBox(elem) => (*elem).clone(),
+            GeometryRef::ArcSegment(elem) => (*elem).into(),
+            GeometryRef::LineSegment(elem) => (*elem).into(),
+            GeometryRef::Line(elem) => (*elem).into(),
+            GeometryRef::Segment(elem) => (*elem).into(),
+            GeometryRef::Polysegment(elem) => (*elem).into(),
+            GeometryRef::Contour(elem) => (*elem).into(),
+            GeometryRef::Shape(elem) => (*elem).into(),
         }
     }
 }

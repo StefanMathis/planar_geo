@@ -82,9 +82,15 @@ impl Transformation for Drawable {
     }
 }
 
+impl From<Drawable> for BoundingBox {
+    fn from(value: Drawable) -> Self {
+        (&value).into()
+    }
+}
+
 impl From<&Drawable> for BoundingBox {
     fn from(value: &Drawable) -> Self {
-        return (&value.geometry).into();
+        (&value.geometry).into()
     }
 }
 
@@ -151,7 +157,13 @@ impl<'a> DrawableRef<'a> {
 
 impl<'a> From<DrawableRef<'a>> for BoundingBox {
     fn from(value: DrawableRef<'a>) -> Self {
-        return value.geometry.into();
+        (&value).into()
+    }
+}
+
+impl<'a> From<&DrawableRef<'a>> for BoundingBox {
+    fn from(value: &DrawableRef<'a>) -> Self {
+        return (&value.geometry).into();
     }
 }
 
@@ -216,6 +228,12 @@ impl<'a> DrawableCow<'a> {
 impl<'a> From<DrawableCow<'a>> for BoundingBox {
     fn from(value: DrawableCow<'a>) -> Self {
         return value.geometry.into();
+    }
+}
+
+impl<'a> From<&'_ DrawableCow<'a>> for BoundingBox {
+    fn from(value: &DrawableCow<'a>) -> Self {
+        return (&value.geometry).into();
     }
 }
 
