@@ -25,23 +25,14 @@ A Rust library for 2D geometry: geometric objects, algorithms and visualization.
 #![cfg_attr(feature = "doc-images",
 cfg_attr(all(),
 doc = ::embed_doc_image::embed_image!("type_overview.svg", "docs/img/type_overview.svg"),
-))]
-#![cfg_attr(feature = "doc-images",
-cfg_attr(all(),
 doc = ::embed_doc_image::embed_image!("shape.svg", "docs/img/shape.svg"),
+doc = ::embed_doc_image::embed_image!("intersection_segments.svg", "docs/img/intersection_segments.svg"),
+doc = ::embed_doc_image::embed_image!("intersection_composites.svg", "docs/img/intersection_composites.svg"),
 ))]
 #![cfg_attr(
     not(feature = "doc-images"),
     doc = "**Doc images not enabled**. Compile docs with `cargo doc --features 'doc-images'` and Rust version >= 1.54."
 )]
-#![cfg_attr(feature = "doc-images",
-cfg_attr(all(),
-doc = ::embed_doc_image::embed_image!("intersection_segments.svg", "docs/img/intersection_segments.svg"),
-))]
-#![cfg_attr(feature = "doc-images",
-cfg_attr(all(),
-doc = ::embed_doc_image::embed_image!("intersection_composites.svg", "docs/img/intersection_composites.svg"),
-))]
 #![doc = include_str!("../docs/main.md")]
 #![deny(missing_docs)]
 
