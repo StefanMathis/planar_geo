@@ -37,7 +37,7 @@ A Rust library for 2D geometry: geometric objects, algorithms and visualization.
 The full API documentation is available at https://docs.rs/planar_geo/0.3.6/planar_geo.
 > **Feedback welcome!**  
 > Found a bug, missing docs, or have a feature request?  
-> Please open an issue on GitHub.
+> Please open an issue on [GitHub](https://github.com/StefanMathis/planar_geo.git).
 
 # Overview
 
