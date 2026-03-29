@@ -673,6 +673,24 @@ fn test_from_start_stop_radius() {
         // Radius too small
         assert!(ArcSegment::from_start_stop_radius(start, stop, 0.1, true, true, 0.0, 0).is_err());
     }
+
+    {
+        // Floating point rounding error bugfix
+        let start = [-0.060000000000000005, 6.123233995736766e-18];
+        let stop = [0.060000000000000005, 0.0];
+        let radius = 0.060000000000000005;
+        let arc = ArcSegment::from_start_stop_radius(
+            start,
+            stop,
+            radius,
+            true,
+            false,
+            DEFAULT_EPSILON,
+            DEFAULT_MAX_ULPS,
+        )
+        .unwrap();
+        approx::assert_abs_diff_eq!(arc.offset_angle(), PI, epsilon = 1e-3);
+    }
 }
 
 #[test]

@@ -454,7 +454,7 @@ impl ArcSegment {
         // Vector from start to stop
         let dx = x2 - x1;
         let dy = y2 - y1;
-        let distance_start_stop = (dx * dx + dy * dy).sqrt();
+        let mut distance_start_stop = (dx * dx + dy * dy).sqrt();
         let given_diameter = 2.0 * radius;
 
         // If the distance is zero, start and stop are identical
@@ -467,9 +467,20 @@ impl ArcSegment {
             return Err(crate::error::ErrorType::PointsIdentical { start, stop }.into());
         }
 
-        // If the points are further apart than twice the radius, no arc segment
-        // can be constructed.
-        compare_variables!(distance_start_stop < given_diameter)?;
+        // Improve robustness by setting distance_start_stop to the specified
+        // diameter if both are approximately equal.
+        if approx::ulps_eq!(
+            distance_start_stop,
+            0.0,
+            epsilon = epsilon,
+            max_ulps = max_ulps
+        ) {
+            distance_start_stop = given_diameter;
+        } else {
+            // If the points are further apart than twice the radius, no arc segment
+            // can be constructed.
+            compare_variables!(distance_start_stop <= given_diameter)?;
+        }
 
         // --- Midpoint ---
         let mx = (x1 + x2) * 0.5;
