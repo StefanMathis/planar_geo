@@ -371,13 +371,13 @@ impl ArcSegment {
     }
 
     /// Creates an [`ArcSegment`] from its `start` point, `stop` point and
-    /// `radius`. This fails in the following cases:
-    /// - `start` is identical to `stop`.
-    /// - `radius` is smaller than half the euclidian distance between `start`
-    /// and `stop`.
+    /// `radius`. This fails if `start` is identical to `stop`. If the radius is
+    /// smaller than half the euclidian distance between `start` and `stop`, it
+    /// the radius is set to that value in order to avoid rejection of valid
+    /// arc segments due to rounding errors.
     ///   
-    /// If these error cases are not met, there are actually four different
-    /// possible arc segments. Therefore, it is also necessary to specify the
+    /// Four different arc segments can be constructed from the input
+    /// parameters. Therefore, it is also necessary to specify the
     /// arc direction (`positive` means mathematically positive /
     /// counter-clockwise) and whether to pick the `large_arc` or not. The
     /// example below shows all four possibilities:
@@ -454,8 +454,7 @@ impl ArcSegment {
         // Vector from start to stop
         let dx = x2 - x1;
         let dy = y2 - y1;
-        let mut distance_start_stop = (dx * dx + dy * dy).sqrt();
-        let given_diameter = 2.0 * radius;
+        let distance_start_stop = (dx * dx + dy * dy).sqrt();
 
         // If the distance is zero, start and stop are identical
         if approx::ulps_eq!(
@@ -467,19 +466,10 @@ impl ArcSegment {
             return Err(crate::error::ErrorType::PointsIdentical { start, stop }.into());
         }
 
-        // Improve robustness by setting distance_start_stop to the specified
-        // diameter if both are approximately equal.
-        if approx::ulps_eq!(
-            distance_start_stop,
-            0.0,
-            epsilon = epsilon,
-            max_ulps = max_ulps
-        ) {
-            distance_start_stop = given_diameter;
-        } else {
-            // If the points are further apart than twice the radius, no arc segment
-            // can be constructed.
-            compare_variables!(distance_start_stop <= given_diameter)?;
+        //
+        let mut radius = radius;
+        if 0.5 * distance_start_stop > radius {
+            radius = 0.5 * distance_start_stop
         }
 
         // --- Midpoint ---
