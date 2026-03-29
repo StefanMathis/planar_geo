@@ -167,6 +167,15 @@ impl<'a> From<&DrawableRef<'a>> for BoundingBox {
     }
 }
 
+impl<'a> From<DrawableRef<'a>> for Drawable {
+    fn from(value: DrawableRef<'a>) -> Self {
+        return Drawable {
+            geometry: value.geometry.into(),
+            style: value.style,
+        };
+    }
+}
+
 impl<'a> From<&'a Drawable> for DrawableRef<'a> {
     fn from(value: &'a Drawable) -> Self {
         return DrawableRef {
@@ -251,6 +260,15 @@ impl<'a> From<&'a DrawableCow<'a>> for DrawableRef<'a> {
         return DrawableRef {
             geometry: (&value.geometry).into(),
             style: value.style.clone(),
+        };
+    }
+}
+
+impl<'a> From<DrawableCow<'a>> for Drawable {
+    fn from(value: DrawableCow<'a>) -> Self {
+        return Drawable {
+            geometry: value.geometry.into(),
+            style: value.style,
         };
     }
 }
