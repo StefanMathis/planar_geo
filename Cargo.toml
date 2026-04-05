@@ -1,6 +1,6 @@
 [package]
 name = "planar_geo"
-version = "0.3.10"
+version = "0.3.11"
 edition = "2024"
 description = "A Rust library for 2D geometry: geometric objects, algorithms and visualization"
 readme = "README.md"
@@ -9,7 +9,7 @@ repository = "https://github.com/StefanMathis/planar_geo.git"
 
 [dependencies]
 cairo-rs = {version = "0.21", optional = true}
-bounding_box = { version = "0.4.1", features = ["approx"]}
+bounding_box = { version = "0.4.2", features = ["approx"]}
 rayon = "1.5"
 num = "0.4.0"
 ordered-float = "^3.6.0"
