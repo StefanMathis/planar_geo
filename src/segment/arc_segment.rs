@@ -14,7 +14,7 @@ itself; see its documentation for details on construction, invariants, and
 usage.
 */
 
-use approx::ulps_eq;
+use approx::{ulps_eq, ulps_ne};
 use compare_variables::compare_variables;
 
 #[cfg(feature = "serde")]
@@ -666,6 +666,14 @@ impl ArcSegment {
     }
 
     /**
+    Returns whether `self` is a full circle (its `offset_angle` covers a full
+    2*pi rad)
+     */
+    pub fn is_circle(&self) -> bool {
+        return self.offset_angle().abs() >= TAU;
+    }
+
+    /**
     Returns if `angle` is covered by `self`.
     ```
     use planar_geo::prelude::*;
@@ -1046,6 +1054,61 @@ impl Primitive for ArcSegment {
         } else {
             return false;
         }
+    }
+
+    fn contains_arc_segment(&self, other: &Self, epsilon: f64, max_ulps: u32) -> bool {
+        // Special treatment of a full circle: other is contained if center and
+        // radius are identical to that of self.
+        if self.is_circle() {
+            return ulps_eq!(
+                self.center(),
+                other.center(),
+                epsilon = epsilon,
+                max_ulps = max_ulps
+            ) && ulps_eq!(
+                self.radius(),
+                other.radius(),
+                epsilon = epsilon,
+                max_ulps = max_ulps
+            );
+        }
+
+        match self.intersections_primitive(other, epsilon, max_ulps) {
+            // Deal with special case where self and other are identical
+            PrimitiveIntersections::Zero => std::ptr::eq(self, other),
+            PrimitiveIntersections::One(_) => return false,
+            PrimitiveIntersections::Two([pt1, pt2]) => {
+                let start = other.start();
+                let stop = other.stop();
+
+                if ulps_ne!(start, pt1, epsilon = epsilon, max_ulps = max_ulps)
+                    && ulps_ne!(stop, pt1, epsilon = epsilon, max_ulps = max_ulps)
+                {
+                    return false;
+                }
+                if ulps_ne!(start, pt2, epsilon = epsilon, max_ulps = max_ulps)
+                    && ulps_ne!(stop, pt2, epsilon = epsilon, max_ulps = max_ulps)
+                {
+                    return false;
+                }
+
+                // Middle angle of other must be on self
+                return self.contains_angle(other.start_angle() + 0.5 * other.offset_angle());
+            }
+        }
+    }
+
+    fn contains_line_segment(
+        &self,
+        _line_segment: &crate::segment::LineSegment,
+        _epsilon: f64,
+        _max_ulps: u32,
+    ) -> bool {
+        return false;
+    }
+
+    fn contains(&self, other: &Self, epsilon: f64, max_ulps: u32) -> bool {
+        return self.contains_arc_segment(other, epsilon, max_ulps);
     }
 
     fn intersections_line(

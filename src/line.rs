@@ -315,6 +315,29 @@ impl Primitive for Line {
         );
     }
 
+    fn contains_arc_segment(
+        &self,
+        _arc_segment: &crate::prelude::ArcSegment,
+        _epsilon: f64,
+        _max_ulps: u32,
+    ) -> bool {
+        return false;
+    }
+
+    fn contains_line_segment(
+        &self,
+        line_segment: &crate::segment::LineSegment,
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> bool {
+        let other = Self::from(line_segment);
+        return self.contains(&other, epsilon, max_ulps);
+    }
+
+    fn contains(&self, other: &Self, epsilon: f64, max_ulps: u32) -> bool {
+        return self.identical(other, epsilon, max_ulps);
+    }
+
     fn intersections_line(
         &self,
         line: &Line,

@@ -486,6 +486,32 @@ fn test_centroid() {
 
 #[test]
 fn test_contains() {
+    // A countour shares a side with another one
+    {
+        let c1 = Contour::new(Polysegment::from_points(&[
+            [1.0, 1.0],
+            [1.0, 2.0],
+            [2.0, 2.0],
+            [2.0, 1.0],
+        ]));
+        let c2 = Contour::new(Polysegment::from_points(&[
+            [1.0, 1.0],
+            [1.0, 2.0],
+            [1.5, 2.0],
+            [1.5, 1.0],
+        ]));
+        assert!(!c1.contains(&c2, DEFAULT_EPSILON, DEFAULT_MAX_ULPS))
+    }
+    // A countour does not contains itself
+    {
+        let c = Contour::new(Polysegment::from_points(&[
+            [1.0, 1.0],
+            [1.0, 2.0],
+            [2.0, 2.0],
+            [2.0, 1.0],
+        ]));
+        assert!(!c.contains(&c, DEFAULT_EPSILON, DEFAULT_MAX_ULPS))
+    }
     {
         // large contains small
         let small = Contour::new(Polysegment::from_points(&[
@@ -534,4 +560,30 @@ fn test_contains() {
         );
         assert!(!large.contains(&small, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
     }
+}
+
+#[test]
+fn test_intersects() {
+    let e = DEFAULT_EPSILON;
+    let m = DEFAULT_MAX_ULPS;
+    let c1: Contour = Polysegment::from(
+        ArcSegment::from_start_center_angle([0.0, 0.0], [0.0, 1.0], PI, e, m).unwrap(),
+    )
+    .into();
+    let c2: Contour = Polysegment::from(
+        ArcSegment::from_start_center_angle([1.0, 2.0], [1.0, 1.0], PI, e, m).unwrap(),
+    )
+    .into();
+    let c3: Contour = Polysegment::from(
+        ArcSegment::from_start_center_angle([2.0, 2.0], [2.0, 1.0], PI, e, m).unwrap(),
+    )
+    .into();
+    let c4: Contour = Polysegment::from(
+        ArcSegment::from_start_center_angle([0.0, 0.0], [0.0, 1.0], -PI, e, m).unwrap(),
+    )
+    .into();
+
+    assert_eq!(c1.intersection_cut(c2.polysegment(), e, m).len(), 4);
+    assert_eq!(c1.intersection_cut(c3.polysegment(), e, m).len(), 1);
+    assert_eq!(c1.intersection_cut(c4.polysegment(), e, m).len(), 2);
 }

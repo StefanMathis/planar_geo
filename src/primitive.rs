@@ -399,8 +399,66 @@ pub trait Primitive: private::Sealed {
     fn contains_point(&self, point: [f64; 2], epsilon: f64, max_ulps: u32) -> bool;
 
     /**
+    Returns if `self` contains the given [`ArcSegment`].
+
+    # Examples
+
+    ```
+    use std::f64::consts::PI;
+    use planar_geo::prelude::*;
+
+    let e = DEFAULT_EPSILON;
+    let m = DEFAULT_MAX_ULPS;
+
+    let s1: Segment = ArcSegment::from_start_center_angle([0.0, 0.0], [0.0, 1.0], PI, e, m).unwrap().into();
+    let quarter = ArcSegment::from_start_center_angle([0.0, 0.0], [0.0, 1.0], 0.5*PI, e, m).unwrap();
+    assert!(s1.contains_arc_segment(&quarter, e, m));
+
+    let s2: Segment = LineSegment::new([0.0, 0.0], [1.0, 1.0], e, m).unwrap().into();
+    assert!(!s2.contains_arc_segment(&quarter, e, m));
+    ```
+     */
+    fn contains_arc_segment(&self, arc_segment: &ArcSegment, epsilon: f64, max_ulps: u32) -> bool;
+
+    /**
+    Returns if `self` contains the given [`LineSegment`].
+
+    # Examples
+
+    ```
+    use std::f64::consts::PI;
+    use planar_geo::prelude::*;
+
+    let e = DEFAULT_EPSILON;
+    let m = DEFAULT_MAX_ULPS;
+
+    let s1: Segment = LineSegment::new([0.0, 0.0], [1.0, 1.0], e, m).unwrap().into();
+    let ls_start_to_middle = LineSegment::new([0.0, 0.0], [0.5, 0.5], e, m).unwrap();
+    assert!(s1.contains_line_segment(&ls_start_to_middle, e, m));
+
+    let s2: Segment = ArcSegment::from_start_center_angle([0.0, 0.0], [0.0, 1.0], PI, e, m).unwrap().into();
+    assert!(!s2.contains_line_segment(&ls_start_to_middle, e, m));
+    ```
+     */
+    fn contains_line_segment(
+        &self,
+        line_segment: &LineSegment,
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> bool;
+
+    /**
+    Returns whether `self` contains `other`.
+
+    Depending on `Self`, this function delegates to
+    [`Primitive::contains_point`], [`Primitive::contains_arc_segment`],
+    [`Primitive::contains_line_segment`] or [`Line::identical`].
+     */
+    fn contains(&self, other: &Self, epsilon: f64, max_ulps: u32) -> bool;
+
+    /**
     Returns the intersections between `self` and a point `[f64; 2]`
-     *
+
     This function wraps the given point in [`PrimitiveIntersections::One`] if
     [`Primitive::contains_point`] returned `true` and returns
     [`PrimitiveIntersections::Zero`] otherwise.
@@ -722,6 +780,28 @@ impl private::Sealed for [f64; 2] {}
 impl Primitive for [f64; 2] {
     fn contains_point(&self, point: [f64; 2], epsilon: f64, max_ulps: u32) -> bool {
         return self.ulps_eq(&point, epsilon, max_ulps);
+    }
+
+    fn contains_arc_segment(
+        &self,
+        _arc_segment: &ArcSegment,
+        _epsilon: f64,
+        _max_ulps: u32,
+    ) -> bool {
+        return false;
+    }
+
+    fn contains_line_segment(
+        &self,
+        _line_segment: &LineSegment,
+        _epsilon: f64,
+        _max_ulps: u32,
+    ) -> bool {
+        return false;
+    }
+
+    fn contains(&self, other: &Self, epsilon: f64, max_ulps: u32) -> bool {
+        return self.contains_point(*other, epsilon, max_ulps);
     }
 
     fn intersections_line(

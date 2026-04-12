@@ -754,6 +754,41 @@ impl Primitive for LineSegment {
         }
     }
 
+    fn contains_arc_segment(
+        &self,
+        _arc_segment: &crate::segment::ArcSegment,
+        _epsilon: f64,
+        _max_ulps: u32,
+    ) -> bool {
+        return false;
+    }
+
+    fn contains_line_segment(
+        &self,
+        line_segment: &LineSegment,
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> bool {
+        match self.intersections_primitive(line_segment, epsilon, max_ulps) {
+            // Deal with special case where self and other are identical
+            PrimitiveIntersections::Zero => std::ptr::eq(self, line_segment),
+            PrimitiveIntersections::One(_) => return false,
+            PrimitiveIntersections::Two([pt1, pt2]) => {
+                let start = line_segment.start();
+                let stop = line_segment.stop();
+
+                return ulps_eq!(start, pt1, epsilon = epsilon, max_ulps = max_ulps)
+                    && ulps_eq!(stop, pt2, epsilon = epsilon, max_ulps = max_ulps)
+                    || ulps_eq!(start, pt2, epsilon = epsilon, max_ulps = max_ulps)
+                        && ulps_eq!(stop, pt1, epsilon = epsilon, max_ulps = max_ulps);
+            }
+        }
+    }
+
+    fn contains(&self, other: &Self, epsilon: f64, max_ulps: u32) -> bool {
+        return self.contains_line_segment(other, epsilon, max_ulps);
+    }
+
     fn intersections_line(
         &self,
         line: &crate::line::Line,

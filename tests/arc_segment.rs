@@ -984,9 +984,101 @@ fn test_segment_point() {
 
 #[test]
 fn test_contains_angle() {
-    let arc = ArcSegment::from_center_radius_start_offset_angle([0.0, 0.0], 1.0, 0.0, TAU, 0.0, 0)
-        .unwrap();
+    {
+        let arc =
+            ArcSegment::from_center_radius_start_offset_angle([0.0, 0.0], 1.0, 0.0, TAU, 0.0, 0)
+                .unwrap();
 
-    // This arc contains every angle
-    assert!(arc.contains_angle(-0.05002047485831401));
+        // This arc / circle contains every angle
+        assert!(arc.contains_angle(-0.05002047485831401));
+        assert!(arc.contains_angle(1000.0));
+        assert!(arc.contains_angle(0.0));
+        assert!(arc.contains_angle(-0.0000001));
+        assert!(arc.contains_angle(1e-16));
+        assert!(arc.contains_angle(-1e-16));
+    }
+}
+
+#[test]
+fn test_contains() {
+    {
+        use planar_geo::prelude::*;
+        use std::f64::consts::PI;
+
+        let e = DEFAULT_EPSILON;
+        let m = DEFAULT_MAX_ULPS;
+
+        // A half-circle from -90° to 90° around [0.0, 1.0]
+        let half = ArcSegment::from_start_center_angle([0.0, 0.0], [0.0, 1.0], PI, e, m).unwrap();
+
+        // Quarter-circle
+        let quarter =
+            ArcSegment::from_start_center_angle([0.0, 0.0], [0.0, 1.0], 0.5 * PI, e, m).unwrap();
+        assert!(half.contains(&half, e, m));
+
+        // Half-circle, but mirrored about the y-axis. Since arc is a half-circle,
+        // arc_mirrored is the other half of the circle, which is not contained
+        let mut half_mirrored = half.clone();
+        half_mirrored.line_reflection([0.0, 0.0], [0.0, 1.0]);
+        assert!(!half.contains(&half_mirrored, e, m));
+
+        // A circle contains all of the arcs
+        let circle = ArcSegment::circle([0.0, 1.0], 1.0).unwrap();
+        assert!(circle.contains(&half, e, m));
+        assert!(circle.contains(&quarter, e, m));
+        assert!(circle.contains(&half_mirrored, e, m));
+
+        // An arc with different center is obviously not contained
+        let quarter_shifted =
+            ArcSegment::from_start_center_angle([0.0, 0.0], [0.1, 1.0], 0.5 * PI, e, m).unwrap();
+        assert!(!half.contains(&quarter_shifted, e, m));
+    }
+    {
+        let arc = ArcSegment::from_start_center_angle(
+            [1.0, 0.0],
+            [0.0, 0.0],
+            PI,
+            DEFAULT_EPSILON,
+            DEFAULT_MAX_ULPS,
+        )
+        .unwrap();
+        assert!(arc.contains(&arc, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+
+        let arc_opposite_dir = ArcSegment::from_start_center_angle(
+            [1.0, 0.0],
+            [0.0, 0.0],
+            -PI,
+            DEFAULT_EPSILON,
+            DEFAULT_MAX_ULPS,
+        )
+        .unwrap();
+        assert!(!arc.contains(&arc_opposite_dir, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+        assert!(!arc_opposite_dir.contains(&arc, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+
+        let arc_larger_radius = ArcSegment::from_start_center_angle(
+            [2.0, 0.0],
+            [0.0, 0.0],
+            PI,
+            DEFAULT_EPSILON,
+            DEFAULT_MAX_ULPS,
+        )
+        .unwrap();
+        assert!(!arc.contains(&arc_larger_radius, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+        assert!(!arc_larger_radius.contains(&arc, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+
+        let arc_different_center = ArcSegment::from_start_center_angle(
+            [1.0, 0.0],
+            [0.5, 0.0],
+            PI,
+            DEFAULT_EPSILON,
+            DEFAULT_MAX_ULPS,
+        )
+        .unwrap();
+        assert!(!arc.contains(&arc_different_center, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+        assert!(!arc_different_center.contains(&arc, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+
+        let circle = ArcSegment::circle([0.0, 0.0], 1.0).unwrap();
+        assert!(circle.contains(&arc, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+        assert!(!arc.contains(&circle, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    }
 }

@@ -361,7 +361,7 @@ impl Contour {
     Returns whether `self` contains an `other` contour.
 
     A contour contains another contour if the bounding box of the latter is
-    within that of the former and if there is no intersection between the two.
+    within that of the former and if there is no intersection between the two
     The specified tolerances `epsilon` and `max_ulps` are used within the
     intersection algorithm.
 

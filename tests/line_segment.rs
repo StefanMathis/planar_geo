@@ -804,3 +804,30 @@ fn test_intersection_line_line_segment() {
         approx::assert_abs_diff_eq!(intersection[0].point, [0.0, 0.5]);
     }
 }
+
+#[test]
+fn test_contains() {
+    let e = DEFAULT_EPSILON;
+    let m = DEFAULT_MAX_ULPS;
+
+    let ls = LineSegment::new([0.0, 0.0], [1.0, 1.0], e, m).unwrap();
+    let ls_start_to_middle = LineSegment::new([0.0, 0.0], [0.5, 0.5], e, m).unwrap();
+    assert!(ls.contains(&ls_start_to_middle, e, m));
+    assert!(!ls_start_to_middle.contains(&ls, e, m));
+
+    let ls_middle_to_end = LineSegment::new([0.5, 0.5], [1.0, 1.0], e, m).unwrap();
+    assert!(ls.contains(&ls_middle_to_end, e, m));
+    assert!(!ls_middle_to_end.contains(&ls, e, m));
+
+    let ls_overlap = LineSegment::new([0.5, 0.5], [1.5, 1.5], e, m).unwrap();
+    assert!(!ls.contains(&ls_overlap, e, m));
+    assert!(!ls_overlap.contains(&ls, e, m));
+
+    let ls_crossing = LineSegment::new([0.0, 1.0], [1.0, 0.0], e, m).unwrap();
+    assert!(!ls.contains(&ls_crossing, e, m));
+    assert!(!ls_crossing.contains(&ls, e, m));
+
+    let ls_elsewhere = LineSegment::new([0.0, -1.0], [1.0, -1.0], e, m).unwrap();
+    assert!(!ls.contains(&ls_elsewhere, e, m));
+    assert!(!ls_elsewhere.contains(&ls, e, m));
+}
