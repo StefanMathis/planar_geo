@@ -15,7 +15,7 @@ types are then based upon these.
 use crate::{
     geometry::GeometryRef,
     line::Line,
-    segment::{ArcSegment, LineSegment, Segment},
+    segment::{ArcSegment, LineSegment, Segment, SegmentRef},
 };
 use approx::UlpsEq;
 use bounding_box::BoundingBox;
@@ -776,20 +776,23 @@ pub trait Primitive: private::Sealed {
         ls.intersections_segment(&arc, DEFAULT_EPSILON, DEFAULT_MAX_ULPS),
         PrimitiveIntersections::One([1.0, 0.0])
     );
-
     ```
      */
-    fn intersections_segment(
+    fn intersections_segment<'a, T>(
         &self,
-        segment: &Segment,
+        segment: T,
         epsilon: f64,
         max_ulps: u32,
-    ) -> PrimitiveIntersections {
+    ) -> PrimitiveIntersections
+    where
+        T: Into<SegmentRef<'a>>,
+    {
+        let segment: SegmentRef = segment.into();
         match segment {
-            Segment::LineSegment(line_segment) => {
+            SegmentRef::LineSegment(line_segment) => {
                 self.intersections_line_segment(line_segment, epsilon, max_ulps)
             }
-            Segment::ArcSegment(arc_segment) => {
+            SegmentRef::ArcSegment(arc_segment) => {
                 self.intersections_arc_segment(arc_segment, epsilon, max_ulps)
             }
         }

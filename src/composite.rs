@@ -12,7 +12,7 @@ use rayon::prelude::ParallelIterator;
 use crate::contour::Contour;
 use crate::polysegment::Polysegment;
 use crate::primitive::Primitive;
-use crate::segment::{Segment, SegmentPolygonizer};
+use crate::segment::{SegmentPolygonizer, SegmentRef};
 use crate::shape::Shape;
 
 /**
@@ -859,11 +859,15 @@ impl Polygonizer {
     /**
     Returns the [`SegmentPolygonizer`] for a `segment` with the given `index`.
      */
-    pub fn segment_polygonizer(&self, segment: &Segment, index: usize) -> SegmentPolygonizer {
+    pub fn segment_polygonizer<'a, T>(&self, segment: T, index: usize) -> SegmentPolygonizer
+    where
+        T: Into<SegmentRef<'a>>,
+    {
+        let segment: SegmentRef = segment.into();
         match self {
             Polygonizer::PerType { arc, straight } => match segment {
-                Segment::LineSegment(_) => return *straight,
-                Segment::ArcSegment(_) => return *arc,
+                SegmentRef::LineSegment(_) => return *straight,
+                SegmentRef::ArcSegment(_) => return *arc,
             },
             Polygonizer::Individual { default, map } => return *map.get(&index).unwrap_or(default),
         };

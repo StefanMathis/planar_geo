@@ -482,15 +482,43 @@ impl Default for SegmentPolygonizer {
 }
 
 /**
-The "borrowed" version of [`Segment`] which as the same variants as its brother,
-but with references instead of owned instances of the underlying segment types.
+The "borrowed" version of [`Segment`] which has the same variants as its
+brother, but with references instead of owned instances of the underlying
+segment types.
+
+The main purpose of this type is to enable the usage of references for any
+segment type ([`LineSegment`], [`ArcSegment`] or [`Segment`]) in function
+interfaces. See for example the
+[`Polygonizer::segment_polygonizer`](crate::composite::Polygonizer::segment_polygonizer)
+method.
  */
 #[derive(Clone, Debug)]
-pub(crate) enum SegmentRef<'a> {
+pub enum SegmentRef<'a> {
     /// A reference to a [`LineSegment`].
     LineSegment(&'a LineSegment),
     /// A reference to an [`ArcSegment`].
     ArcSegment(&'a ArcSegment),
+}
+
+impl<'a> From<&'a Segment> for SegmentRef<'a> {
+    fn from(value: &'a Segment) -> Self {
+        match value {
+            Segment::LineSegment(v) => v.into(),
+            Segment::ArcSegment(v) => v.into(),
+        }
+    }
+}
+
+impl<'a> From<&'a LineSegment> for SegmentRef<'a> {
+    fn from(value: &'a LineSegment) -> Self {
+        return Self::LineSegment(value);
+    }
+}
+
+impl<'a> From<&'a ArcSegment> for SegmentRef<'a> {
+    fn from(value: &'a ArcSegment) -> Self {
+        return Self::ArcSegment(value);
+    }
 }
 
 /**
