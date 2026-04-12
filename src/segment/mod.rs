@@ -302,7 +302,9 @@ impl Primitive for Segment {
     fn contains_arc_segment(&self, arc_segment: &ArcSegment, epsilon: f64, max_ulps: u32) -> bool {
         match self {
             Segment::LineSegment(_) => return false,
-            Segment::ArcSegment(this) => return this.contains(arc_segment, epsilon, max_ulps),
+            Segment::ArcSegment(this) => {
+                return this.contains_arc_segment(arc_segment, epsilon, max_ulps);
+            }
         }
     }
 
@@ -313,18 +315,15 @@ impl Primitive for Segment {
         max_ulps: u32,
     ) -> bool {
         match self {
-            Segment::LineSegment(this) => return this.contains(line_segment, epsilon, max_ulps),
+            Segment::LineSegment(this) => {
+                return this.contains_line_segment(line_segment, epsilon, max_ulps);
+            }
             Segment::ArcSegment(_) => return false,
         }
     }
 
-    fn contains(&self, other: &Self, epsilon: f64, max_ulps: u32) -> bool {
-        match other {
-            Segment::LineSegment(line_seg) => {
-                self.contains_line_segment(line_seg, epsilon, max_ulps)
-            }
-            Segment::ArcSegment(arc_seg) => self.contains_arc_segment(arc_seg, epsilon, max_ulps),
-        }
+    fn contains_line(&self, _line: &crate::line::Line, _epsilon: f64, _max_ulps: u32) -> bool {
+        return false;
     }
 
     fn intersections_line(

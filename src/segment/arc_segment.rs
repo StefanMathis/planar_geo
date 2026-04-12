@@ -1107,8 +1107,8 @@ impl Primitive for ArcSegment {
         return false;
     }
 
-    fn contains(&self, other: &Self, epsilon: f64, max_ulps: u32) -> bool {
-        return self.contains_arc_segment(other, epsilon, max_ulps);
+    fn contains_line(&self, _line: &crate::line::Line, _epsilon: f64, _max_ulps: u32) -> bool {
+        return false;
     }
 
     fn intersections_line(

@@ -331,11 +331,11 @@ impl Primitive for Line {
         max_ulps: u32,
     ) -> bool {
         let other = Self::from(line_segment);
-        return self.contains(&other, epsilon, max_ulps);
+        return self.contains_line(&other, epsilon, max_ulps);
     }
 
-    fn contains(&self, other: &Self, epsilon: f64, max_ulps: u32) -> bool {
-        return self.identical(other, epsilon, max_ulps);
+    fn contains_line(&self, line: &Line, epsilon: f64, max_ulps: u32) -> bool {
+        return self.identical(line, epsilon, max_ulps);
     }
 
     fn intersections_line(

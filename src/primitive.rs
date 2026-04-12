@@ -13,10 +13,12 @@ types are then based upon these.
  */
 
 use crate::{
+    geometry::GeometryRef,
     line::Line,
     segment::{ArcSegment, LineSegment, Segment},
 };
 use approx::UlpsEq;
+use bounding_box::BoundingBox;
 
 /**
 Result of an intersection calculation between two [`Primitive`]s.
@@ -448,13 +450,121 @@ pub trait Primitive: private::Sealed {
     ) -> bool;
 
     /**
-    Returns whether `self` contains `other`.
+    Returns if `self` contains the given [`Line`].
 
-    Depending on `Self`, this function delegates to
-    [`Primitive::contains_point`], [`Primitive::contains_arc_segment`],
-    [`Primitive::contains_line_segment`] or [`Line::identical`].
+    Since a [`Line`] has infinite length, it can only be "contained" in another
+    [`Line`] which is identical. For any other [`Primitive`], this function
+    returns false.
+
+    # Examples
+
+    ```
+    use planar_geo::prelude::*;
+
+    let e = DEFAULT_EPSILON;
+    let m = DEFAULT_MAX_ULPS;
+
+    let l1 = Line::from_point_angle([0.0, 0.0], 0.0);
+    let l2 = Line::from_point_angle([1.0, 0.0], 0.0);
+    let l3 = Line::from_point_angle([0.0, 0.0], 1.0);
+
+    // l1 and l2 are identical
+    assert!(l1.contains_line(&l2, e, m));
+    assert!(l2.contains_line(&l1, e, m));
+
+    // l3 is different
+    assert!(!l1.contains_line(&l3, e, m));
+    ```
+    */
+    fn contains_line(&self, line: &Line, epsilon: f64, max_ulps: u32) -> bool;
+
+    /**
+    Returns if `self` contains `other` (which can be any geometric type).
+
+    Internally, this function converts `self` and `other` to [`GeometryRef`]s
+    and then matches them to select the specific `contains_` function for the
+    pairing (e.g. [`Primitive::contains_line`] if `other` is a [`Line`]). To
+    avoid matching for maximum performance, consider using the specific method
+    directly.
      */
-    fn contains(&self, other: &Self, epsilon: f64, max_ulps: u32) -> bool;
+    fn contains<'a, T>(&self, other: T, epsilon: f64, max_ulps: u32) -> bool
+    where
+        Self: Sized,
+        for<'b> &'b Self: Into<GeometryRef<'b>>,
+        T: Into<GeometryRef<'a>>,
+    {
+        let geo_self: GeometryRef = self.into();
+        let geo_other: GeometryRef = other.into();
+        match geo_self {
+            GeometryRef::Point(pt_self) => {
+                if let GeometryRef::Point(pt_other) = geo_other {
+                    return pt_self.contains_point(*pt_other, epsilon, max_ulps);
+                }
+                return false;
+            }
+            GeometryRef::BoundingBox(bounding_box) => {
+                let bb_other = BoundingBox::from(geo_other);
+                return bounding_box.approx_contains(&bb_other, epsilon, max_ulps);
+            }
+            GeometryRef::ArcSegment(as_self) => match geo_other {
+                GeometryRef::ArcSegment(as_other) => {
+                    return as_self.contains_arc_segment(as_other, epsilon, max_ulps);
+                }
+                GeometryRef::Segment(segment) => match segment {
+                    Segment::LineSegment(_) => return false,
+                    Segment::ArcSegment(as_other) => {
+                        return as_self.contains_arc_segment(as_other, epsilon, max_ulps);
+                    }
+                },
+                _ => return false,
+            },
+            GeometryRef::LineSegment(ls_self) => match geo_other {
+                GeometryRef::LineSegment(ls_other) => {
+                    return ls_self.contains_line_segment(ls_other, epsilon, max_ulps);
+                }
+                GeometryRef::Segment(segment) => match segment {
+                    Segment::LineSegment(ls_other) => {
+                        return ls_self.contains_line_segment(ls_other, epsilon, max_ulps);
+                    }
+                    Segment::ArcSegment(_) => return false,
+                },
+                _ => return false,
+            },
+            GeometryRef::Line(line_self) => {
+                if let GeometryRef::Line(line_other) = geo_other {
+                    return line_self.contains_line(line_other, epsilon, max_ulps);
+                }
+                return false;
+            }
+            GeometryRef::Segment(segment) => match segment {
+                Segment::LineSegment(ls_self) => match geo_other {
+                    GeometryRef::LineSegment(ls_other) => {
+                        return ls_self.contains_line_segment(ls_other, epsilon, max_ulps);
+                    }
+                    GeometryRef::Segment(segment) => match segment {
+                        Segment::LineSegment(ls_other) => {
+                            return ls_self.contains_line_segment(ls_other, epsilon, max_ulps);
+                        }
+                        Segment::ArcSegment(_) => return false,
+                    },
+                    _ => return false,
+                },
+                Segment::ArcSegment(as_self) => match geo_other {
+                    GeometryRef::ArcSegment(as_other) => {
+                        return as_self.contains_arc_segment(as_other, epsilon, max_ulps);
+                    }
+                    GeometryRef::Segment(segment) => match segment {
+                        Segment::LineSegment(_) => return false,
+                        Segment::ArcSegment(as_other) => {
+                            return as_self.contains_arc_segment(as_other, epsilon, max_ulps);
+                        }
+                    },
+                    _ => return false,
+                },
+            },
+            _ => false, // Won't be reached anyway, since self is a primitive
+        }
+    }
 
     /**
     Returns the intersections between `self` and a point `[f64; 2]`
@@ -726,7 +836,7 @@ pub trait Primitive: private::Sealed {
     type.
 
     This method is based on
-    [`GeometryRef::intersections`](crate::geometry::GeometryRef::intersections).
+    [`GeometryRef::intersections`](GeometryRef::intersections).
     It can handle any geometric type ([`Primitive`] or
     [`Composite`](crate::composite::Composite)) defined in this crate, but it
     needs to allocate a vector for the results. For intersections between two
@@ -761,7 +871,7 @@ pub trait Primitive: private::Sealed {
     );
     ```
      */
-    fn intersections<'a, T: Into<crate::geometry::GeometryRef<'a>>>(
+    fn intersections<'a, T>(
         &self,
         other: T,
         epsilon: f64,
@@ -769,8 +879,9 @@ pub trait Primitive: private::Sealed {
     ) -> Vec<crate::composite::Intersection>
     where
         Self: Sized,
+        T: Into<GeometryRef<'a>>,
     {
-        let geo_ref: crate::geometry::GeometryRef = other.into();
+        let geo_ref: GeometryRef = other.into();
         return geo_ref.intersections_primitive(self, epsilon, max_ulps);
     }
 }
@@ -800,8 +911,8 @@ impl Primitive for [f64; 2] {
         return false;
     }
 
-    fn contains(&self, other: &Self, epsilon: f64, max_ulps: u32) -> bool {
-        return self.contains_point(*other, epsilon, max_ulps);
+    fn contains_line(&self, _line: &Line, _epsilon: f64, _max_ulps: u32) -> bool {
+        return false;
     }
 
     fn intersections_line(
