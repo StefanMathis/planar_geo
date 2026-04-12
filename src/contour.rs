@@ -430,6 +430,21 @@ impl Contour {
             == 0;
     }
 
+    // /**
+    // TODO
+    //  */
+    // pub fn interiors_intersect(&self, other: &Self, epsilon: f64, max_ulps: u32)
+    // -> bool {     let b_self = BoundingBox::from(self);
+    //     let b_other = BoundingBox::from(other);
+
+    //     // If the bounding box do not contain each other or intersect, then the
+    //     // interiors cannot intersect as well
+    //     if !b_self.contains(&b_other) && !b_other.contains(&b_self) &&
+    // !b_self.intersects(&b_other) {         return false;
+    //     }
+
+    // }
+
     /**
     Cuts `self` into multiple polysegments by intersecting it with `other` and returns
     those them.
