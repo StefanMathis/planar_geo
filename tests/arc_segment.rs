@@ -4,7 +4,7 @@ use std::f64::consts::{FRAC_PI_2, PI, SQRT_2, TAU};
 use planar_geo::prelude::*;
 
 #[test]
-fn test_contains_point() {
+fn test_covers_point() {
     {
         // Check for rounding error: Point [0.5, 0.0] is almost identical to the start
         // point of the arc
@@ -16,7 +16,8 @@ fn test_contains_point() {
             0,
         )
         .unwrap();
-        assert!(arc.contains_point([0.5, 0.0], 0.0, 0));
+        assert!(arc.covers_point([0.5, 0.0], 0.0, 0));
+        assert!(arc.covers(&[0.5, 0.0], 0.0, 0));
 
         let center = [0.0, 1.0];
         let radius = 1.0;
@@ -31,29 +32,39 @@ fn test_contains_point() {
             0,
         )
         .unwrap();
-        assert!(arc.contains_angle(-FRAC_PI_2 + 1e-15));
+        assert!(arc.covers_angle(-FRAC_PI_2 + 1e-15));
 
         let p1 = [1.0, 1.0];
         let p2 = [0.0, 0.0];
         let p3 = [1.5, 0.5];
-        assert!(arc.contains_point(p1, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
-        assert!(arc.contains_point(p2, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
-        assert!(!arc.contains_point(p3, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+        assert!(arc.covers_point(p1, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+        assert!(arc.covers_point(p2, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+        assert!(!arc.covers_point(p3, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
     }
     {
         let pt1 = [-0.9233365375660403, 9.999999999996123e-6];
         let pt2 = [-0.9226294661406899, 2.500031251961854e-6];
         let pt3 = [-0.9219223593595585, 1.582067810090848e-15];
-        let arc =
-            ArcSegment::from_start_middle_stop(pt1.into(), pt2.into(), pt3.into(), 0.0, 0).unwrap();
+        let arc = ArcSegment::from_start_middle_stop(pt1, pt2, pt3, 0.0, 0).unwrap();
 
         // Due to floating point rounding errors, some points are not "exactly" included
-        assert!(!arc.contains_point(pt1.into(), 0.0, 0));
-        assert!(!arc.contains_point(pt2.into(), 0.0, 0));
-        assert!(!arc.contains_point(pt3.into(), 0.0, 0));
-        assert!(arc.contains_point(pt1.into(), DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
-        assert!(arc.contains_point(pt2.into(), DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
-        assert!(arc.contains_point(pt3.into(), DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+        assert!(!arc.covers_point(pt1, 0.0, 0));
+        assert!(!arc.covers_point(pt2, 0.0, 0));
+        assert!(!arc.covers_point(pt3, 0.0, 0));
+        assert!(arc.covers_point(pt1, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+        assert!(arc.covers_point(pt2, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+        assert!(arc.covers_point(pt3, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+
+        // Generic methods
+        assert!(arc.covers(&pt1, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+        assert!(arc.covers(&pt2, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+        assert!(arc.covers(&pt3, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+
+        // Convert to segment and test again
+        let s = Segment::from(arc);
+        assert!(s.covers(&pt1, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+        assert!(s.covers(&pt2, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+        assert!(s.covers(&pt3, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
     }
 }
 
@@ -983,24 +994,48 @@ fn test_segment_point() {
 }
 
 #[test]
-fn test_contains_angle() {
+fn test_covers_angle() {
+    {
+        let arc = ArcSegment::from_start_center_angle(
+            [-1.0, 0.0],
+            [0.0, 0.0],
+            0.5 * -PI,
+            DEFAULT_EPSILON,
+            DEFAULT_MAX_ULPS,
+        )
+        .unwrap();
+        assert!(arc.covers_angle(arc.start_angle()));
+        assert!(arc.covers_angle(arc.stop_angle()));
+    }
     {
         let arc =
             ArcSegment::from_center_radius_start_offset_angle([0.0, 0.0], 1.0, 0.0, TAU, 0.0, 0)
                 .unwrap();
 
-        // This arc / circle contains every angle
-        assert!(arc.contains_angle(-0.05002047485831401));
-        assert!(arc.contains_angle(1000.0));
-        assert!(arc.contains_angle(0.0));
-        assert!(arc.contains_angle(-0.0000001));
-        assert!(arc.contains_angle(1e-16));
-        assert!(arc.contains_angle(-1e-16));
+        // This arc / circle covers every angle
+        assert!(arc.covers_angle(-0.05002047485831401));
+        assert!(arc.covers_angle(1000.0));
+        assert!(arc.covers_angle(0.0));
+        assert!(arc.covers_angle(-0.0000001));
+        assert!(arc.covers_angle(1e-16));
+        assert!(arc.covers_angle(-1e-16));
     }
 }
 
 #[test]
-fn test_contains() {
+fn test_covers() {
+    {
+        let arc = ArcSegment::from_start_center_angle(
+            [-1.0, 0.0],
+            [0.0, 0.0],
+            0.5 * -PI,
+            DEFAULT_EPSILON,
+            DEFAULT_MAX_ULPS,
+        )
+        .unwrap();
+        assert!(arc.covers(&arc, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+        assert!(arc.covers(&arc.clone(), DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    }
     {
         use planar_geo::prelude::*;
         use std::f64::consts::PI;
@@ -1014,24 +1049,24 @@ fn test_contains() {
         // Quarter-circle
         let quarter =
             ArcSegment::from_start_center_angle([0.0, 0.0], [0.0, 1.0], 0.5 * PI, e, m).unwrap();
-        assert!(half.contains(&half, e, m));
+        assert!(half.covers(&half, e, m));
 
         // Half-circle, but mirrored about the y-axis. Since arc is a half-circle,
-        // arc_mirrored is the other half of the circle, which is not contained
+        // arc_mirrored is the other half of the circle, which is not covered
         let mut half_mirrored = half.clone();
         half_mirrored.line_reflection([0.0, 0.0], [0.0, 1.0]);
-        assert!(!half.contains(&half_mirrored, e, m));
+        assert!(!half.covers(&half_mirrored, e, m));
 
-        // A circle contains all of the arcs
+        // A circle covers all of the arcs
         let circle = ArcSegment::circle([0.0, 1.0], 1.0).unwrap();
-        assert!(circle.contains(&half, e, m));
-        assert!(circle.contains(&quarter, e, m));
-        assert!(circle.contains(&half_mirrored, e, m));
+        assert!(circle.covers(&half, e, m));
+        assert!(circle.covers(&quarter, e, m));
+        assert!(circle.covers(&half_mirrored, e, m));
 
-        // An arc with different center is obviously not contained
+        // An arc with different center is obviously not covered
         let quarter_shifted =
             ArcSegment::from_start_center_angle([0.0, 0.0], [0.1, 1.0], 0.5 * PI, e, m).unwrap();
-        assert!(!half.contains(&quarter_shifted, e, m));
+        assert!(!half.covers(&quarter_shifted, e, m));
     }
     {
         let arc = ArcSegment::from_start_center_angle(
@@ -1042,7 +1077,7 @@ fn test_contains() {
             DEFAULT_MAX_ULPS,
         )
         .unwrap();
-        assert!(arc.contains(&arc, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+        assert!(arc.covers(&arc, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
 
         let arc_opposite_dir = ArcSegment::from_start_center_angle(
             [1.0, 0.0],
@@ -1052,8 +1087,8 @@ fn test_contains() {
             DEFAULT_MAX_ULPS,
         )
         .unwrap();
-        assert!(!arc.contains(&arc_opposite_dir, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
-        assert!(!arc_opposite_dir.contains(&arc, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+        assert!(!arc.covers(&arc_opposite_dir, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+        assert!(!arc_opposite_dir.covers(&arc, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
 
         let arc_larger_radius = ArcSegment::from_start_center_angle(
             [2.0, 0.0],
@@ -1063,8 +1098,8 @@ fn test_contains() {
             DEFAULT_MAX_ULPS,
         )
         .unwrap();
-        assert!(!arc.contains(&arc_larger_radius, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
-        assert!(!arc_larger_radius.contains(&arc, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+        assert!(!arc.covers(&arc_larger_radius, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+        assert!(!arc_larger_radius.covers(&arc, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
 
         let arc_different_center = ArcSegment::from_start_center_angle(
             [1.0, 0.0],
@@ -1074,11 +1109,60 @@ fn test_contains() {
             DEFAULT_MAX_ULPS,
         )
         .unwrap();
-        assert!(!arc.contains(&arc_different_center, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
-        assert!(!arc_different_center.contains(&arc, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+        assert!(!arc.covers(&arc_different_center, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+        assert!(!arc_different_center.covers(&arc, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
 
         let circle = ArcSegment::circle([0.0, 0.0], 1.0).unwrap();
-        assert!(circle.contains(&arc, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
-        assert!(!arc.contains(&circle, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+        assert!(circle.covers(&arc, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+        assert!(!arc.covers(&circle, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    }
+}
+
+#[test]
+fn test_touches_arc_segment() {
+    let e = DEFAULT_EPSILON;
+    let m = DEFAULT_MAX_ULPS;
+    {
+        let c1 = ArcSegment::circle([4.0, 1.0], 2.0).unwrap();
+        let c2 = ArcSegment::circle([0.0, 1.0], 2.0).unwrap();
+        assert!(c1.touches_segment(&c2, e, m));
+        assert!(c2.touches_segment(&c1, e, m));
+        assert!(c1.touches_segment(&c1, e, m));
+        assert!(c2.touches_segment(&c2, e, m));
+    }
+    {
+        let c1 = ArcSegment::circle([3.0, 1.0], 2.0).unwrap();
+        let c2 = ArcSegment::circle([0.0, 1.0], 2.0).unwrap();
+        assert!(!c1.touches_segment(&c2, e, m));
+        assert!(!c2.touches_segment(&c1, e, m));
+    }
+    {
+        let c1 = ArcSegment::circle([5.0, 1.0], 2.0).unwrap();
+        let c2 = ArcSegment::circle([0.0, 1.0], 2.0).unwrap();
+        assert!(!c1.touches_segment(&c2, e, m));
+        assert!(!c2.touches_segment(&c1, e, m));
+    }
+    {
+        let a1 = ArcSegment::from_center_radius_start_offset_angle([0.0, 1.0], 2.0, 1.0, 1.0, e, m)
+            .unwrap();
+        let a2 = ArcSegment::from_center_radius_start_offset_angle([4.0, 1.0], 2.0, 1.0, 1.0, e, m)
+            .unwrap();
+        assert!(!a1.touches_segment(&a2, e, m));
+        assert!(!a2.touches_segment(&a1, e, m));
+    }
+    {
+        let a1 = ArcSegment::from_center_radius_start_offset_angle([0.0, 1.0], 2.0, 1.0, 1.0, e, m)
+            .unwrap();
+        let a2 = ArcSegment::from_center_radius_start_offset_angle([0.0, 1.0], 2.0, 1.0, 1.0, e, m)
+            .unwrap();
+        assert!(a1.touches_segment(&a2, e, m));
+        assert!(a2.touches_segment(&a1, e, m));
+    }
+    {
+        let c = ArcSegment::circle([0.0, 1.0], 2.0).unwrap();
+        let a = ArcSegment::from_center_radius_start_offset_angle([4.0, 1.0], 2.0, 1.0, 1.0, e, m)
+            .unwrap();
+        assert!(!c.touches_segment(&a, e, m));
+        assert!(!a.touches_segment(&c, e, m));
     }
 }

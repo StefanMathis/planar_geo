@@ -145,15 +145,15 @@ fn test_intersects() {
 }
 
 #[test]
-fn test_contains() {
+fn test_covers() {
     let bb1 = BoundingBox::new(0.0, 1.0, 0.0, 1.0);
     let bb2 = BoundingBox::new(-0.5, 1.5, -0.5, 1.5);
-    assert!(bb2.approx_contains(&bb1, 0.0, 0));
-    assert!(!bb1.approx_contains(&bb2, 0.0, 0));
+    assert!(bb2.approx_covers(&bb1, 0.0, 0));
+    assert!(!bb1.approx_covers(&bb2, 0.0, 0));
 
     let bb1 = BoundingBox::new(0.0, 1.0, 0.0, 1.0);
     let bb2 = BoundingBox::new(0.2, 1.0, 0.2, 0.8);
-    assert!(bb1.approx_contains(&bb2, 0.0, 0));
+    assert!(bb1.approx_covers(&bb2, 0.0, 0));
 }
 
 #[test]

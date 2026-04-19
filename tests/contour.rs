@@ -162,26 +162,26 @@ fn test_circle() {
     }
     {
         let contour = planar_geo::prelude::Contour::circle([0.0, 0.0], 20.0);
-        assert!(contour.contains_point([0.0, 0.0], 0.0, 0));
-        assert!(!contour.contains_point([21.0, 0.0], 0.0, 0));
+        assert!(contour.covers_point([0.0, 0.0], 0.0, 0));
+        assert!(!contour.covers_point([21.0, 0.0], 0.0, 0));
 
         // Bug found with the interactive canvas
-        assert!(contour.contains_point(
+        assert!(contour.covers_point(
             [0.055555555555542924, -0.9999923706054688],
             DEFAULT_EPSILON,
             DEFAULT_MAX_ULPS
         ));
-        assert!(contour.contains_point(
+        assert!(contour.covers_point(
             [12.055555555555543, -9.999992370605469],
             DEFAULT_EPSILON,
             DEFAULT_MAX_ULPS
         ));
-        assert!(contour.contains_point(
+        assert!(contour.covers_point(
             [8.055555555555543, -6.999992370605469],
             DEFAULT_EPSILON,
             DEFAULT_MAX_ULPS
         ));
-        assert!(contour.contains_point(
+        assert!(contour.covers_point(
             [14.055555555555543, -6.999992370605469],
             DEFAULT_EPSILON,
             DEFAULT_MAX_ULPS
@@ -327,11 +327,110 @@ fn test_area() {
 
 #[test]
 fn test_contains_point() {
-    let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
-    let contour = Contour::new(Polysegment::from_points(vertices));
-    assert!(contour.contains_point([0.5, 0.5], 0.0, 0));
-    assert!(contour.contains_point([0.5, 1.0], 0.0, 0));
-    assert!(!contour.contains_point([0.5, 1.5], 0.0, 0));
+    let e = DEFAULT_EPSILON;
+    let m = DEFAULT_MAX_ULPS;
+    {
+        let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
+        let contour = Contour::new(Polysegment::from_points(vertices));
+        assert!(contour.contains_point([0.5, 0.5], 0.0, 0));
+        assert!(!contour.contains_point([0.5, 1.0], 0.0, 0));
+        assert!(!contour.contains_point([0.5, 1.5], 0.0, 0));
+    }
+    {
+        let mut ps = Polysegment::new();
+        ps.push_back(
+            ArcSegment::from_start_center_angle([1.0, 0.0], [0.0, 0.0], PI, e, m)
+                .unwrap()
+                .into(),
+        );
+        ps.push_back(
+            ArcSegment::from_start_center_angle([-1.0, 0.0], [-2.0, 0.0], PI, e, m)
+                .unwrap()
+                .into(),
+        );
+        ps.extend_back([-3.0, -2.0]);
+        ps.extend_back([-1.0, 0.0]);
+        ps.extend_back([0.0, -1.0]);
+        ps.extend_back([0.0, 0.0]);
+        ps.extend_back([0.5, 0.0]);
+        let c = Contour::new(ps);
+
+        assert!(c.contains_point([0.0, 0.1], e, m));
+        assert!(!c.contains_point([0.0, 0.0], e, m));
+        assert!(c.contains_point([-1.5, 0.0], e, m));
+        assert!(!c.contains_point([-1.0, 0.0], e, m));
+        assert!(c.contains_point([-2.0, 0.1], e, m));
+        assert!(!c.contains_point([-3.0, -1.0], e, m));
+        assert!(c.contains_point([-2.0, -0.2], e, m));
+        assert!(!c.contains_point([0.0, -1.0], e, m));
+        assert!(!c.contains_point([-5.0, -1.0], e, m));
+    }
+}
+
+#[test]
+fn test_covers_point() {
+    let e = DEFAULT_EPSILON;
+    let m = DEFAULT_MAX_ULPS;
+    {
+        let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
+        let contour = Contour::new(Polysegment::from_points(vertices));
+        assert!(contour.covers_point([0.5, 0.5], 0.0, 0));
+        assert!(contour.covers_point([0.5, 1.0], 0.0, 0));
+        assert!(!contour.covers_point([0.5, 1.5], 0.0, 0));
+    }
+    {
+        let mut ps = Polysegment::new();
+        ps.push_back(
+            ArcSegment::from_start_center_angle([1.0, 0.0], [0.0, 0.0], PI, e, m)
+                .unwrap()
+                .into(),
+        );
+        ps.push_back(
+            ArcSegment::from_start_center_angle([-1.0, 0.0], [-2.0, 0.0], PI, e, m)
+                .unwrap()
+                .into(),
+        );
+        ps.extend_back([-3.0, -2.0]);
+        ps.extend_back([-1.0, 0.0]);
+        ps.extend_back([0.0, -1.0]);
+        ps.extend_back([0.0, 0.0]);
+        ps.extend_back([0.5, 0.0]);
+        let c = Contour::new(ps);
+
+        assert!(c.covers_point([0.0, 0.1], e, m));
+        assert!(c.covers_point([0.0, 0.0], e, m));
+        assert!(c.covers_point([-1.5, 0.0], e, m));
+        assert!(c.covers_point([-1.0, 0.0], e, m));
+        assert!(c.covers_point([-2.0, 0.1], e, m));
+        assert!(c.covers_point([-3.0, -1.0], e, m));
+        assert!(c.covers_point([-2.0, -0.2], e, m));
+        assert!(c.covers_point([0.0, -1.0], e, m));
+        assert!(!c.covers_point([-5.0, -1.0], e, m));
+    }
+    {
+        let c: Contour = Polysegment::from(
+            ArcSegment::from_start_center_angle([1.0, 0.0], [0.0, 0.0], PI, e, m).unwrap(),
+        )
+        .into();
+        assert!(c.covers_point([0.0, 0.0], e, m));
+        assert!(!c.covers_point([0.9, 0.9], e, m));
+        assert!(!c.covers_point([0.999999999, 0.999999999], e, m));
+        assert!(!c.covers_point([1.0, 1.0], e, m));
+    }
+    {
+        let mut ps = Polysegment::new();
+        ps.push_back(
+            ArcSegment::from_start_center_angle([1.0, 0.0], [0.0, 0.0], PI, e, m)
+                .unwrap()
+                .into(),
+        );
+        ps.extend_back([-1.0, 2.0]);
+        ps.extend_back([1.0, 2.0]);
+        let c = Contour::new(ps);
+        assert!(c.covers_point([-1.0, 1.0], e, m));
+        assert!(c.covers_point([1.0, 1.0], e, m));
+        assert!(c.covers_point([0.5, 1.0], e, m));
+    }
 }
 
 #[test]
@@ -500,9 +599,9 @@ fn test_contains() {
             [1.5, 2.0],
             [1.5, 1.0],
         ]));
-        assert!(!c1.contains(&c2, DEFAULT_EPSILON, DEFAULT_MAX_ULPS))
+        assert!(!c1.contains_contour(&c2, DEFAULT_EPSILON, DEFAULT_MAX_ULPS))
     }
-    // A countour does not contains itself
+    // A countour does not contain itself
     {
         let c = Contour::new(Polysegment::from_points(&[
             [1.0, 1.0],
@@ -510,7 +609,7 @@ fn test_contains() {
             [2.0, 2.0],
             [2.0, 1.0],
         ]));
-        assert!(!c.contains(&c, DEFAULT_EPSILON, DEFAULT_MAX_ULPS))
+        assert!(!c.contains_contour(&c, DEFAULT_EPSILON, DEFAULT_MAX_ULPS))
     }
     {
         // large contains small
@@ -534,7 +633,7 @@ fn test_contains() {
                 .count(),
             0
         );
-        assert!(large.contains(&small, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+        assert!(large.contains_contour(&small, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
     }
     {
         // large does not contain small, but they do not intersect and the
@@ -558,7 +657,7 @@ fn test_contains() {
                 .count(),
             0
         );
-        assert!(!large.contains(&small, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+        assert!(!large.contains_contour(&small, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
     }
 }
 
@@ -586,4 +685,130 @@ fn test_intersects() {
     assert_eq!(c1.intersection_cut(c2.polysegment(), e, m).len(), 4);
     assert_eq!(c1.intersection_cut(c3.polysegment(), e, m).len(), 1);
     assert_eq!(c1.intersection_cut(c4.polysegment(), e, m).len(), 2);
+}
+
+#[test]
+fn test_covers_line_segment() {
+    let e = DEFAULT_EPSILON;
+    let m = DEFAULT_MAX_ULPS;
+    {
+        let c = Contour::new(Polysegment::from_points(&[
+            [0.0, 0.0],
+            [1.0, 0.0],
+            [1.0, 1.0],
+            [0.0, 1.0],
+        ]));
+        assert!(c.covers_segment(
+            &LineSegment::new([0.1, 0.1], [0.9, 0.9], e, m).unwrap(),
+            e,
+            m
+        ));
+        assert!(!c.covers_segment(
+            &LineSegment::new([-0.1, 0.5], [0.9, 0.5], e, m).unwrap(),
+            e,
+            m
+        ));
+        assert!(!c.covers_segment(
+            &LineSegment::new([-0.1, 0.5], [0.9, 1.5], e, m).unwrap(),
+            e,
+            m
+        ));
+        assert!(!c.covers_segment(
+            &LineSegment::new([0.1, 0.5], [0.9, 1.5], e, m).unwrap(),
+            e,
+            m
+        ));
+        assert!(c.covers_segment(
+            &LineSegment::new([0.0, 0.0], [1.0, 0.0], e, m).unwrap(),
+            e,
+            m
+        ));
+        assert!(!c.covers_segment(
+            &LineSegment::new([0.0, 0.0], [2.0, 0.0], e, m).unwrap(),
+            e,
+            m
+        ));
+        assert!(!c.covers_segment(
+            &LineSegment::new([-1.0, 0.0], [1.0, 0.0], e, m).unwrap(),
+            e,
+            m
+        ));
+        assert!(c.covers_segment(
+            &LineSegment::new([0.0, 1.0], [1.0, 1.0], e, m).unwrap(),
+            e,
+            m
+        ));
+        assert!(!c.covers_segment(
+            &LineSegment::new([0.0, 0.5], [1.0, 1.5], e, m).unwrap(),
+            e,
+            m
+        ));
+    }
+    {
+        let c: Contour = Polysegment::from(
+            ArcSegment::from_start_center_angle([1.0, 0.0], [0.0, 0.0], PI, e, m).unwrap(),
+        )
+        .into();
+        assert!(c.covers_segment(
+            &LineSegment::new([-1.0, 0.0], [1.0, 0.0], e, m).unwrap(),
+            e,
+            m
+        ));
+        assert!(c.covers_segment(
+            &LineSegment::new([0.0, 0.0], [1.0, 0.0], e, m).unwrap(),
+            e,
+            m
+        ));
+        assert!(c.covers_segment(
+            &LineSegment::new([-0.5, 0.1], [0.5, 0.1], e, m).unwrap(),
+            e,
+            m
+        ));
+        assert!(!c.covers_segment(
+            &LineSegment::new([-0.5, -0.1], [0.5, -0.1], e, m).unwrap(),
+            e,
+            m
+        ));
+        assert!(!c.covers_segment(
+            &LineSegment::new([0.0, 0.1], [0.0, 1.1], e, m).unwrap(),
+            e,
+            m
+        ));
+        assert!(c.covers_segment(
+            &LineSegment::new([0.0, 0.1], [0.0, 1.0], e, m).unwrap(),
+            e,
+            m
+        ));
+        assert!(!c.covers_segment(
+            &LineSegment::new([0.0, 0.0], [1.0, 1.0], e, m).unwrap(),
+            e,
+            m
+        ));
+    }
+    {
+        let mut ps = Polysegment::new();
+        ps.push_back(
+            ArcSegment::from_start_center_angle([1.0, 0.0], [0.0, 0.0], PI, e, m)
+                .unwrap()
+                .into(),
+        );
+        ps.extend_back([-1.0, 2.0]);
+        ps.extend_back([1.0, 2.0]);
+        let c = Contour::new(ps);
+        assert!(c.covers_segment(
+            &LineSegment::new([-1.0, 1.0], [1.0, 1.0], e, m).unwrap(),
+            e,
+            m
+        ));
+        assert!(c.covers_segment(
+            &LineSegment::new([-0.1, 1.0], [0.1, 1.0], e, m).unwrap(),
+            e,
+            m
+        ));
+        assert!(!c.covers_segment(
+            &LineSegment::new([-0.1, 0.9], [0.1, 0.9], e, m).unwrap(),
+            e,
+            m
+        ));
+    }
 }

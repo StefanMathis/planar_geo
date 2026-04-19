@@ -261,14 +261,14 @@ fn test_rectangle_with_hole() {
 
     let shape = Shape::new(vec![c1, c2]).unwrap();
 
-    assert!(shape.contains_point([0.0, 0.0], DEFAULT_EPSILON, 0));
-    assert!(shape.contains_point([0.1, 0.1], DEFAULT_EPSILON, 0));
-    assert!(!shape.contains_point([0.11, 0.11], DEFAULT_EPSILON, 0));
-    assert!(shape.contains_point([0.11, 0.11], 0.2, 0));
-    assert!(!shape.contains_point([0.5, 0.5], DEFAULT_EPSILON, 0));
-    assert!(!shape.contains_point([0.0, -0.05], DEFAULT_EPSILON, 0));
-    assert!(shape.contains_point([0.0, -0.05], 0.05, 0));
-    assert!(!shape.contains_point([0.0, -0.05], 0.02, 0));
+    assert!(shape.covers_point([0.0, 0.0], DEFAULT_EPSILON, 0));
+    assert!(shape.covers_point([0.1, 0.1], DEFAULT_EPSILON, 0));
+    assert!(!shape.covers_point([0.11, 0.11], DEFAULT_EPSILON, 0));
+    assert!(shape.covers_point([0.11, 0.11], 0.2, 0));
+    assert!(!shape.covers_point([0.5, 0.5], DEFAULT_EPSILON, 0));
+    assert!(!shape.covers_point([0.0, -0.05], DEFAULT_EPSILON, 0));
+    assert!(shape.covers_point([0.0, -0.05], 0.05, 0));
+    assert!(!shape.covers_point([0.0, -0.05], 0.02, 0));
 }
 
 #[test]

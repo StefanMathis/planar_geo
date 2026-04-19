@@ -23,8 +23,11 @@ wrapping them in the [`Geometry`] enum.
 For these types, this crate offers the following features:
 - Property calculation (e.g. length, surface area, centroids),
 - [`Transformation`] (scaling, shifting, rotation, mirroring),
+- Determining relationships: Are two [`Contour`]s overlapping, is a [`Segment`]
+covered by a [`Shape`], does a [`LineSegment`] contain a point etc.
 - Intersection calculation between all combinations of the aforementioned types,
 see the [`Primitive`] and [`Composite`] traits.
+- ... and many more!
 
 If the corresponding features are activated, it is also possible to serialize
 and deserialize (using [serde]) and to draw (using [gtk-rs]) these types.
@@ -168,8 +171,9 @@ assert_eq!(pts.next(), Some([-3.0, 3.0]));
 
 ## Intersections
 
-A major feature of this crate are the various methods available to find
-collisions and intersections between different geometric types. 
+A major feature of this crate are the various methods available for defining
+relationships between different geometric types, e.g. if they intersect, contain
+or cover one another etc.
 
 For example, the following code shows intersections between the segments shown
 in this image:
@@ -204,10 +208,10 @@ let pt1 = [2.3, 0.0];
 let pt2 = [2.0, 0.1];
 let pt3 = [1.0, 0.5];
 
-assert!(line_1.contains_point(pt1, e, m));
-assert!(!line_1.contains_point(pt2, e, m));
-assert!(line_2.contains_point(pt2, e, m));
-assert!(arc.contains_point(pt3, e, m));
+assert!(line_1.covers_point(pt1, e, m));
+assert!(!line_1.covers_point(pt2, e, m));
+assert!(line_2.covers_point(pt2, e, m));
+assert!(arc.covers_point(pt3, e, m));
 
 // Find intersections between the segments. The order doesn't matter, i.e.
 // line_1.intersections_primitive(&line_2) produces the same result as

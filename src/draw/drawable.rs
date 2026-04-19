@@ -18,7 +18,7 @@ be drawn onto a finite canvas)
 For these types, the `draw` method simply returns `Ok(())`
  */
 
-use bounding_box::BoundingBox;
+use bounding_box::{BoundingBox, ToBoundingBox};
 
 use super::Style;
 use crate::{Transformation, geometry::*};
@@ -82,15 +82,9 @@ impl Transformation for Drawable {
     }
 }
 
-impl From<Drawable> for BoundingBox {
-    fn from(value: Drawable) -> Self {
-        (&value).into()
-    }
-}
-
-impl From<&Drawable> for BoundingBox {
-    fn from(value: &Drawable) -> Self {
-        (&value.geometry).into()
+impl ToBoundingBox for Drawable {
+    fn bounding_box(&self) -> BoundingBox {
+        (&self.geometry).bounding_box()
     }
 }
 
@@ -155,15 +149,9 @@ impl<'a> DrawableRef<'a> {
     }
 }
 
-impl<'a> From<DrawableRef<'a>> for BoundingBox {
-    fn from(value: DrawableRef<'a>) -> Self {
-        (&value).into()
-    }
-}
-
-impl<'a> From<&DrawableRef<'a>> for BoundingBox {
-    fn from(value: &DrawableRef<'a>) -> Self {
-        return (&value.geometry).into();
+impl<'a> ToBoundingBox for DrawableRef<'a> {
+    fn bounding_box(&self) -> BoundingBox {
+        return self.geometry.bounding_box();
     }
 }
 
@@ -234,15 +222,9 @@ impl<'a> DrawableCow<'a> {
     }
 }
 
-impl<'a> From<DrawableCow<'a>> for BoundingBox {
-    fn from(value: DrawableCow<'a>) -> Self {
-        return value.geometry.into();
-    }
-}
-
-impl<'a> From<&'_ DrawableCow<'a>> for BoundingBox {
-    fn from(value: &DrawableCow<'a>) -> Self {
-        return (&value.geometry).into();
+impl<'a> ToBoundingBox for DrawableCow<'a> {
+    fn bounding_box(&self) -> BoundingBox {
+        return self.geometry.bounding_box();
     }
 }
 

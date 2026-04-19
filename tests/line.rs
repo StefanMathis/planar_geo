@@ -29,20 +29,20 @@ fn test_convert_to_geo() {
 }
 
 #[test]
-fn test_contains_point() {
+fn test_covers_point() {
     {
         let line = Line::from_point_angle([0.0, 0.0], -FRAC_PI_4);
-        assert!(line.contains_point([1.0, -1.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
-        assert!(!line.contains_point([1.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
-        assert!(line.contains_point([1.0, 0.0], 1.0, 0));
+        assert!(line.covers_point([1.0, -1.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+        assert!(!line.covers_point([1.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+        assert!(line.covers_point([1.0, 0.0], 1.0, 0));
     }
     {
         let line = Line::from_point_angle([0.0, 0.0], -PI / 3.0);
-        assert!(line.contains_point([1.0, -3.0f64.sqrt()], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+        assert!(line.covers_point([1.0, -3.0f64.sqrt()], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
     }
     {
         let line = Line::from_point_angle([0.0, -2.0], PI / 3.0);
-        assert!(line.contains_point(
+        assert!(line.covers_point(
             [1.0, 3.0f64.sqrt() - 2.0],
             DEFAULT_EPSILON,
             DEFAULT_MAX_ULPS
@@ -52,48 +52,48 @@ fn test_contains_point() {
         // Vertical line
         let line =
             LineSegment::new([0.5, -0.5], [0.5, 0.5], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap();
-        assert!(line.contains_point([0.5, 0.0], 0.0, 0));
+        assert!(line.covers_point([0.5, 0.0], 0.0, 0));
     }
     {
         // Vertical line
         let line =
             LineSegment::new([0.5, -0.5], [0.5, 0.5], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap();
-        assert!(!line.contains_point([0.5, 1.0], 0.0, 0));
+        assert!(!line.covers_point([0.5, 1.0], 0.0, 0));
     }
     {
         let line =
             LineSegment::new([1.0, 0.0], [0.0, 1.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap();
-        assert!(line.contains_point([0.5, 0.5], 0.0, 0));
+        assert!(line.covers_point([0.5, 0.5], 0.0, 0));
     }
     {
         // This point is clearly not directly on the line
         let line =
             LineSegment::new([0.0, 0.0], [1.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap();
         let point = [0.5, 1.0];
-        assert!(!line.contains_point(point, 0.0, 0));
+        assert!(!line.covers_point(point, 0.0, 0));
 
         // But it is within this tolerance
-        assert!(line.contains_point(point, 1.0, 1));
+        assert!(line.covers_point(point, 1.0, 1));
 
         // As well as inside this tolerance
-        assert!(line.contains_point(point, 1.00001, 0));
+        assert!(line.covers_point(point, 1.00001, 0));
 
         // But not outside this tolerance
-        assert!(!line.contains_point(point, 0.99999, 0));
+        assert!(!line.covers_point(point, 0.99999, 0));
 
         // Repeat the test with a point located on a straight extension of the original
         // line
         let point = [2.0, 0.0];
-        assert!(!line.contains_point(point, 0.0, 0));
-        assert!(line.contains_point(point, 1.0, 0));
-        assert!(line.contains_point(point, 1.00001, 0));
-        assert!(!line.contains_point(point, 0.99999, 0));
+        assert!(!line.covers_point(point, 0.0, 0));
+        assert!(line.covers_point(point, 1.0, 0));
+        assert!(line.covers_point(point, 1.00001, 0));
+        assert!(!line.covers_point(point, 0.99999, 0));
 
         // This point is outside of the circular radius around the endpoint [1.0, 0.0]
-        assert!(!line.contains_point([1.1, -0.1], 0.11, 0));
-        assert!(line.contains_point([0.5, -0.1], 0.11, 0));
-        assert!(!line.contains_point([1.1, -0.1], 0.1, 0));
-        assert!(!line.contains_point([1.1, -0.1], 0.09, 0));
+        assert!(!line.covers_point([1.1, -0.1], 0.11, 0));
+        assert!(line.covers_point([0.5, -0.1], 0.11, 0));
+        assert!(!line.covers_point([1.1, -0.1], 0.1, 0));
+        assert!(!line.covers_point([1.1, -0.1], 0.09, 0));
     }
     {
         let line =
@@ -101,8 +101,8 @@ fn test_contains_point() {
 
         // This point is outside of the circular radius around the endpoint [1000.0,
         // 0.0]
-        assert!(!line.contains_point([1100.0, -100.0], 110.0, 0));
-        assert!(!line.contains_point([1100.0, -100.0], 100.0, 0));
+        assert!(!line.covers_point([1100.0, -100.0], 110.0, 0));
+        assert!(!line.covers_point([1100.0, -100.0], 100.0, 0));
     }
 }
 
@@ -229,7 +229,7 @@ fn test_self_intersection() {
 }
 
 #[test]
-fn test_intersection_with_contained_line_segment() {
+fn test_intersection_with_covered_line_segment() {
     let line = Line::from_point_angle([0.0, 0.0], 0.0);
     let ls = LineSegment::new([0.0, 0.0], [1.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap();
     approx::assert_abs_diff_eq!(
@@ -246,32 +246,32 @@ fn test_intersection_with_contained_line_segment() {
 fn transformation() {
     {
         let mut line = Line::from_point_angle([0.0, 0.0], 0.25 * PI);
-        assert!(!line.contains_point([2.0, -2.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+        assert!(!line.covers_point([2.0, -2.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
         line.translate([2.0, -2.0]);
-        assert!(line.contains_point([2.0, -2.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+        assert!(line.covers_point([2.0, -2.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
     }
     {
         let mut line = Line::from_point_angle([0.0, 0.0], 0.25 * PI);
-        assert!(!line.contains_point([0.0, 4.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+        assert!(!line.covers_point([0.0, 4.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
         line.rotate([2.0, 2.0], 0.5 * PI);
-        assert!(line.contains_point([0.0, 4.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+        assert!(line.covers_point([0.0, 4.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
     }
     {
         let mut line = Line::from_point_angle([1.0, 1.0], -0.25 * PI);
-        assert!(!line.contains_point([2.0, 2.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+        assert!(!line.covers_point([2.0, 2.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
         line.scale(2.0);
-        assert!(line.contains_point([2.0, 2.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+        assert!(line.covers_point([2.0, 2.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
     }
     {
         let mut line = Line::from_point_angle([0.0, 0.0], 0.25 * PI);
-        assert!(!line.contains_point([2.0, -2.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+        assert!(!line.covers_point([2.0, -2.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
         line.line_reflection([-1.0, 0.0], [1.0, 0.0]);
-        assert!(line.contains_point([2.0, -2.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+        assert!(line.covers_point([2.0, -2.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
     }
     {
         let mut line = Line::from_point_angle([0.0, 0.0], 0.25 * PI);
-        assert!(!line.contains_point([0.0, -2.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+        assert!(!line.covers_point([0.0, -2.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
         line.point_reflection([1.0, 0.0]);
-        assert!(line.contains_point([0.0, -2.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+        assert!(line.covers_point([0.0, -2.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
     }
 }

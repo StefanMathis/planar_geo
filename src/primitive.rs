@@ -331,13 +331,41 @@ pub(crate) mod private {
 }
 
 /**
-A trait for "primitive" geometric types: points (`[f64; 2]`), [`Line`]s,
+A trait for "primitive" geometric types like points (`[f64; 2]`), [`Line`]s,
 [`LineSegment`]s and [`ArcSegment`]s.
 
-This trait provides intersection functions between all primitive geometric types
-defined in this crate. The simplest way to calculate intersections is the
-generic [`Primitive::intersections_primitive`] method. However, specialized
-intersection methods for each of the aforementioned types are available as well
+This trait provides methods for coverage checking and intersection calculation
+between "primitive" geometric types representing one- or zero-dimensional
+objects. It is not meant to be implemented for other types, hence it is
+[sealed](https://rust-lang.github.io/api-guidelines/future-proofing.html).
+
+# Coverage
+
+A primitive "covers" another one if all points of the latter are part of the
+former. The generic [`Primitive::covers`] method provides a unified interface to
+check this. Specialized `covers_` methods for specific types are available as
+well and are particularily useful when using [`Primitive`] to define a trait
+object (which cannot use generic functions).
+
+By definition, a primitive always covers itself.
+
+```
+use planar_geo::prelude::*;
+
+let ls = LineSegment::new([0.0, 0.0], [1.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap();
+assert!(ls.covers(&[0.5, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+assert!(!ls.covers(&[0.5, 0.1], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+assert!(ls.covers(&ls, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+```
+
+# Intersection
+
+Two primitives "intersect" if they share at least one point. If a primitive
+covers another one, only the start and end points of the covered primitive
+(if available) are reported as intersections. The generic
+[`Primitive::intersections_primitive`] method provides a unified interface to
+find all intersection points between two primitives. However, specialized
+intersection methods forspecific types are available as well
 and are particularily useful when using [`Primitive`] to define a trait object
 (which cannot use generic functions).
 
@@ -362,18 +390,15 @@ assert_eq!(
     PrimitiveIntersections::Two([[0.0, 0.0], [1.0, 0.0]])
 );
 ```
-
-This trait is not meant to be implemented for other types, hence it is
-[sealed](https://rust-lang.github.io/api-guidelines/future-proofing.html).
  */
 pub trait Primitive: private::Sealed {
     /**
-    Returns `true` if `self` contains the given point and `false` otherwise.
+    Returns `true` if `self` covers the given point.
 
     Since floating point values are prone to rounding errors and precision
     issues (i.e. the number 0.2 cannot be represented exactly as a floating
     point number at all), the implementations for the different primitive types
-    check whether the point is contained within a tolerance band defined by
+    check whether the point is covered within a tolerance band defined by
     `epsilon` and `max_ulps`. See the [crate-level documentation](crate).
 
     # Examples
@@ -387,21 +412,21 @@ pub trait Primitive: private::Sealed {
     let p3 = [1.5, 0.5];
 
     // Default tolerances for "intuitive" behaviour
-    assert!(ls.contains_point(p1, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
-    assert!(!ls.contains_point(p2, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
-    assert!(!ls.contains_point(p3, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    assert!(ls.covers_point(p1, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    assert!(!ls.covers_point(p2, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    assert!(!ls.covers_point(p3, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
 
     // By increasing the absolute tolerance `epsilon`, the behaviour of the
     // function is changed
-    assert!(ls.contains_point(p1, 10.0, DEFAULT_MAX_ULPS));
-    assert!(ls.contains_point(p2, 10.0, DEFAULT_MAX_ULPS));
-    assert!(ls.contains_point(p3, 10.0, DEFAULT_MAX_ULPS));
+    assert!(ls.covers_point(p1, 10.0, DEFAULT_MAX_ULPS));
+    assert!(ls.covers_point(p2, 10.0, DEFAULT_MAX_ULPS));
+    assert!(ls.covers_point(p3, 10.0, DEFAULT_MAX_ULPS));
     ```
      */
-    fn contains_point(&self, point: [f64; 2], epsilon: f64, max_ulps: u32) -> bool;
+    fn covers_point(&self, point: [f64; 2], epsilon: f64, max_ulps: u32) -> bool;
 
     /**
-    Returns if `self` contains the given [`ArcSegment`].
+    Returns if `self` covers the given [`ArcSegment`].
 
     # Examples
 
@@ -414,16 +439,16 @@ pub trait Primitive: private::Sealed {
 
     let s1: Segment = ArcSegment::from_start_center_angle([0.0, 0.0], [0.0, 1.0], PI, e, m).unwrap().into();
     let quarter = ArcSegment::from_start_center_angle([0.0, 0.0], [0.0, 1.0], 0.5*PI, e, m).unwrap();
-    assert!(s1.contains_arc_segment(&quarter, e, m));
+    assert!(s1.covers_arc_segment(&quarter, e, m));
 
     let s2: Segment = LineSegment::new([0.0, 0.0], [1.0, 1.0], e, m).unwrap().into();
-    assert!(!s2.contains_arc_segment(&quarter, e, m));
+    assert!(!s2.covers_arc_segment(&quarter, e, m));
     ```
      */
-    fn contains_arc_segment(&self, arc_segment: &ArcSegment, epsilon: f64, max_ulps: u32) -> bool;
+    fn covers_arc_segment(&self, arc_segment: &ArcSegment, epsilon: f64, max_ulps: u32) -> bool;
 
     /**
-    Returns if `self` contains the given [`LineSegment`].
+    Returns if `self` covers the given [`LineSegment`].
 
     # Examples
 
@@ -436,23 +461,18 @@ pub trait Primitive: private::Sealed {
 
     let s1: Segment = LineSegment::new([0.0, 0.0], [1.0, 1.0], e, m).unwrap().into();
     let ls_start_to_middle = LineSegment::new([0.0, 0.0], [0.5, 0.5], e, m).unwrap();
-    assert!(s1.contains_line_segment(&ls_start_to_middle, e, m));
+    assert!(s1.covers_line_segment(&ls_start_to_middle, e, m));
 
     let s2: Segment = ArcSegment::from_start_center_angle([0.0, 0.0], [0.0, 1.0], PI, e, m).unwrap().into();
-    assert!(!s2.contains_line_segment(&ls_start_to_middle, e, m));
+    assert!(!s2.covers_line_segment(&ls_start_to_middle, e, m));
     ```
      */
-    fn contains_line_segment(
-        &self,
-        line_segment: &LineSegment,
-        epsilon: f64,
-        max_ulps: u32,
-    ) -> bool;
+    fn covers_line_segment(&self, line_segment: &LineSegment, epsilon: f64, max_ulps: u32) -> bool;
 
     /**
-    Returns if `self` contains the given [`Line`].
+    Returns if `self` covers the given [`Line`].
 
-    Since a [`Line`] has infinite length, it can only be "contained" in another
+    Since a [`Line`] has infinite length, it can only be covered by another
     [`Line`] which is identical. For any other [`Primitive`], this function
     returns false.
 
@@ -469,25 +489,25 @@ pub trait Primitive: private::Sealed {
     let l3 = Line::from_point_angle([0.0, 0.0], 1.0);
 
     // l1 and l2 are identical
-    assert!(l1.contains_line(&l2, e, m));
-    assert!(l2.contains_line(&l1, e, m));
+    assert!(l1.covers_line(&l2, e, m));
+    assert!(l2.covers_line(&l1, e, m));
 
     // l3 is different
-    assert!(!l1.contains_line(&l3, e, m));
+    assert!(!l1.covers_line(&l3, e, m));
     ```
     */
-    fn contains_line(&self, line: &Line, epsilon: f64, max_ulps: u32) -> bool;
+    fn covers_line(&self, line: &Line, epsilon: f64, max_ulps: u32) -> bool;
 
     /**
-    Returns if `self` contains `other` (which can be any geometric type).
+    Returns if `self` covers `other` (which can be any geometric type).
 
     Internally, this function converts `self` and `other` to [`GeometryRef`]s
-    and then matches them to select the specific `contains_` function for the
-    pairing (e.g. [`Primitive::contains_line`] if `other` is a [`Line`]). To
+    and then matches them to select the specific `covers_` function for the
+    pairing (e.g. [`Primitive::covers_line`] if `other` is a [`Line`]). To
     avoid matching for maximum performance, consider using the specific method
     directly.
      */
-    fn contains<'a, T>(&self, other: T, epsilon: f64, max_ulps: u32) -> bool
+    fn covers<'a, T>(&self, other: T, epsilon: f64, max_ulps: u32) -> bool
     where
         Self: Sized,
         for<'b> &'b Self: Into<GeometryRef<'b>>,
@@ -496,67 +516,80 @@ pub trait Primitive: private::Sealed {
         let geo_self: GeometryRef = self.into();
         let geo_other: GeometryRef = other.into();
         match geo_self {
-            GeometryRef::Point(pt_self) => {
+            GeometryRef::Point(this) => {
                 if let GeometryRef::Point(pt_other) = geo_other {
-                    return pt_self.contains_point(*pt_other, epsilon, max_ulps);
+                    return this.covers_point(*pt_other, epsilon, max_ulps);
                 }
                 return false;
             }
-            GeometryRef::BoundingBox(bounding_box) => {
-                let bb_other = BoundingBox::from(geo_other);
-                return bounding_box.approx_contains(&bb_other, epsilon, max_ulps);
+            GeometryRef::BoundingBox(this) => {
+                let bb_other = BoundingBox::from(&geo_other);
+                return this.approx_covers(&bb_other, epsilon, max_ulps);
             }
-            GeometryRef::ArcSegment(as_self) => match geo_other {
-                GeometryRef::ArcSegment(as_other) => {
-                    return as_self.contains_arc_segment(as_other, epsilon, max_ulps);
+            GeometryRef::ArcSegment(this) => match geo_other {
+                GeometryRef::Point(o) => {
+                    return this.covers_point(*o, epsilon, max_ulps);
+                }
+                GeometryRef::ArcSegment(o) => {
+                    return this.covers_arc_segment(o, epsilon, max_ulps);
                 }
                 GeometryRef::Segment(segment) => match segment {
                     Segment::LineSegment(_) => return false,
-                    Segment::ArcSegment(as_other) => {
-                        return as_self.contains_arc_segment(as_other, epsilon, max_ulps);
+                    Segment::ArcSegment(o) => {
+                        return this.covers_arc_segment(o, epsilon, max_ulps);
                     }
                 },
                 _ => return false,
             },
-            GeometryRef::LineSegment(ls_self) => match geo_other {
-                GeometryRef::LineSegment(ls_other) => {
-                    return ls_self.contains_line_segment(ls_other, epsilon, max_ulps);
+            GeometryRef::LineSegment(this) => match geo_other {
+                GeometryRef::Point(o) => {
+                    return this.covers_point(*o, epsilon, max_ulps);
+                }
+                GeometryRef::LineSegment(o) => {
+                    return this.covers_line_segment(o, epsilon, max_ulps);
                 }
                 GeometryRef::Segment(segment) => match segment {
-                    Segment::LineSegment(ls_other) => {
-                        return ls_self.contains_line_segment(ls_other, epsilon, max_ulps);
+                    Segment::LineSegment(o) => {
+                        return this.covers_line_segment(o, epsilon, max_ulps);
                     }
                     Segment::ArcSegment(_) => return false,
                 },
                 _ => return false,
             },
-            GeometryRef::Line(line_self) => {
-                if let GeometryRef::Line(line_other) = geo_other {
-                    return line_self.contains_line(line_other, epsilon, max_ulps);
+            GeometryRef::Line(this) => match geo_other {
+                GeometryRef::Point(o) => return this.covers_point(*o, epsilon, max_ulps),
+                GeometryRef::Line(o) => {
+                    return this.covers_line(o, epsilon, max_ulps);
                 }
-                return false;
-            }
+                _ => return false,
+            },
             GeometryRef::Segment(segment) => match segment {
-                Segment::LineSegment(ls_self) => match geo_other {
+                Segment::LineSegment(this) => match geo_other {
+                    GeometryRef::Point(o) => {
+                        return this.covers_point(*o, epsilon, max_ulps);
+                    }
                     GeometryRef::LineSegment(ls_other) => {
-                        return ls_self.contains_line_segment(ls_other, epsilon, max_ulps);
+                        return this.covers_line_segment(ls_other, epsilon, max_ulps);
                     }
                     GeometryRef::Segment(segment) => match segment {
                         Segment::LineSegment(ls_other) => {
-                            return ls_self.contains_line_segment(ls_other, epsilon, max_ulps);
+                            return this.covers_line_segment(ls_other, epsilon, max_ulps);
                         }
                         Segment::ArcSegment(_) => return false,
                     },
                     _ => return false,
                 },
-                Segment::ArcSegment(as_self) => match geo_other {
+                Segment::ArcSegment(this) => match geo_other {
+                    GeometryRef::Point(o) => {
+                        return this.covers_point(*o, epsilon, max_ulps);
+                    }
                     GeometryRef::ArcSegment(as_other) => {
-                        return as_self.contains_arc_segment(as_other, epsilon, max_ulps);
+                        return this.covers_arc_segment(as_other, epsilon, max_ulps);
                     }
                     GeometryRef::Segment(segment) => match segment {
                         Segment::LineSegment(_) => return false,
                         Segment::ArcSegment(as_other) => {
-                            return as_self.contains_arc_segment(as_other, epsilon, max_ulps);
+                            return this.covers_arc_segment(as_other, epsilon, max_ulps);
                         }
                     },
                     _ => return false,
@@ -570,7 +603,7 @@ pub trait Primitive: private::Sealed {
     Returns the intersections between `self` and a point `[f64; 2]`
 
     This function wraps the given point in [`PrimitiveIntersections::One`] if
-    [`Primitive::contains_point`] returned `true` and returns
+    [`Primitive::covers_point`] returned `true` and returns
     [`PrimitiveIntersections::Zero`] otherwise.
 
     This method is mainly used to implement
@@ -604,7 +637,7 @@ pub trait Primitive: private::Sealed {
         epsilon: f64,
         max_ulps: u32,
     ) -> PrimitiveIntersections {
-        if self.contains_point(point, epsilon, max_ulps) {
+        if self.covers_point(point, epsilon, max_ulps) {
             return PrimitiveIntersections::One(point);
         }
         return PrimitiveIntersections::Zero;
@@ -892,20 +925,15 @@ pub trait Primitive: private::Sealed {
 impl private::Sealed for [f64; 2] {}
 
 impl Primitive for [f64; 2] {
-    fn contains_point(&self, point: [f64; 2], epsilon: f64, max_ulps: u32) -> bool {
+    fn covers_point(&self, point: [f64; 2], epsilon: f64, max_ulps: u32) -> bool {
         return self.ulps_eq(&point, epsilon, max_ulps);
     }
 
-    fn contains_arc_segment(
-        &self,
-        _arc_segment: &ArcSegment,
-        _epsilon: f64,
-        _max_ulps: u32,
-    ) -> bool {
+    fn covers_arc_segment(&self, _arc_segment: &ArcSegment, _epsilon: f64, _max_ulps: u32) -> bool {
         return false;
     }
 
-    fn contains_line_segment(
+    fn covers_line_segment(
         &self,
         _line_segment: &LineSegment,
         _epsilon: f64,
@@ -914,7 +942,7 @@ impl Primitive for [f64; 2] {
         return false;
     }
 
-    fn contains_line(&self, _line: &Line, _epsilon: f64, _max_ulps: u32) -> bool {
+    fn covers_line(&self, _line: &Line, _epsilon: f64, _max_ulps: u32) -> bool {
         return false;
     }
 

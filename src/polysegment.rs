@@ -15,13 +15,11 @@ usage.
 use std::collections::VecDeque;
 
 use crate::primitive::Primitive;
-use crate::segment::Segment;
-use crate::segment::arc_segment::ArcSegment;
-use crate::segment::line_segment::LineSegment;
+use crate::segment::{ArcSegment, LineSegment, Segment, SegmentRef};
 use crate::{DEFAULT_EPSILON, DEFAULT_MAX_ULPS};
 use crate::{Transformation, composite::*};
 use approx::ulps_eq;
-use bounding_box::BoundingBox;
+use bounding_box::{BoundingBox, ToBoundingBox};
 use rayon::prelude::*;
 
 #[cfg(feature = "serde")]
@@ -549,13 +547,13 @@ impl Polysegment {
     use planar_geo::prelude::*;
 
     let polysegment = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]);
-    let mut iter = polysegment.iter();
+    let mut iter = polysegment.segments();
     assert!(iter.next().is_some());
     assert!(iter.next().is_some());
     assert!(iter.next().is_none());
     ```
      */
-    pub fn iter(&self) -> std::collections::vec_deque::Iter<'_, Segment> {
+    pub fn segments(&self) -> std::collections::vec_deque::Iter<'_, Segment> {
         return self.0.iter();
     }
 
@@ -569,11 +567,11 @@ impl Polysegment {
     use planar_geo::prelude::*;
 
     let polysegment = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]);
-    let vec: Vec<_> = polysegment.par_iter().collect();
+    let vec: Vec<_> = polysegment.segments_par().collect();
     assert_eq!(vec.len(), 2);
     ```
      */
-    pub fn par_iter(&self) -> rayon::collections::vec_deque::Iter<'_, Segment> {
+    pub fn segments_par(&self) -> rayon::collections::vec_deque::Iter<'_, Segment> {
         return self.0.par_iter();
     }
 
@@ -685,7 +683,7 @@ impl Polysegment {
     ```
      */
     pub fn length(&self) -> f64 {
-        return self.par_iter().map(|segment| segment.length()).sum();
+        return self.segments_par().map(|segment| segment.length()).sum();
     }
 
     /**
@@ -1056,45 +1054,20 @@ impl Composite for Polysegment {
         return crate::CentroidData::from(self).into();
     }
 
-    fn intersections_primitive<'a, T: Primitive>(
-        &'a self,
-        primitive: &'a T,
-        epsilon: f64,
-        max_ulps: u32,
-    ) -> impl Iterator<Item = Intersection> + 'a {
-        self.iter()
+    fn iter<'a>(&'a self) -> impl Iterator<Item = (SegmentKey, &'a crate::segment::Segment)> {
+        return self
+            .segments()
             .enumerate()
-            .map(move |(idx, s)| {
-                s.intersections_primitive(primitive, epsilon, max_ulps)
-                    .into_iter()
-                    .map(move |point| Intersection {
-                        point,
-                        left: SegmentKey::from_segment_idx(idx),
-                        right: Default::default(),
-                    })
-            })
-            .flatten()
+            .map(|(i, s)| (SegmentKey::from_segment_idx(i), s));
     }
 
-    fn intersections_primitive_par<'a, T: Primitive + std::marker::Sync>(
+    fn par_iter<'a>(
         &'a self,
-        primitive: &'a T,
-        epsilon: f64,
-        max_ulps: u32,
-    ) -> impl ParallelIterator<Item = Intersection> + 'a {
-        self.par_iter()
+    ) -> impl ParallelIterator<Item = (SegmentKey, &'a crate::segment::Segment)> {
+        return self
+            .segments_par()
             .enumerate()
-            .map(move |(idx, s)| {
-                s.intersections_primitive(primitive, epsilon, max_ulps)
-                    .into_iter()
-                    .par_bridge()
-                    .map(move |point| Intersection {
-                        point,
-                        left: SegmentKey::from_segment_idx(idx),
-                        right: Default::default(),
-                    })
-            })
-            .flatten()
+            .map(|(i, s)| (SegmentKey::from_segment_idx(i), s));
     }
 
     fn intersections_polysegment<'a>(
@@ -1160,24 +1133,6 @@ impl Composite for Polysegment {
             });
     }
 
-    fn intersections_contour<'a>(
-        &'a self,
-        contour: &'a crate::prelude::Contour,
-        epsilon: f64,
-        max_ulps: u32,
-    ) -> impl Iterator<Item = Intersection> {
-        return self.intersections_polysegment(contour.polysegment(), epsilon, max_ulps);
-    }
-
-    fn intersections_contour_par<'a>(
-        &'a self,
-        contour: &'a crate::prelude::Contour,
-        epsilon: f64,
-        max_ulps: u32,
-    ) -> impl ParallelIterator<Item = Intersection> + 'a {
-        return self.intersections_polysegment_par(contour.polysegment(), epsilon, max_ulps);
-    }
-
     fn intersections_shape<'a>(
         &'a self,
         shape: &'a crate::prelude::Shape,
@@ -1228,11 +1183,78 @@ impl Composite for Polysegment {
             .map(Intersection::switch);
     }
 
-    fn contains_point(&self, point: [f64; 2], epsilon: f64, max_ulps: u32) -> bool {
+    fn covers_point(&self, point: [f64; 2], epsilon: f64, max_ulps: u32) -> bool {
         return self
             .intersections_primitive(&point, epsilon, max_ulps)
             .next()
             .is_some();
+    }
+
+    fn covers_segment<'a, T: Into<SegmentRef<'a>>>(
+        &self,
+        segment: T,
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> bool {
+        let segment: SegmentRef = segment.into();
+        return covers_segment(self.0.iter(), segment, epsilon, max_ulps);
+    }
+
+    fn contains_point(&self, _: [f64; 2], _: f64, _: u32) -> bool {
+        // A polysegment has no surface area and therefore cannot contain a point.
+        return false;
+    }
+
+    fn contains_segment<'a, T: Into<SegmentRef<'a>>>(&self, _: T, _: f64, _: u32) -> bool {
+        return false;
+    }
+
+    fn covers_composite<'a, T: Composite>(
+        &'a self,
+        other: &'a T,
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> bool
+    where
+        Self: Sized,
+    {
+        return other.covers_polysegment(self, epsilon, max_ulps);
+    }
+
+    fn covers_composite_par<'a, T: Composite + Sync>(
+        &'a self,
+        other: &'a T,
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> bool
+    where
+        Self: Sized,
+    {
+        return other.covers_polysegment_par(self, epsilon, max_ulps);
+    }
+
+    fn contains_composite<'a, T: Composite>(
+        &'a self,
+        other: &'a T,
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> bool
+    where
+        Self: Sized,
+    {
+        return other.contains_polysegment(self, epsilon, max_ulps);
+    }
+
+    fn contains_composite_par<'a, T: Composite + Sync>(
+        &'a self,
+        other: &'a T,
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> bool
+    where
+        Self: Sized,
+    {
+        return other.contains_polysegment_par(self, epsilon, max_ulps);
     }
 }
 
@@ -1290,16 +1312,16 @@ impl crate::Transformation for Polysegment {
     }
 }
 
-impl From<&Polysegment> for BoundingBox {
-    fn from(value: &Polysegment) -> BoundingBox {
+impl ToBoundingBox for Polysegment {
+    fn bounding_box(&self) -> BoundingBox {
         // Use the bounding box of the first segment as a starting point
-        return value
-            .par_iter()
+        return self
+            .segments_par()
             .skip(1)
             .map(|segment| BoundingBox::from(segment))
             .reduce(
                 || {
-                    if let Some(s) = value.get(0) {
+                    if let Some(s) = self.get(0) {
                         BoundingBox::from(s)
                     } else {
                         BoundingBox::new(0.0, 0.0, 0.0, 0.0)
@@ -1316,6 +1338,219 @@ impl IntoIterator for Polysegment {
 
     fn into_iter(self) -> Self::IntoIter {
         return self.0.into_iter();
+    }
+}
+
+impl From<Polysegment> for VecDeque<Segment> {
+    fn from(line: Polysegment) -> Self {
+        return line.0;
+    }
+}
+
+impl From<BoundingBox> for Polysegment {
+    fn from(bounding_box: BoundingBox) -> Self {
+        return Self::from(&bounding_box);
+    }
+}
+
+impl From<&BoundingBox> for Polysegment {
+    fn from(bounding_box: &BoundingBox) -> Self {
+        return Polysegment::from_points(&[
+            [bounding_box.xmin(), bounding_box.ymin()],
+            [bounding_box.xmax(), bounding_box.ymin()],
+            [bounding_box.xmax(), bounding_box.ymax()],
+            [bounding_box.xmin(), bounding_box.ymax()],
+            [bounding_box.xmin(), bounding_box.ymin()],
+        ]);
+    }
+}
+
+impl From<&Polysegment> for crate::CentroidData {
+    fn from(value: &Polysegment) -> Self {
+        return value
+            .segments_par()
+            .map(|segment| match segment {
+                Segment::LineSegment(line) => Self::from(line),
+                Segment::ArcSegment(arc) => Self::from(arc),
+            })
+            .reduce(
+                || Self {
+                    area: 0.0,
+                    x: 0.0,
+                    y: 0.0,
+                },
+                |prev, curr| prev.union(&curr),
+            );
+    }
+}
+
+/**
+Calculates the area of a polygon defined by the points given by an iterator.
+If the polygon orientation is mathematically positive (points are given
+counterclockwise), then the result is also positive. Otherwise, it is negative.
+
+This implementation uses the "Shoelace formula", as e.g. described here:
+<https://en.wikipedia.org/wiki/Shoelace_formula>.
+
+```
+use planar_geo::polysegment::area_signed;
+
+let pt1 = [0.0, 0.0];
+let pt2 = [1.0, 0.0];
+let pt3 = [1.0, 1.0];
+assert_eq!(
+    area_signed([pt1, pt2, pt3].into_iter()),
+    0.5
+);
+assert_eq!(
+    area_signed([pt2, pt1, pt3].into_iter()),
+    -0.5
+);
+```
+ */
+pub fn area_signed<'a, I>(mut points: I) -> f64
+where
+    I: Iterator<Item = [f64; 2]>,
+{
+    // Keep the first vertex
+    let first_vertex = match points.next() {
+        Some(vertex) => vertex,
+        None => return 0.0,
+    };
+    let mut previous_vertex = first_vertex.clone();
+
+    let mut area = 0.0;
+
+    // The polysegmented element covers the end value x_n*y_0 - x_0*y_n, where n
+    // equals the last iterator element
+    for current_vertex in points.chain(std::iter::once(first_vertex)) {
+        area += (previous_vertex[1] + current_vertex[1]) * (previous_vertex[0] - current_vertex[0]);
+        previous_vertex = current_vertex.clone();
+    }
+
+    return 0.5 * area; // Correction factor of 0.5 comes from the area formel of a triangle.
+}
+
+pub(crate) fn covers_segment<'a, 'b, I>(
+    iterator: I,
+    segment: SegmentRef<'b>,
+    epsilon: f64,
+    max_ulps: u32,
+) -> bool
+where
+    I: Iterator<Item = &'a Segment>,
+{
+    match segment {
+        SegmentRef::LineSegment(line_segment) => {
+            // Multiple subsequent line segments are combined into a single
+            // one if they form a single line segment (i.e. their angles are
+            // identical)
+            let mut combined: Option<LineSegment> = None;
+            for seg in iterator {
+                if let Segment::LineSegment(sl) = seg {
+                    combined = match combined {
+                        Some(c) => {
+                            if ulps_eq!(
+                                c.angle(),
+                                sl.angle(),
+                                epsilon = epsilon,
+                                max_ulps = max_ulps
+                            ) {
+                                // Add the new line segment, if it has the same angle as
+                                // "combined"
+                                if let Ok(new_combined) =
+                                    LineSegment::new(c.start(), sl.stop(), epsilon, max_ulps)
+                                {
+                                    if new_combined.covers(line_segment, epsilon, max_ulps) {
+                                        return true;
+                                    }
+                                    Some(new_combined)
+                                } else {
+                                    None
+                                }
+                            } else {
+                                // Replace the old combined segment with the new line segment
+                                if sl.covers(line_segment, epsilon, max_ulps) {
+                                    return true;
+                                }
+                                Some(sl.clone())
+                            }
+                        }
+                        None => {
+                            if sl.covers(line_segment, epsilon, max_ulps) {
+                                return true;
+                            }
+                            Some(sl.clone())
+                        }
+                    };
+                } else {
+                    // Arc segment breaks the chain
+                    combined = None;
+                }
+            }
+            return false;
+        }
+        SegmentRef::ArcSegment(arc_segment) => {
+            // Multiple subsequent arc segments are combined into a single
+            // one if they form a single arc segment
+            // (i.e. their radius and center are identical).
+            let mut combined: Option<ArcSegment> = None;
+            for seg in iterator {
+                if let Segment::ArcSegment(sa) = seg {
+                    combined = match combined {
+                        Some(c) => {
+                            if ulps_eq!(
+                                c.center(),
+                                sa.center(),
+                                epsilon = epsilon,
+                                max_ulps = max_ulps
+                            ) && ulps_eq!(
+                                c.radius(),
+                                sa.radius(),
+                                epsilon = epsilon,
+                                max_ulps = max_ulps
+                            ) {
+                                // Add the new line segment, if it has the same angle as
+                                // "combined"
+                                if let Ok(new_combined) =
+                                    ArcSegment::from_center_radius_start_offset_angle(
+                                        c.center(),
+                                        c.radius(),
+                                        c.start_angle(),
+                                        c.offset_angle() + sa.offset_angle(),
+                                        epsilon,
+                                        max_ulps,
+                                    )
+                                {
+                                    if new_combined.covers(arc_segment, epsilon, max_ulps) {
+                                        return true;
+                                    }
+                                    Some(new_combined)
+                                } else {
+                                    None
+                                }
+                            } else {
+                                // Replace the old combined segment with the new line segment
+                                if sa.covers(arc_segment, epsilon, max_ulps) {
+                                    return true;
+                                }
+                                Some(sa.clone())
+                            }
+                        }
+                        None => {
+                            if sa.covers(arc_segment, epsilon, max_ulps) {
+                                return true;
+                            }
+                            Some(sa.clone())
+                        }
+                    };
+                } else {
+                    // Line segment breaks the chain
+                    combined = None;
+                }
+            }
+            return false;
+        }
     }
 }
 
@@ -1423,7 +1658,7 @@ fn segment_intersections<'a>(
                 between the two segments.
                  */
                 if left_idx + 1 == right_idx || (left_idx == 0 && right_idx == len - 1) {
-                    if ulps_eq!(
+                    if approx::ulps_eq!(
                         point,
                         left_seg.stop(),
                         epsilon = epsilon,
@@ -1442,94 +1677,4 @@ fn segment_intersections<'a>(
         });
 
     return Some(intersection_iter);
-}
-
-impl From<Polysegment> for VecDeque<Segment> {
-    fn from(line: Polysegment) -> Self {
-        return line.0;
-    }
-}
-
-impl From<BoundingBox> for Polysegment {
-    fn from(bounding_box: BoundingBox) -> Self {
-        return Self::from(&bounding_box);
-    }
-}
-
-impl From<&BoundingBox> for Polysegment {
-    fn from(bounding_box: &BoundingBox) -> Self {
-        return Polysegment::from_points(&[
-            [bounding_box.xmin(), bounding_box.ymin()],
-            [bounding_box.xmax(), bounding_box.ymin()],
-            [bounding_box.xmax(), bounding_box.ymax()],
-            [bounding_box.xmin(), bounding_box.ymax()],
-            [bounding_box.xmin(), bounding_box.ymin()],
-        ]);
-    }
-}
-
-impl From<&Polysegment> for crate::CentroidData {
-    fn from(value: &Polysegment) -> Self {
-        return value
-            .par_iter()
-            .map(|segment| match segment {
-                Segment::LineSegment(line) => Self::from(line),
-                Segment::ArcSegment(arc) => Self::from(arc),
-            })
-            .reduce(
-                || Self {
-                    area: 0.0,
-                    x: 0.0,
-                    y: 0.0,
-                },
-                |prev, curr| prev.union(&curr),
-            );
-    }
-}
-
-/**
-Calculates the area of a polygon defined by the points given by an iterator.
-If the polygon orientation is mathematically positive (points are given
-counterclockwise), then the result is also positive. Otherwise, it is negative.
-
-This implementation uses the "Shoelace formula", as e.g. described here:
-<https://en.wikipedia.org/wiki/Shoelace_formula>.
-
-```
-use planar_geo::polysegment::area_signed;
-
-let pt1 = [0.0, 0.0];
-let pt2 = [1.0, 0.0];
-let pt3 = [1.0, 1.0];
-assert_eq!(
-    area_signed([pt1, pt2, pt3].into_iter()),
-    0.5
-);
-assert_eq!(
-    area_signed([pt2, pt1, pt3].into_iter()),
-    -0.5
-);
-```
- */
-pub fn area_signed<'a, I>(mut points: I) -> f64
-where
-    I: Iterator<Item = [f64; 2]>,
-{
-    // Keep the first vertex
-    let first_vertex = match points.next() {
-        Some(vertex) => vertex,
-        None => return 0.0,
-    };
-    let mut previous_vertex = first_vertex.clone();
-
-    let mut area = 0.0;
-
-    // The polysegmented element covers the end value x_n*y_0 - x_0*y_n, where n
-    // equals the last iterator element
-    for current_vertex in points.chain(std::iter::once(first_vertex)) {
-        area += (previous_vertex[1] + current_vertex[1]) * (previous_vertex[0] - current_vertex[0]);
-        previous_vertex = current_vertex.clone();
-    }
-
-    return 0.5 * area; // Correction factor of 0.5 comes from the area formel of a triangle.
 }

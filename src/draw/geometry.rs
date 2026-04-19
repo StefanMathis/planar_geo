@@ -351,7 +351,7 @@ impl Polysegment {
 
             context.move_to(vertex[0], vertex[1]);
 
-            for segment in self.iter() {
+            for segment in self.segments() {
                 match segment {
                     Segment::LineSegment(ls) => context.line_to(ls.stop()[0], ls.stop()[1]),
                     Segment::ArcSegment(arc) => {

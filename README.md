@@ -5,21 +5,21 @@ planar_geo
 docs/main.md and (if available docs/end.md). Do not modify this file, instead
 modify the components. -->
 
-[`ArcSegment`]: https://docs.rs/planar_geo/0.3.12/planar_geo/segment/arc_segment/struct.ArcSegment.html
-[`LineSegment`]: https://docs.rs/planar_geo/0.3.12/planar_geo/segment/line_segment/struct.LineSegment.html
-[`Segment`]: https://docs.rs/planar_geo/0.3.12/planar_geo/segment/enum.Segment.html
-[`Polysegment`]: https://docs.rs/planar_geo/0.3.12/planar_geo/polysegment/struct.Polysegment.html
-[`Contour`]: https://docs.rs/planar_geo/0.3.12/planar_geo/contour/struct.Contour.html
-[`Shape`]: https://docs.rs/planar_geo/0.3.12/planar_geo/shape/struct.Shape.html
-[`Primitive`]: https://docs.rs/planar_geo/0.3.12/planar_geo/primitive/trait.Primitive.html
-[`Composite`]: https://docs.rs/planar_geo/0.3.12/planar_geo/composite/trait.Composite.html
-[`Transformation`]: https://docs.rs/planar_geo/0.3.12/planar_geo/trait.Transformation.html
-[`Geometry`]: https://docs.rs/planar_geo/0.3.12/planar_geo/geometry/enum.Geometry.html
-[`intersections`]: https://docs.rs/planar_geo/0.3.12/planar_geo/geometry/enum.GeometryRef.html#method.intersections
-[`DEFAULT_EPSILON`]: https://docs.rs/planar_geo/0.3.12/planar_geo/constant.DEFAULT_EPSILON.html
-[`DEFAULT_MAX_ULPS`]: https://docs.rs/planar_geo/0.3.12/planar_geo/constant.DEFAULT_MAX_ULPS.html
-[crate_index]: https://docs.rs/planar_geo/0.3.12/planar_geo/.
-[draw]: https://docs.rs/planar_geo/0.3.12/planar_geo/draw/index.html.
+[`ArcSegment`]: https://docs.rs/planar_geo/0.4.0/planar_geo/segment/arc_segment/struct.ArcSegment.html
+[`LineSegment`]: https://docs.rs/planar_geo/0.4.0/planar_geo/segment/line_segment/struct.LineSegment.html
+[`Segment`]: https://docs.rs/planar_geo/0.4.0/planar_geo/segment/enum.Segment.html
+[`Polysegment`]: https://docs.rs/planar_geo/0.4.0/planar_geo/polysegment/struct.Polysegment.html
+[`Contour`]: https://docs.rs/planar_geo/0.4.0/planar_geo/contour/struct.Contour.html
+[`Shape`]: https://docs.rs/planar_geo/0.4.0/planar_geo/shape/struct.Shape.html
+[`Primitive`]: https://docs.rs/planar_geo/0.4.0/planar_geo/primitive/trait.Primitive.html
+[`Composite`]: https://docs.rs/planar_geo/0.4.0/planar_geo/composite/trait.Composite.html
+[`Transformation`]: https://docs.rs/planar_geo/0.4.0/planar_geo/trait.Transformation.html
+[`Geometry`]: https://docs.rs/planar_geo/0.4.0/planar_geo/geometry/enum.Geometry.html
+[`intersections`]: https://docs.rs/planar_geo/0.4.0/planar_geo/geometry/enum.GeometryRef.html#method.intersections
+[`DEFAULT_EPSILON`]: https://docs.rs/planar_geo/0.4.0/planar_geo/constant.DEFAULT_EPSILON.html
+[`DEFAULT_MAX_ULPS`]: https://docs.rs/planar_geo/0.4.0/planar_geo/constant.DEFAULT_MAX_ULPS.html
+[crate_index]: https://docs.rs/planar_geo/0.4.0/planar_geo/.
+[draw]: https://docs.rs/planar_geo/0.4.0/planar_geo/draw/index.html.
 [`Context`]: https://gtk-rs.org/gtk-rs-core/stable/latest/docs/cairo/struct.Context.html
 [gtk-rs]: https://gtk-rs.org/gtk-rs-core/stable/latest/docs/cairo
 [approxim]: https://docs.rs/approxim/latest/approxim/
@@ -34,7 +34,7 @@ modify the components. -->
 
 A Rust library for 2D geometry: geometric objects, algorithms and visualization.
 
-The full API documentation is available at https://docs.rs/planar_geo/0.3.12/planar_geo.
+The full API documentation is available at https://docs.rs/planar_geo/0.4.0/planar_geo.
 > **Feedback welcome!**  
 > Found a bug, missing docs, or have a feature request?  
 > Please open an issue on [GitHub](https://github.com/StefanMathis/planar_geo.git).
@@ -60,8 +60,11 @@ wrapping them in the [`Geometry`] enum.
 For these types, this crate offers the following features:
 - Property calculation (e.g. length, surface area, centroids),
 - [`Transformation`] (scaling, shifting, rotation, mirroring),
+- Determining relationships: Are two [`Contour`]s overlapping, is a [`Segment`]
+covered by a [`Shape`], does a [`LineSegment`] contain a point etc.
 - Intersection calculation between all combinations of the aforementioned types,
 see the [`Primitive`] and [`Composite`] traits.
+- ... and many more!
 
 If the corresponding features are activated, it is also possible to serialize
 and deserialize (using [serde]) and to draw (using [gtk-rs]) these types.
@@ -205,8 +208,9 @@ assert_eq!(pts.next(), Some([-3.0, 3.0]));
 
 ## Intersections
 
-A major feature of this crate are the various methods available to find
-collisions and intersections between different geometric types. 
+A major feature of this crate are the various methods available for defining
+relationships between different geometric types, e.g. if they intersect, contain
+or cover one another etc.
 
 For example, the following code shows intersections between the segments shown
 in this image:
@@ -241,10 +245,10 @@ let pt1 = [2.3, 0.0];
 let pt2 = [2.0, 0.1];
 let pt3 = [1.0, 0.5];
 
-assert!(line_1.contains_point(pt1, e, m));
-assert!(!line_1.contains_point(pt2, e, m));
-assert!(line_2.contains_point(pt2, e, m));
-assert!(arc.contains_point(pt3, e, m));
+assert!(line_1.covers_point(pt1, e, m));
+assert!(!line_1.covers_point(pt2, e, m));
+assert!(line_2.covers_point(pt2, e, m));
+assert!(arc.covers_point(pt3, e, m));
 
 // Find intersections between the segments. The order doesn't matter, i.e.
 // line_1.intersections_primitive(&line_2) produces the same result as

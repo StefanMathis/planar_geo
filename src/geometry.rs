@@ -103,7 +103,7 @@ use std::borrow::Cow;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-use bounding_box::BoundingBox;
+use bounding_box::{BoundingBox, ToBoundingBox};
 
 use rayon::prelude::*;
 
@@ -112,6 +112,7 @@ use crate::composite::{Composite, Intersection, SegmentKey};
 use crate::contour::Contour;
 use crate::line::Line;
 use crate::polysegment::Polysegment;
+use crate::prelude::SegmentRef;
 use crate::primitive::Primitive;
 use crate::segment::{ArcSegment, LineSegment, Segment};
 use crate::shape::Shape;
@@ -301,10 +302,10 @@ impl<'a> From<&'a Geometry> for GeometryCow<'a> {
     }
 }
 
-impl From<&Geometry> for BoundingBox {
-    fn from(value: &Geometry) -> Self {
-        let geom_ref = GeometryRef::from(value);
-        return BoundingBox::from(geom_ref);
+impl ToBoundingBox for Geometry {
+    fn bounding_box(&self) -> BoundingBox {
+        let geom_ref = GeometryRef::from(self);
+        return geom_ref.bounding_box();
     }
 }
 
@@ -417,8 +418,8 @@ impl<'a> GeometryRef<'a> {
     - One of them is a [`Primitive`], the other one is a [`Composite`]:
     [`Composite::intersections_primitive`].
     - Both are [`Composite`]s: [`Composite::intersections_composite`].
-    - One of them is a point [`f64; 2`]: [`Primitive::contains_point`] or
-    [`Composite::contains_point`].
+    - One of them is a point [`f64; 2`]: [`Primitive::covers_point`] or
+    [`Composite::covers_point`].
     - A bounding box is converted to a [`Contour`] ([`Composite`]), then one of
     the functions listed above is used.
 
@@ -540,7 +541,7 @@ impl<'a> GeometryRef<'a> {
     ) -> Vec<Intersection> {
         match self {
             GeometryRef::Point(point) => {
-                if other.contains_point((*point).clone(), epsilon, max_ulps) {
+                if other.covers_point((*point).clone(), epsilon, max_ulps) {
                     return vec![(**point).into()];
                 } else {
                     return Vec::new();
@@ -592,7 +593,7 @@ impl<'a> GeometryRef<'a> {
     ) -> Vec<Intersection> {
         match self {
             GeometryRef::Point(point) => {
-                if other.contains_point((*point).clone(), epsilon, max_ulps) {
+                if other.covers_point((*point).clone(), epsilon, max_ulps) {
                     return vec![(**point).into()];
                 } else {
                     return Vec::new();
@@ -636,7 +637,7 @@ impl<'a> GeometryRef<'a> {
     ) -> Vec<Intersection> {
         match self {
             GeometryRef::Point(point) => {
-                if other.contains_point((*point).clone(), epsilon, max_ulps) {
+                if other.covers_point((*point).clone(), epsilon, max_ulps) {
                     return vec![(**point).into()];
                 } else {
                     return Vec::new();
@@ -713,15 +714,9 @@ impl<'a> From<GeometryRef<'a>> for GeometryCow<'a> {
     }
 }
 
-impl<'a> From<GeometryRef<'a>> for BoundingBox {
-    fn from(value: GeometryRef<'a>) -> Self {
-        (&value).into()
-    }
-}
-
-impl<'a> From<&'_ GeometryRef<'a>> for BoundingBox {
-    fn from(value: &GeometryRef<'a>) -> Self {
-        match value {
+impl<'a> ToBoundingBox for GeometryRef<'a> {
+    fn bounding_box(&self) -> BoundingBox {
+        match self {
             GeometryRef::Point(elem) => (*elem).into(),
             GeometryRef::BoundingBox(elem) => (*elem).clone(),
             GeometryRef::ArcSegment(elem) => (*elem).into(),
@@ -786,6 +781,15 @@ impl<'a> From<&'a Contour> for GeometryRef<'a> {
 impl<'a> From<&'a Shape> for GeometryRef<'a> {
     fn from(value: &'a Shape) -> Self {
         GeometryRef::Shape(value)
+    }
+}
+
+impl<'a> From<SegmentRef<'a>> for GeometryRef<'a> {
+    fn from(value: SegmentRef<'a>) -> Self {
+        match value {
+            SegmentRef::LineSegment(s) => s.into(),
+            SegmentRef::ArcSegment(s) => s.into(),
+        }
     }
 }
 
@@ -899,15 +903,9 @@ impl<'a> From<GeometryCow<'a>> for Geometry {
     }
 }
 
-impl<'a> From<GeometryCow<'a>> for BoundingBox {
-    fn from(value: GeometryCow<'a>) -> Self {
-        (&value).into()
-    }
-}
-
-impl<'a> From<&'a GeometryCow<'a>> for BoundingBox {
-    fn from(value: &'a GeometryCow<'a>) -> Self {
-        GeometryRef::from(value).into()
+impl<'a> ToBoundingBox for GeometryCow<'a> {
+    fn bounding_box(&self) -> BoundingBox {
+        GeometryRef::from(self).bounding_box()
     }
 }
 

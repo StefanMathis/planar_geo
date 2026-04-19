@@ -7,12 +7,12 @@ The geometric types in this crate are either "primitives" (which implement the
 and implement the [`Composite`] trait). See the trait documentation for details.
  */
 
-use rayon::prelude::ParallelIterator;
+use rayon::prelude::*;
 
 use crate::contour::Contour;
 use crate::polysegment::Polysegment;
 use crate::primitive::Primitive;
-use crate::segment::{SegmentPolygonizer, SegmentRef};
+use crate::segment::{Segment, SegmentPolygonizer, SegmentRef};
 use crate::shape::Shape;
 
 /**
@@ -227,17 +227,43 @@ impl Default for Intersection {
 }
 
 pub(crate) mod private {
-    /// Sealed trait for [`Primitive`]
+    /// Sealed trait for [`Composite`]
     pub trait Sealed {}
 }
 
 /**
-A trait for "composite" types: [`Polysegment`]s, [`Contour`]s and [`Shape`]s.
+A trait for types composed of multiple [`Segment`](Segment)s:
+[`Polysegment`]s, [`Contour`]s and [`Shape`]s.
 
-This [`Composite`] trait provides a common innterface for intersection
-calculation between a composite and a primitive or other composites.
+This trait provides methods for retrieving properties shared between all
+composite types (like e.g. the number of segments), coverage and containment
+checks and intersection calculation. It is not meant to be implemented for other
+types, hence it is
+[sealed](https://rust-lang.github.io/api-guidelines/future-proofing.htm
 
-Dufferent to primitives, there can be an arbitrary number of intersections
+# Properties
+
+The following methods are available:
+- [`Composite::centroid`] for finding the center of mass / centroid,
+- [`Composite::num_segments`] for reading out the number of segments and
+- [`Composite::segment`] for retrieving a reference to a particular segment with
+a [`SegmentKey`].
+
+# Containment
+
+A composite "contains" another geometric entity if if all points of the latter
+are within it (and in contrast to the concept of "covers", not on its
+boundaries). This means that a [`Polysegment`] cannot contain anything, since
+it has no surface area and only consists of its boundary.
+
+# Coverage
+
+Similar to the [`Primitive`] trait, a composite "covers" another geometric
+entity if all points of the latter are within it or on its boundaries.
+
+# Intersection
+
+Different to primitives, there can be an arbitrary number of intersections
 between two intersections, which is why the corresponding methods return
 an iterator. Since intersection calculation between composites can be easily
 parallelized, there is a serial and a parallel variant (the latter returning
@@ -316,7 +342,21 @@ pub trait Composite: private::Sealed {
     assert_eq!(segment, Some(&Segment::from(LineSegment::new([0.9, 0.9], [0.1, 0.9], 0.0, 0).unwrap())));
     ```
      */
-    fn segment(&self, key: SegmentKey) -> Option<&crate::segment::Segment>;
+    fn segment(&self, key: SegmentKey) -> Option<&Segment>;
+
+    /**
+    Returns an iterator over all segments of `self` and their keys.
+
+    If `self` is a [`Shape`], the segments of the outer contour are returned
+    first, followed by those of the holes (in arbitrary order)
+     */
+    fn iter<'a>(&'a self) -> impl Iterator<Item = (SegmentKey, &'a Segment)>;
+
+    /**
+    Returns a parallel iterator over all segments of `self` and their keys in
+    arbitrary order.
+     */
+    fn par_iter<'a>(&'a self) -> impl ParallelIterator<Item = (SegmentKey, &'a Segment)>;
 
     /**
     Returns the number of segments in the composite type.
@@ -392,6 +432,395 @@ pub trait Composite: private::Sealed {
     fn centroid(&self) -> [f64; 2];
 
     /**
+    Returns whether `self` contains the given point.
+
+    A point is contained if it is inside the enclosed surface described by
+    `self` and not on one of the boundary segments.
+
+    # Examples
+
+    ```
+    use planar_geo::prelude::*;
+
+    let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
+    let contour = Contour::new(Polysegment::from_points(vertices));
+    let vertices = &[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
+    let hole = Contour::new(Polysegment::from_points(vertices));
+    let shape = Shape::new(vec![contour.clone(), hole.clone()]).expect("valid inputs");
+
+    let pt = [0.5, 0.9];
+
+    // A polysegment cannot contain a point ...
+    assert!(!contour.polysegment().contains_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+
+    // ... but the outer contour does contain the point
+    assert!(contour.contains_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+
+    // The point is not contained by the hole contour, because it is on the boundary segments
+    assert!(!hole.contains_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+
+    // The point is not contained by the shape, because it is on the hole boundary
+    assert!(!shape.contains_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    ```
+     */
+    fn contains_point(&self, point: [f64; 2], epsilon: f64, max_ulps: u32) -> bool;
+
+    /**
+    Returns whether `self` contains the given segment.
+
+    A segment is contained if all of its points are inside the enclosed surface
+    described by `self` and not on one of the boundary segments.
+
+    # Examples
+
+    ```
+    use planar_geo::prelude::*;
+
+    let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
+    let contour = Contour::new(Polysegment::from_points(vertices));
+    let vertices = &[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
+    let hole = Contour::new(Polysegment::from_points(vertices));
+    let shape = Shape::new(vec![contour.clone(), hole.clone()]).expect("valid inputs");
+
+    let ls = LineSegment::new([0.1, 0.1], [0.9, 0.1], 0.0, 0).unwrap();
+
+    // Contour contains line segment
+    assert!(contour.contains_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+
+    // Hole does not contains line segment
+    assert!(!hole.contains_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+
+    // Shape does not contains line segment
+    assert!(!shape.contains_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    ```
+     */
+    fn contains_segment<'a, T: Into<SegmentRef<'a>>>(
+        &self,
+        segment: T,
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> bool;
+
+    /**
+    Returns whether the given [`Polysegment`] is contained within `self`.
+
+    This function applies [`Composite::contains_segment`] to all segments of
+    `polysegment`.
+
+    # Examples
+
+    ```
+    use planar_geo::prelude::*;
+
+    let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
+    let contour = Contour::new(Polysegment::from_points(vertices));
+    let vertices = &[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
+    let hole = Contour::new(Polysegment::from_points(vertices));
+    let shape = Shape::new(vec![contour.clone(), hole.clone()]).expect("valid inputs");
+
+    let ps = Polysegment::from_points(&[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9]]);
+
+    // Contour contains polysegment
+    assert!(contour.contains_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+
+    // Hole does not contains polysegment
+    assert!(!hole.contains_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+
+    // Shape does not contains polysegment
+    assert!(!shape.contains_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    ```
+     */
+    fn contains_polysegment(&self, polysegment: &Polysegment, epsilon: f64, max_ulps: u32) -> bool {
+        return polysegment
+            .segments()
+            .all(|s| self.contains_segment(s, epsilon, max_ulps));
+    }
+
+    /**
+    Returns whether the given [`Polysegment`] is contained within `self`.
+
+    This is the parallelized variant of [`Composite::contains_polysegment`].
+    See its docstring for more information and examples.
+     */
+    fn contains_polysegment_par(
+        &self,
+        polysegment: &Polysegment,
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> bool
+    where
+        Self: Sync,
+    {
+        return polysegment
+            .segments_par()
+            .all(|s| self.contains_segment(s, epsilon, max_ulps));
+    }
+
+    /**
+    Returns whether the given [`Contour`] is contained within `self`.
+
+    This function just calls [`Composite::contains_polysegment`] on
+    `contour.polysegment()`.
+    */
+    fn contains_contour(&self, contour: &Contour, epsilon: f64, max_ulps: u32) -> bool {
+        return self.contains_polysegment(contour.polysegment(), epsilon, max_ulps);
+    }
+
+    /**
+    Returns whether the given [`Contour`] is contained within `self`.
+
+    This is the parallelized variant of [`Composite::contains_contour`].
+    See its docstring for more information and examples.
+    */
+    fn contains_contour_par(&self, contour: &Contour, epsilon: f64, max_ulps: u32) -> bool
+    where
+        Self: Sync,
+    {
+        return self.contains_polysegment_par(contour.polysegment(), epsilon, max_ulps);
+    }
+
+    /**
+    Returns whether the given [`Shape`] is contained within `self`.
+
+    A shape is contained within `self` if its outer `contour` is contained.
+    */
+    fn contains_shape(&self, shape: &Shape, epsilon: f64, max_ulps: u32) -> bool {
+        return self.contains_contour(shape.contour(), epsilon, max_ulps);
+    }
+
+    /**
+    Returns whether the given [`Shape`] is contained within `self`.
+
+    This is the parallelized variant of [`Composite::contains_contour`].
+    See its docstring for more information and examples.
+    */
+    fn contains_shape_par(&self, shape: &Shape, epsilon: f64, max_ulps: u32) -> bool
+    where
+        Self: Sync,
+    {
+        return self.contains_contour_par(shape.contour(), epsilon, max_ulps);
+    }
+
+    /**
+    Returns whether a type implementing [`Composite`] is contained within `self`.
+
+    This is a generalized interface to all specialized `contains_` functions.
+     */
+    fn contains_composite<'a, T: Composite>(
+        &'a self,
+        other: &'a T,
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> bool;
+
+    /**
+    Returns whether a type implementing [`Composite`] is contained within `self`.
+
+    This is the parallelized variant of [`Composite::contains_composite`].
+    See its docstring for more information and examples.
+    */
+    fn contains_composite_par<'a, T: Composite + Sync>(
+        &'a self,
+        other: &'a T,
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> bool
+    where
+        Self: Sync;
+
+    /**
+    Returns whether `self` covers the given point.
+
+    A point is covered if it is inside the enclosed surface described by
+    `self` or on one of the boundary segments.
+
+    # Examples
+
+    ```
+    use planar_geo::prelude::*;
+
+    let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
+    let contour = Contour::new(Polysegment::from_points(vertices));
+    let vertices = &[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
+    let hole = Contour::new(Polysegment::from_points(vertices));
+    let shape = Shape::new(vec![contour.clone(), hole.clone()]).expect("valid inputs");
+
+    let pt = [0.5, 0.9];
+
+    // Polysegment does not cover the point ...
+    assert!(!contour.polysegment().covers_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+
+    // ... but the outer contour does cover the point
+    assert!(contour.covers_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+
+    // The point is covered by the hole contour, because it is on the boundary segments
+    assert!(hole.covers_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+
+    // The point is covered by the shape, because it is on the hole boundary
+    assert!(shape.covers_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    ```
+     */
+    fn covers_point(&self, point: [f64; 2], epsilon: f64, max_ulps: u32) -> bool;
+
+    /**
+    Returns whether `self` covers the given segment.
+
+    A segment is covered if all of its points are inside the enclosed surface
+    described by `self` or on one of the boundary segments.
+
+    # Examples
+
+    ```
+    use planar_geo::prelude::*;
+
+    let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
+    let contour = Contour::new(Polysegment::from_points(vertices));
+    let vertices = &[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
+    let hole = Contour::new(Polysegment::from_points(vertices));
+    let shape = Shape::new(vec![contour.clone(), hole.clone()]).expect("valid inputs");
+
+    let ls = LineSegment::new([0.1, 0.1], [0.9, 0.1], 0.0, 0).unwrap();
+
+    // Contour covers line segment
+    assert!(contour.covers_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+
+    // Hole covers line segment
+    assert!(hole.covers_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+
+    // Shape covers line segment
+    assert!(shape.covers_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    ```
+     */
+    fn covers_segment<'a, T: Into<SegmentRef<'a>>>(
+        &self,
+        segment: T,
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> bool;
+
+    /**
+    Returns whether the given [`Polysegment`] is covered by `self`.
+
+    This function applies [`Composite::covers_segment`] to all segments of
+    `polysegment`.
+
+    # Examples
+
+    ```
+    use planar_geo::prelude::*;
+
+    let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
+    let contour = Contour::new(Polysegment::from_points(vertices));
+    let vertices = &[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
+    let hole = Contour::new(Polysegment::from_points(vertices));
+    let shape = Shape::new(vec![contour.clone(), hole.clone()]).expect("valid inputs");
+
+    let ps = Polysegment::from_points(&[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9]]);
+
+    // Contour covers polysegment
+    assert!(contour.covers_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+
+    // Hole covers polysegment
+    assert!(hole.covers_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+
+    // Shape covers polysegment
+    assert!(shape.covers_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    ```
+     */
+    fn covers_polysegment(&self, polysegment: &Polysegment, epsilon: f64, max_ulps: u32) -> bool {
+        return polysegment
+            .segments()
+            .all(|s| self.covers_segment(s, epsilon, max_ulps));
+    }
+
+    /**
+    Returns whether the given [`Polysegment`] is covered by `self`.
+
+    This is the parallelized variant of [`Composite::covers_polysegment`].
+    See its docstring for more information and examples.
+     */
+    fn covers_polysegment_par(&self, polysegment: &Polysegment, epsilon: f64, max_ulps: u32) -> bool
+    where
+        Self: Sync,
+    {
+        return polysegment
+            .segments_par()
+            .all(|s| self.covers_segment(s, epsilon, max_ulps));
+    }
+
+    /**
+    Returns whether the given [`Contour`] is covered by `self`.
+
+    This function just calls [`Composite::covers_polysegment`] on
+    `contour.polysegment()`.
+    */
+    fn covers_contour(&self, contour: &Contour, epsilon: f64, max_ulps: u32) -> bool {
+        return self.covers_polysegment(contour.polysegment(), epsilon, max_ulps);
+    }
+
+    /**
+    Returns whether the given [`Contour`] is covered by `self`.
+
+    This is the parallelized variant of [`Composite::covers_contour`].
+    See its docstring for more information and examples.
+    */
+    fn covers_contour_par(&self, contour: &Contour, epsilon: f64, max_ulps: u32) -> bool
+    where
+        Self: Sync,
+    {
+        return self.covers_polysegment_par(contour.polysegment(), epsilon, max_ulps);
+    }
+
+    /**
+    Returns whether the given [`Shape`] is covered by `self`.
+
+    A shape is covered by `self` if its outer `contour` is covered.
+    */
+    fn covers_shape(&self, shape: &Shape, epsilon: f64, max_ulps: u32) -> bool {
+        return self.covers_contour(shape.contour(), epsilon, max_ulps);
+    }
+
+    /**
+    Returns whether the given [`Shape`] is covered by `self`.
+
+    This is the parallelized variant of [`Composite::covers_shape`].
+    See its docstring for more information and examples.
+    */
+    fn covers_shape_par(&self, shape: &Shape, epsilon: f64, max_ulps: u32) -> bool
+    where
+        Self: Sync,
+    {
+        return self.covers_contour_par(shape.contour(), epsilon, max_ulps);
+    }
+
+    /**
+    Returns whether a type implementing [`Composite`] is covered by `self`.
+
+    This is a generalized interface to all specialized `covers_` functions.
+     */
+    fn covers_composite<'a, T: Composite + Sync>(
+        &'a self,
+        other: &'a T,
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> bool;
+
+    /**
+    Returns whether a type implementing [`Composite`] is covered by `self`.
+
+    This is the parallelized variant of [`Composite::covers_composite`].
+    See its docstring for more information and examples.
+    */
+    fn covers_composite_par<'a, T: Composite + Sync>(
+        &'a self,
+        other: &'a T,
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> bool
+    where
+        Self: Sized;
+
+    /**
     Returns an iterator over all intersections of `self` with the `primitive`.
 
     The right side of the [`Intersection`]s created by the returned iterator
@@ -429,7 +858,19 @@ pub trait Composite: private::Sealed {
         primitive: &'a T,
         epsilon: f64,
         max_ulps: u32,
-    ) -> impl Iterator<Item = Intersection> + 'a;
+    ) -> impl Iterator<Item = Intersection> + 'a {
+        self.iter()
+            .map(move |(k, s)| {
+                s.intersections_primitive(primitive, epsilon, max_ulps)
+                    .into_iter()
+                    .map(move |point| Intersection {
+                        point,
+                        left: k,
+                        right: Default::default(),
+                    })
+            })
+            .flatten()
+    }
 
     /**
     Returns a parallelized iterator over all intersections of `self` with the
@@ -443,7 +884,20 @@ pub trait Composite: private::Sealed {
         primitive: &'a T,
         epsilon: f64,
         max_ulps: u32,
-    ) -> impl ParallelIterator<Item = Intersection> + 'a;
+    ) -> impl ParallelIterator<Item = Intersection> + 'a {
+        self.par_iter()
+            .map(move |(k, s)| {
+                s.intersections_primitive(primitive, epsilon, max_ulps)
+                    .into_iter()
+                    .par_bridge()
+                    .map(move |point| Intersection {
+                        point,
+                        left: k,
+                        right: Default::default(),
+                    })
+            })
+            .flatten()
+    }
 
     /**
     Returns a iterator over all intersections of `self` with the `polysegment`.
@@ -557,7 +1011,9 @@ pub trait Composite: private::Sealed {
         contour: &'a Contour,
         epsilon: f64,
         max_ulps: u32,
-    ) -> impl Iterator<Item = Intersection> + 'a;
+    ) -> impl Iterator<Item = Intersection> + 'a {
+        self.intersections_polysegment(contour.polysegment(), epsilon, max_ulps)
+    }
 
     /**
     Returns a parallelized iterator over all intersections of `self` with the
@@ -571,7 +1027,9 @@ pub trait Composite: private::Sealed {
         contour: &'a Contour,
         epsilon: f64,
         max_ulps: u32,
-    ) -> impl ParallelIterator<Item = Intersection> + 'a;
+    ) -> impl ParallelIterator<Item = Intersection> + 'a {
+        self.intersections_polysegment_par(contour.polysegment(), epsilon, max_ulps)
+    }
 
     /**
     Returns an iterator over all intersections of `self` with the `shape`.
@@ -778,42 +1236,6 @@ pub trait Composite: private::Sealed {
         let geo_ref: crate::geometry::GeometryRef = other.into();
         return geo_ref.intersections_composite_par(self, epsilon, max_ulps);
     }
-
-    /**
-    Returns whether the given point is contained within the composite or not.
-
-    The definition of "contained" depends on the composite type:
-    - [`Polysegment`]: A point is contained within it if it intersects any of
-    its segments.
-    - [`Contour`]: Like the [`Polysegment`] definition, but additionally a
-    point is also contained if it is within the enclosed surface.
-    - [`Shape`]: Like the contour definition, but a point is not considered
-    contained if it is inside one of the "hole" contours.
-
-    # Examples
-
-    ```
-    use planar_geo::prelude::*;
-
-    let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
-    let contour = Contour::new(Polysegment::from_points(vertices));
-    let vertices = &[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
-    let hole = Contour::new(Polysegment::from_points(vertices));
-    let shape = Shape::new(vec![contour.clone(), hole]).expect("valid inputs");
-
-    let pt = [0.5, 0.5];
-
-    // pt is not on the polysegment defining the contour ...
-    assert!(!contour.polysegment().contains_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
-
-    // ... but it is within the contour
-    assert!(contour.contains_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
-
-    // It is however not inside the shape, because it is inside the hole
-    assert!(!shape.contains_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
-    ```
-     */
-    fn contains_point(&self, point: [f64; 2], epsilon: f64, max_ulps: u32) -> bool;
 }
 
 /**

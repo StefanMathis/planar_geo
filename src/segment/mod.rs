@@ -18,7 +18,7 @@ trait, which provides various methods shared with other primitive geometric
 types such as [`Line`](crate::line::Line)s and points (`[f64; 2]`).
 */
 
-use bounding_box::BoundingBox;
+use bounding_box::{BoundingBox, ToBoundingBox};
 pub mod arc_segment;
 pub mod line_segment;
 pub use arc_segment::*;
@@ -191,10 +191,12 @@ impl Segment {
     }
 
     /**
-    Returns the points of a polygon polysegment which approximates `self`. The number
-    of points is defined by the [`SegmentPolygonizer`] (see its docstring). The
-    points are regularily distributed over the segment, which means that two
-    subsequent points always have the same euclidian distance from each other.
+    Returns the points of a polygon polysegment which approximates `self`.
+
+    The number  of points is defined by the [`SegmentPolygonizer`] (see its
+    docstring). The points are regularily distributed over the segment, which
+    means that two subsequent points always have the same euclidian distance
+    from each other.
 
     # Examples
 
@@ -257,6 +259,53 @@ impl Segment {
     pub fn centroid(&self) -> [f64; 2] {
         return CentroidData::from(self).into();
     }
+
+    /**
+    Switches start and end / stop points of `self`.
+
+    # Examples
+
+    ```
+    use planar_geo::prelude::*;
+
+    let mut s: Segment = LineSegment::new([0.0, 0.0], [2.0, 0.0], 0.0, 0).unwrap().into();
+    assert_eq!(s.start(), [0.0, 0.0]);
+    assert_eq!(s.stop(), [2.0, 0.0]);
+
+    s.invert();
+    assert_eq!(s.start(), [2.0, 0.0]);
+    assert_eq!(s.stop(), [0.0, 0.0]);
+
+    s.invert();
+    assert_eq!(s.start(), [0.0, 0.0]);
+    assert_eq!(s.stop(), [2.0, 0.0]);
+    ```
+     */
+    pub fn invert(&mut self) {
+        match self {
+            Segment::LineSegment(s) => s.invert(),
+            Segment::ArcSegment(s) => s.invert(),
+        }
+    }
+
+    /**
+    TODO
+     */
+    pub fn touches_segment<'a, T: Into<SegmentRef<'a>>>(
+        &self,
+        other: T,
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> bool {
+        match self {
+            Segment::LineSegment(line_segment) => {
+                line_segment.touches_segment(other, epsilon, max_ulps)
+            }
+            Segment::ArcSegment(arc_segment) => {
+                arc_segment.touches_segment(other, epsilon, max_ulps)
+            }
+        }
+    }
 }
 
 impl Transformation for Segment {
@@ -292,37 +341,32 @@ impl Transformation for Segment {
 impl crate::primitive::private::Sealed for Segment {}
 
 impl Primitive for Segment {
-    fn contains_point(&self, point: [f64; 2], epsilon: f64, max_ulps: u32) -> bool {
+    fn covers_point(&self, point: [f64; 2], epsilon: f64, max_ulps: u32) -> bool {
         match self {
-            Segment::LineSegment(s) => s.contains_point(point, epsilon, max_ulps),
-            Segment::ArcSegment(s) => s.contains_point(point, epsilon, max_ulps),
+            Segment::LineSegment(s) => s.covers_point(point, epsilon, max_ulps),
+            Segment::ArcSegment(s) => s.covers_point(point, epsilon, max_ulps),
         }
     }
 
-    fn contains_arc_segment(&self, arc_segment: &ArcSegment, epsilon: f64, max_ulps: u32) -> bool {
+    fn covers_arc_segment(&self, arc_segment: &ArcSegment, epsilon: f64, max_ulps: u32) -> bool {
         match self {
             Segment::LineSegment(_) => return false,
             Segment::ArcSegment(this) => {
-                return this.contains_arc_segment(arc_segment, epsilon, max_ulps);
+                return this.covers_arc_segment(arc_segment, epsilon, max_ulps);
             }
         }
     }
 
-    fn contains_line_segment(
-        &self,
-        line_segment: &LineSegment,
-        epsilon: f64,
-        max_ulps: u32,
-    ) -> bool {
+    fn covers_line_segment(&self, line_segment: &LineSegment, epsilon: f64, max_ulps: u32) -> bool {
         match self {
             Segment::LineSegment(this) => {
-                return this.contains_line_segment(line_segment, epsilon, max_ulps);
+                return this.covers_line_segment(line_segment, epsilon, max_ulps);
             }
             Segment::ArcSegment(_) => return false,
         }
     }
 
-    fn contains_line(&self, _line: &crate::line::Line, _epsilon: f64, _max_ulps: u32) -> bool {
+    fn covers_line(&self, _line: &crate::line::Line, _epsilon: f64, _max_ulps: u32) -> bool {
         return false;
     }
 
@@ -374,11 +418,11 @@ impl Primitive for Segment {
     }
 }
 
-impl From<&Segment> for BoundingBox {
-    fn from(value: &Segment) -> BoundingBox {
-        match value {
-            Segment::LineSegment(obj) => obj.into(),
-            Segment::ArcSegment(obj) => obj.into(),
+impl ToBoundingBox for Segment {
+    fn bounding_box(&self) -> BoundingBox {
+        match self {
+            Segment::LineSegment(s) => s.bounding_box(),
+            Segment::ArcSegment(s) => s.bounding_box(),
         }
     }
 }
@@ -518,6 +562,225 @@ impl<'a> From<&'a LineSegment> for SegmentRef<'a> {
 impl<'a> From<&'a ArcSegment> for SegmentRef<'a> {
     fn from(value: &'a ArcSegment) -> Self {
         return Self::ArcSegment(value);
+    }
+}
+
+impl<'a> ToBoundingBox for SegmentRef<'a> {
+    fn bounding_box(&self) -> BoundingBox {
+        match self {
+            SegmentRef::LineSegment(s) => s.bounding_box(),
+            SegmentRef::ArcSegment(s) => s.bounding_box(),
+        }
+    }
+}
+
+impl<'a> SegmentRef<'a> {
+    /**
+    Returns the start point of the underlying segment variant.
+     */
+    pub fn start(&self) -> [f64; 2] {
+        match self {
+            SegmentRef::LineSegment(line_segment) => line_segment.start(),
+            SegmentRef::ArcSegment(arc_segment) => arc_segment.start(),
+        }
+    }
+
+    /**
+    Returns the end / stop point of the underlying segment variant.
+     */
+    pub fn end(&self) -> [f64; 2] {
+        match self {
+            SegmentRef::LineSegment(line_segment) => line_segment.stop(),
+            SegmentRef::ArcSegment(arc_segment) => arc_segment.stop(),
+        }
+    }
+
+    /**
+    Returns the end / stop point of the underlying segment variant. This is an
+    alias for [`Segment::end`].
+     */
+    pub fn stop(&self) -> [f64; 2] {
+        return self.end();
+    }
+
+    /**
+    Returns the number of points of the underlying variant.
+     */
+    pub fn number_points(&self) -> usize {
+        match self {
+            SegmentRef::LineSegment(line_segment) => line_segment.number_points(),
+            SegmentRef::ArcSegment(arc_segment) => arc_segment.number_points(),
+        }
+    }
+
+    /**
+    Returns the length of the underlying line / arc segment.
+
+    See [`Segment::length`] for further explanation and examples.
+     */
+    pub fn length(&self) -> f64 {
+        match self {
+            SegmentRef::LineSegment(line_segment) => line_segment.length(),
+            SegmentRef::ArcSegment(arc_segment) => arc_segment.length(),
+        }
+    }
+
+    /**
+    Returns a point on the segment defined by its normalized position on it.
+
+    See [`Segment::segment_point`] for further explanation and examples.
+    */
+    pub fn segment_point(&self, normalized: f64) -> [f64; 2] {
+        match self {
+            SegmentRef::LineSegment(line_segment) => line_segment.segment_point(normalized),
+            SegmentRef::ArcSegment(arc_segment) => arc_segment.segment_point(normalized),
+        }
+    }
+
+    /**
+    Returns the points of a polygon polysegment which approximates `self`.
+
+    See [`Segment::polygonize`] for further explanation and examples.
+     */
+    pub fn polygonize(&self, polygonizer: SegmentPolygonizer) -> PolygonPointsIterator<'a> {
+        match self {
+            SegmentRef::LineSegment(line_segment) => line_segment.polygonize(polygonizer),
+            SegmentRef::ArcSegment(arc_segment) => arc_segment.polygonize(polygonizer),
+        }
+    }
+
+    /**
+    Returns the centroid (center of mass) of the segment.
+
+    See [`Segment::centroid`] for further explanation and examples.
+     */
+    pub fn centroid(&self) -> [f64; 2] {
+        return CentroidData::from(self).into();
+    }
+
+    /**
+    TODO
+
+    See [`Segment::touches`] for further explanation and examples.
+     */
+    pub fn touches_segment<'b, T: Into<SegmentRef<'b>>>(
+        &self,
+        other: T,
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> bool {
+        match self {
+            SegmentRef::LineSegment(line_segment) => {
+                line_segment.touches_segment(other, epsilon, max_ulps)
+            }
+            SegmentRef::ArcSegment(arc_segment) => {
+                arc_segment.touches_segment(other, epsilon, max_ulps)
+            }
+        }
+    }
+}
+
+impl From<SegmentRef<'_>> for CentroidData {
+    fn from(value: SegmentRef<'_>) -> Self {
+        match value {
+            SegmentRef::LineSegment(line_segment) => line_segment.into(),
+            SegmentRef::ArcSegment(arc_segment) => arc_segment.into(),
+        }
+    }
+}
+
+impl From<&SegmentRef<'_>> for CentroidData {
+    fn from(value: &SegmentRef) -> Self {
+        match value {
+            SegmentRef::LineSegment(line_segment) => (*line_segment).into(),
+            SegmentRef::ArcSegment(arc_segment) => (*arc_segment).into(),
+        }
+    }
+}
+
+impl<'a> crate::primitive::private::Sealed for SegmentRef<'a> {}
+
+impl<'a> Primitive for SegmentRef<'a> {
+    fn covers_point(&self, point: [f64; 2], epsilon: f64, max_ulps: u32) -> bool {
+        match self {
+            SegmentRef::LineSegment(s) => s.covers_point(point, epsilon, max_ulps),
+            SegmentRef::ArcSegment(s) => s.covers_point(point, epsilon, max_ulps),
+        }
+    }
+
+    fn covers_arc_segment(&self, arc_segment: &ArcSegment, epsilon: f64, max_ulps: u32) -> bool {
+        match self {
+            SegmentRef::LineSegment(_) => return false,
+            SegmentRef::ArcSegment(this) => {
+                return this.covers_arc_segment(arc_segment, epsilon, max_ulps);
+            }
+        }
+    }
+
+    fn covers_line_segment(&self, line_segment: &LineSegment, epsilon: f64, max_ulps: u32) -> bool {
+        match self {
+            SegmentRef::LineSegment(this) => {
+                return this.covers_line_segment(line_segment, epsilon, max_ulps);
+            }
+            SegmentRef::ArcSegment(_) => return false,
+        }
+    }
+
+    fn covers_line(&self, _line: &crate::line::Line, _epsilon: f64, _max_ulps: u32) -> bool {
+        return false;
+    }
+
+    fn intersections_line(
+        &self,
+        line: &crate::line::Line,
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> PrimitiveIntersections {
+        match self {
+            SegmentRef::LineSegment(s) => s.intersections_line(line, epsilon, max_ulps),
+            SegmentRef::ArcSegment(s) => s.intersections_line(line, epsilon, max_ulps),
+        }
+    }
+
+    fn intersections_line_segment(
+        &self,
+        line_segment: &LineSegment,
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> PrimitiveIntersections {
+        match self {
+            SegmentRef::LineSegment(s) => {
+                s.intersections_line_segment(line_segment, epsilon, max_ulps)
+            }
+            SegmentRef::ArcSegment(s) => {
+                s.intersections_line_segment(line_segment, epsilon, max_ulps)
+            }
+        }
+    }
+
+    fn intersections_arc_segment(
+        &self,
+        arc_segment: &ArcSegment,
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> PrimitiveIntersections {
+        match self {
+            SegmentRef::LineSegment(s) => {
+                s.intersections_arc_segment(arc_segment, epsilon, max_ulps)
+            }
+            SegmentRef::ArcSegment(s) => {
+                s.intersections_arc_segment(arc_segment, epsilon, max_ulps)
+            }
+        }
+    }
+
+    fn intersections_primitive<T: Primitive>(
+        &self,
+        other: &T,
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> PrimitiveIntersections {
+        other.intersections_segment(self.clone(), epsilon, max_ulps)
     }
 }
 

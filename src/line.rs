@@ -18,7 +18,7 @@ See the docstring of [`Line`] for more information.
 use std::f64::{INFINITY, NEG_INFINITY};
 
 use approx::ulps_eq;
-use bounding_box::BoundingBox;
+use bounding_box::{BoundingBox, ToBoundingBox};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -39,7 +39,7 @@ connections between two points of usually finite length) can be calculated by
 first calculating the intersection of the corresponding infinite lines and then
 by checking whether the found intersection point is actually located on the
 segments. Another example is the ray casting algorithm, which is used in the
-[`contains_point`](crate::composite::Composite::contains_point) implementation
+[`covers_point`](crate::composite::Composite::covers_point) implementation
 for [`Shape`](crate::shape::Shape)s.
 
 Obviously, a [`Line`] object can be directly created by providing its three
@@ -92,9 +92,9 @@ impl Line {
     // A line with a 45° angle going through [2.0, 0.0].
     let line = Line::from_point_angle([2.0, 0.0], 0.25 * PI);
 
-    assert!(line.contains_point([1.0, -1.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
-    assert!(line.contains_point([2.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
-    assert!(line.contains_point([3.0, 1.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    assert!(line.covers_point([1.0, -1.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    assert!(line.covers_point([2.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    assert!(line.covers_point([3.0, 1.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
     ```
      */
     pub fn from_point_angle(pt: [f64; 2], angle: f64) -> Self {
@@ -119,9 +119,9 @@ impl Line {
     // A line with a 45° angle going through [2.0, 0.0].
     let line = Line::from_two_points([2.0, 0.0], [3.0, 1.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).expect("points not identical");
 
-    assert!(line.contains_point([1.0, -1.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
-    assert!(line.contains_point([2.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
-    assert!(line.contains_point([3.0, 1.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    assert!(line.covers_point([1.0, -1.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    assert!(line.covers_point([2.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    assert!(line.covers_point([3.0, 1.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
     ```
      */
     pub fn from_two_points(
@@ -222,15 +222,15 @@ impl From<&crate::segment::LineSegment> for Line {
     }
 }
 
-impl From<&'_ Line> for BoundingBox {
-    fn from(value: &'_ Line) -> Self {
-        if value.a == 0.0 {
+impl ToBoundingBox for Line {
+    fn bounding_box(&self) -> BoundingBox {
+        if self.a == 0.0 {
             // Horizontal line
-            let y = value.c / value.b;
+            let y = self.c / self.b;
             return BoundingBox::new(NEG_INFINITY, INFINITY, y, y);
-        } else if value.b == 0.0 {
+        } else if self.b == 0.0 {
             // Vertical line
-            let x = value.c / value.a;
+            let x = self.c / self.a;
             return BoundingBox::new(x, x, NEG_INFINITY, INFINITY);
         } else {
             return BoundingBox::new(NEG_INFINITY, INFINITY, NEG_INFINITY, INFINITY);
@@ -304,7 +304,7 @@ impl Transformation for Line {
 impl crate::primitive::private::Sealed for Line {}
 
 impl Primitive for Line {
-    fn contains_point(&self, point: [f64; 2], epsilon: f64, max_ulps: u32) -> bool {
+    fn covers_point(&self, point: [f64; 2], epsilon: f64, max_ulps: u32) -> bool {
         // Solution from https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line
         return ulps_eq!(
             (self.a * point[0] + self.b * point[1] + self.c).abs()
@@ -315,7 +315,7 @@ impl Primitive for Line {
         );
     }
 
-    fn contains_arc_segment(
+    fn covers_arc_segment(
         &self,
         _arc_segment: &crate::prelude::ArcSegment,
         _epsilon: f64,
@@ -324,17 +324,17 @@ impl Primitive for Line {
         return false;
     }
 
-    fn contains_line_segment(
+    fn covers_line_segment(
         &self,
         line_segment: &crate::segment::LineSegment,
         epsilon: f64,
         max_ulps: u32,
     ) -> bool {
         let other = Self::from(line_segment);
-        return self.contains_line(&other, epsilon, max_ulps);
+        return self.covers_line(&other, epsilon, max_ulps);
     }
 
-    fn contains_line(&self, line: &Line, epsilon: f64, max_ulps: u32) -> bool {
+    fn covers_line(&self, line: &Line, epsilon: f64, max_ulps: u32) -> bool {
         return self.identical(line, epsilon, max_ulps);
     }
 

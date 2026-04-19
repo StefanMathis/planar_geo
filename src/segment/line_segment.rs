@@ -25,7 +25,7 @@ use approx::ulps_eq;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-use bounding_box::BoundingBox;
+use bounding_box::{BoundingBox, ToBoundingBox};
 
 /**
 A straight, directed connection between a start and an end / stop point.
@@ -496,6 +496,33 @@ impl LineSegment {
     }
 
     /**
+    Switches start and end / stop points of `self`.
+
+    # Examples
+
+    ```
+    use planar_geo::prelude::*;
+
+    let mut ls = LineSegment::new([0.0, 0.0], [2.0, 0.0], 0.0, 0).unwrap();
+    assert_eq!(ls.start(), [0.0, 0.0]);
+    assert_eq!(ls.stop(), [2.0, 0.0]);
+
+    ls.invert();
+    assert_eq!(ls.start(), [2.0, 0.0]);
+    assert_eq!(ls.stop(), [0.0, 0.0]);
+
+    ls.invert();
+    assert_eq!(ls.start(), [0.0, 0.0]);
+    assert_eq!(ls.stop(), [2.0, 0.0]);
+    ```
+     */
+    pub fn invert(&mut self) {
+        let tmp = self.start;
+        self.start = self.stop;
+        self.stop = tmp;
+    }
+
+    /**
     Returns an iterator over the start and stop point of `self`
 
     This is a shorthand for `self.polygonize( Polygonizer::InnerSegments(1))`.
@@ -516,6 +543,118 @@ impl LineSegment {
      */
     pub fn points<'a>(&'a self) -> super::PolygonPointsIterator<'a> {
         return self.polygonize(super::SegmentPolygonizer::InnerSegments(1));
+    }
+
+    /// Returns whether `self` and `other` are touching.
+    ///
+    /// The two segments are touching if they are intersecting but not
+    /// dividing each other. If `other` is a
+    /// [`LineSegment`](super::LineSegment), one or both of the end points of
+    /// one line segment must be covered by the second one (see
+    /// [`Primitive::covers_point`]). If `other` is an
+    /// [`ArcSegment`](super::ArcSegment), `self` must be a tangent of `other`.
+    #[doc = ""]
+    #[cfg_attr(feature = "doc-images", doc = "![Touching and dividing][four_arcs]")]
+    #[cfg_attr(
+        feature = "doc-images",
+        embed_doc_image::embed_doc_image("four_arcs", "docs/img/example_four_arcs.svg")
+    )]
+    #[cfg_attr(
+        not(feature = "doc-images"),
+        doc = "**Doc images not enabled**. Compile docs with `cargo doc --features 'doc-images'` and Rust version >= 1.54."
+    )]
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use planar_geo::prelude::*;
+    ///
+    /// let l1 = LineSegment::new([0.0, 0.0], [1.0, 0.0], 0.0, 0).unwrap();
+    /// let l2 = LineSegment::new([0.5, 0.0], [1.5, 0.0], 0.0, 0).unwrap();
+    /// let l3 = LineSegment::new([1.0, 0.0], [2.0, 0.0], 0.0, 0).unwrap();
+    /// let l4 = LineSegment::new([0.5, 0.0], [0.5, 1.0], 0.0, 0).unwrap();
+    /// let l5 = LineSegment::new([0.5, -1.0], [0.5, 1.0], 0.0, 0).unwrap();
+    ///
+    /// // l1 and l2 overlap
+    /// assert!(l1.touches_segment(&l2, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    ///
+    /// // l1 and l3 share the same end point
+    /// assert!(l1.touches_segment(&l3, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    ///
+    /// // Start point of l4 is somewhere on l1
+    /// assert!(l1.touches_segment(&l4, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    ///
+    /// // l5 divides l1
+    /// assert!(!l1.touches_segment(&l5, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    /// ```
+    pub fn touches_segment<'a, T: Into<super::SegmentRef<'a>>>(
+        &self,
+        other: T,
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> bool {
+        fn is_endpoint(ls: &LineSegment, pt: [f64; 2], epsilon: f64, max_ulps: u32) -> bool {
+            return ulps_eq!(pt, ls.start(), epsilon = epsilon, max_ulps = max_ulps)
+                || ulps_eq!(pt, ls.stop(), epsilon = epsilon, max_ulps = max_ulps);
+        }
+
+        let other: super::SegmentRef = other.into();
+        match other {
+            super::SegmentRef::LineSegment(line_segment) => {
+                match self.intersections_line_segment(line_segment, epsilon, max_ulps) {
+                    PrimitiveIntersections::Zero => false,
+                    PrimitiveIntersections::One(i) => {
+                        return is_endpoint(self, i, epsilon, max_ulps)
+                            || is_endpoint(line_segment, i, epsilon, max_ulps);
+                    }
+                    PrimitiveIntersections::Two(_) => true,
+                }
+            }
+            super::SegmentRef::ArcSegment(arc_segment) => {
+                self.touches_arc_segment(arc_segment, epsilon, max_ulps)
+            }
+        }
+    }
+
+    pub(crate) fn touches_arc_segment(
+        &self,
+        arc_segment: &super::ArcSegment,
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> bool {
+        let [x1, y1] = self.start();
+        let [x2, y2] = self.stop();
+        let [cx, cy] = arc_segment.center();
+        let r = arc_segment.radius();
+
+        // Direction vector of the segment
+        let dx = x2 - x1;
+        let dy = y2 - y1;
+
+        let len_sq = dx * dx + dy * dy;
+
+        // Project center onto the line (parameter t)
+        let t = ((cx - x1) * dx + (cy - y1) * dy) / len_sq;
+
+        // Closest point on the infinite line
+        let px = x1 + t * dx;
+        let py = y1 + t * dy;
+
+        if !arc_segment.covers_point([px, py], epsilon, max_ulps) {
+            return false;
+        }
+
+        // Distance from center to projection
+        let dist = ((px - cx).powi(2) + (py - cy).powi(2)).sqrt();
+
+        // Check tangency
+        if approx::ulps_ne!(dist, r, epsilon = epsilon, max_ulps = max_ulps) {
+            return false;
+        }
+
+        // Check if projection lies within the segment
+        // (t must be between 0 and 1)
+        t >= -epsilon && t <= 1.0 + epsilon
     }
 
     /**
@@ -629,8 +768,8 @@ impl LineSegment {
         // confusingly, Envelope::contains(coord) in JTS is actually an
         // *intersection* check, not a true SFS `contains`, because it includes
         // the boundary of the rect.
-        if !(BoundingBox::from(self).approx_contains_point(int_pt, epsilon, max_ulps)
-            && BoundingBox::from(line_segment).approx_contains_point(int_pt, epsilon, max_ulps))
+        if !(BoundingBox::from(self).approx_covers_point(int_pt, epsilon, max_ulps)
+            && BoundingBox::from(line_segment).approx_covers_point(int_pt, epsilon, max_ulps))
         {
             // compute a safer result
             // copy the coordinate, since it may be rounded later
@@ -691,17 +830,17 @@ impl Transformation for LineSegment {
     }
 }
 
-impl From<&LineSegment> for BoundingBox {
-    fn from(value: &LineSegment) -> BoundingBox {
-        let [xmin, xmax] = if value.start()[0] > value.stop()[0] {
-            [value.stop()[0], value.start()[0]]
+impl ToBoundingBox for LineSegment {
+    fn bounding_box(&self) -> BoundingBox {
+        let [xmin, xmax] = if self.start()[0] > self.stop()[0] {
+            [self.stop()[0], self.start()[0]]
         } else {
-            [value.start()[0], value.stop()[0]]
+            [self.start()[0], self.stop()[0]]
         };
-        let [ymin, ymax] = if value.start()[1] > value.stop()[1] {
-            [value.stop()[1], value.start()[1]]
+        let [ymin, ymax] = if self.start()[1] > self.stop()[1] {
+            [self.stop()[1], self.start()[1]]
         } else {
-            [value.start()[1], value.stop()[1]]
+            [self.start()[1], self.stop()[1]]
         };
         return BoundingBox::new(xmin, xmax, ymin, ymax);
     }
@@ -726,10 +865,10 @@ impl std::fmt::Display for LineSegment {
 impl crate::primitive::private::Sealed for LineSegment {}
 
 impl Primitive for LineSegment {
-    fn contains_point(&self, p: [f64; 2], epsilon: f64, max_ulps: u32) -> bool {
+    fn covers_point(&self, p: [f64; 2], epsilon: f64, max_ulps: u32) -> bool {
         // Quick first check: If point p is outside the segment bounding box, it can't
         // be contained.
-        if !BoundingBox::from(self).approx_contains_point(p, epsilon, max_ulps) {
+        if !BoundingBox::from(self).approx_covers_point(p, epsilon, max_ulps) {
             return false;
         }
 
@@ -754,7 +893,7 @@ impl Primitive for LineSegment {
         }
     }
 
-    fn contains_arc_segment(
+    fn covers_arc_segment(
         &self,
         _arc_segment: &crate::segment::ArcSegment,
         _epsilon: f64,
@@ -763,29 +902,24 @@ impl Primitive for LineSegment {
         return false;
     }
 
-    fn contains_line_segment(
-        &self,
-        line_segment: &LineSegment,
-        epsilon: f64,
-        max_ulps: u32,
-    ) -> bool {
+    fn covers_line_segment(&self, line_segment: &LineSegment, epsilon: f64, max_ulps: u32) -> bool {
         match self.intersections_primitive(line_segment, epsilon, max_ulps) {
-            // Deal with special case where self and other are identical
+            // Deal with special case where self and line_segment are identical
             PrimitiveIntersections::Zero => std::ptr::eq(self, line_segment),
-            PrimitiveIntersections::One(_) => return false,
+            PrimitiveIntersections::One(_) => false,
             PrimitiveIntersections::Two([pt1, pt2]) => {
                 let start = line_segment.start();
                 let stop = line_segment.stop();
 
-                return ulps_eq!(start, pt1, epsilon = epsilon, max_ulps = max_ulps)
+                ulps_eq!(start, pt1, epsilon = epsilon, max_ulps = max_ulps)
                     && ulps_eq!(stop, pt2, epsilon = epsilon, max_ulps = max_ulps)
                     || ulps_eq!(start, pt2, epsilon = epsilon, max_ulps = max_ulps)
-                        && ulps_eq!(stop, pt1, epsilon = epsilon, max_ulps = max_ulps);
+                        && ulps_eq!(stop, pt1, epsilon = epsilon, max_ulps = max_ulps)
             }
         }
     }
 
-    fn contains_line(&self, _line: &crate::line::Line, _epsilon: f64, _max_ulps: u32) -> bool {
+    fn covers_line(&self, _line: &crate::line::Line, _epsilon: f64, _max_ulps: u32) -> bool {
         return false;
     }
 
@@ -895,10 +1029,10 @@ impl Primitive for LineSegment {
             let bb2 = BoundingBox::from(line_segment);
 
             return match (
-                bb1.approx_contains_point(line_segment.start, epsilon, max_ulps),
-                bb1.approx_contains_point(line_segment.stop, epsilon, max_ulps),
-                bb2.approx_contains_point(self.start, epsilon, max_ulps),
-                bb2.approx_contains_point(self.stop, epsilon, max_ulps),
+                bb1.approx_covers_point(line_segment.start, epsilon, max_ulps),
+                bb1.approx_covers_point(line_segment.stop, epsilon, max_ulps),
+                bb2.approx_covers_point(self.start, epsilon, max_ulps),
+                bb2.approx_covers_point(self.stop, epsilon, max_ulps),
             ) {
                 (true, true, _, _) => {
                     PrimitiveIntersections::Two([line_segment.start, line_segment.stop])
@@ -995,7 +1129,7 @@ impl Primitive for LineSegment {
             .into_iter()
             .map(From::from)
         {
-            if self.contains_point(pt, epsilon, max_ulps) {
+            if self.covers_point(pt, epsilon, max_ulps) {
                 intersections.push(pt);
             }
         }

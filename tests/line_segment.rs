@@ -275,20 +275,41 @@ fn test_angle_infinite() {
 }
 
 #[test]
-fn test_contains_point() {
+fn test_covers_point() {
+    {
+        let line =
+            LineSegment::new([1.0, 1.0], [0.0, 1.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap();
+        assert!(line.covers_point([0.5, 1.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+        assert!(line.covers(&[0.5, 1.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    }
+    {
+        let line: Segment =
+            LineSegment::new([1.0, 1.0], [0.0, 1.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS)
+                .unwrap()
+                .into();
+        assert!(line.covers_point([0.5, 1.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+        assert!(line.covers(&[0.5, 1.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    }
     {
         let line: Segment =
             LineSegment::new([0.0, 0.0], [1.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS)
                 .unwrap()
                 .into();
-        assert!(line.contains_point([0.5, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+        assert!(line.covers_point([0.5, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    }
+    {
+        let line: Segment =
+            LineSegment::new([0.0, 0.0], [1.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS)
+                .unwrap()
+                .into();
+        assert!(line.covers_point([0.5, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
     }
     {
         let line: Segment =
             LineSegment::new([0.5, 1.0], [1.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS)
                 .unwrap()
                 .into();
-        assert!(line.contains_point(
+        assert!(line.covers_point(
             [0.9000000000000001, 0.19999999999999984],
             DEFAULT_EPSILON,
             DEFAULT_MAX_ULPS
@@ -806,28 +827,110 @@ fn test_intersection_line_line_segment() {
 }
 
 #[test]
-fn test_contains() {
+fn test_covers() {
     let e = DEFAULT_EPSILON;
     let m = DEFAULT_MAX_ULPS;
 
     let ls = LineSegment::new([0.0, 0.0], [1.0, 1.0], e, m).unwrap();
     let ls_start_to_middle = LineSegment::new([0.0, 0.0], [0.5, 0.5], e, m).unwrap();
-    assert!(ls.contains(&ls_start_to_middle, e, m));
-    assert!(!ls_start_to_middle.contains(&ls, e, m));
+    assert!(ls.covers(&ls_start_to_middle, e, m));
+    assert!(!ls_start_to_middle.covers(&ls, e, m));
 
     let ls_middle_to_end = LineSegment::new([0.5, 0.5], [1.0, 1.0], e, m).unwrap();
-    assert!(ls.contains(&ls_middle_to_end, e, m));
-    assert!(!ls_middle_to_end.contains(&ls, e, m));
+    assert!(ls.covers(&ls_middle_to_end, e, m));
+    assert!(!ls_middle_to_end.covers(&ls, e, m));
 
     let ls_overlap = LineSegment::new([0.5, 0.5], [1.5, 1.5], e, m).unwrap();
-    assert!(!ls.contains(&ls_overlap, e, m));
-    assert!(!ls_overlap.contains(&ls, e, m));
+    assert!(!ls.covers(&ls_overlap, e, m));
+    assert!(!ls_overlap.covers(&ls, e, m));
 
     let ls_crossing = LineSegment::new([0.0, 1.0], [1.0, 0.0], e, m).unwrap();
-    assert!(!ls.contains(&ls_crossing, e, m));
-    assert!(!ls_crossing.contains(&ls, e, m));
+    assert!(!ls.covers(&ls_crossing, e, m));
+    assert!(!ls_crossing.covers(&ls, e, m));
 
     let ls_elsewhere = LineSegment::new([0.0, -1.0], [1.0, -1.0], e, m).unwrap();
-    assert!(!ls.contains(&ls_elsewhere, e, m));
-    assert!(!ls_elsewhere.contains(&ls, e, m));
+    assert!(!ls.covers(&ls_elsewhere, e, m));
+    assert!(!ls_elsewhere.covers(&ls, e, m));
+}
+
+#[test]
+fn test_touches_line_segment() {
+    let e = DEFAULT_EPSILON;
+    let m = DEFAULT_MAX_ULPS;
+    {
+        let ls1 = LineSegment::new([0.0, 0.0], [1.0, 1.0], e, m).unwrap();
+        let ls2 = LineSegment::new([0.5, 0.5], [1.0, 0.0], e, m).unwrap();
+        assert!(ls1.touches_segment(&ls2, e, m));
+        assert!(ls2.touches_segment(&ls1, e, m));
+        assert!(!ls1.touches_segment(&ls1, e, m));
+        assert!(!ls2.touches_segment(&ls2, e, m));
+    }
+    {
+        let ls1 = LineSegment::new([0.0, 0.0], [1.0, 1.0], e, m).unwrap();
+        let ls2 = LineSegment::new([0.0, 1.0], [1.0, 2.0], e, m).unwrap();
+        assert!(!ls1.touches_segment(&ls2, e, m));
+        assert!(!ls2.touches_segment(&ls1, e, m));
+    }
+    {
+        let ls1 = LineSegment::new([0.0, 0.0], [1.0, 1.0], e, m).unwrap();
+        let ls2 = LineSegment::new([0.0, 0.0], [1.0, 2.0], e, m).unwrap();
+        assert!(ls1.touches_segment(&ls2, e, m));
+        assert!(ls2.touches_segment(&ls1, e, m));
+    }
+    {
+        let ls1 = LineSegment::new([0.0, 0.0], [1.0, 1.0], e, m).unwrap();
+        let ls2 = LineSegment::new([1.0, 0.0], [1.0, 1.0], e, m).unwrap();
+        assert!(ls1.touches_segment(&ls2, e, m));
+        assert!(ls2.touches_segment(&ls1, e, m));
+    }
+    {
+        let ls1 = LineSegment::new([0.0, 0.0], [1.0, 1.0], e, m).unwrap();
+        let ls2 = LineSegment::new([0.0, 0.0], [1.0, 1.0], e, m).unwrap();
+        assert!(ls1.touches_segment(&ls2, e, m));
+        assert!(ls2.touches_segment(&ls1, e, m));
+    }
+}
+
+#[test]
+fn test_touches_arc_segments() {
+    let e = DEFAULT_EPSILON;
+    let m = DEFAULT_MAX_ULPS;
+    {
+        let ls = LineSegment::new([0.0, 3.0], [1.0, 3.0], e, m).unwrap();
+        let arc = ArcSegment::circle([0.0, 1.0], 2.0).unwrap();
+        assert!(ls.touches_segment(&arc, e, m));
+        assert!(arc.touches_segment(&ls, e, m));
+    }
+    {
+        let ls = LineSegment::new([-10.0, 3.0], [1.0, 3.0], e, m).unwrap();
+        let arc = ArcSegment::circle([0.0, 1.0], 2.0).unwrap();
+        assert!(ls.touches_segment(&arc, e, m));
+        assert!(arc.touches_segment(&ls, e, m));
+    }
+    {
+        let ls = LineSegment::new([-10.0, 4.0], [1.0, 4.0], e, m).unwrap();
+        let arc = ArcSegment::circle([0.0, 1.0], 2.0).unwrap();
+        assert!(!ls.touches_segment(&arc, e, m));
+        assert!(!arc.touches_segment(&ls, e, m));
+    }
+    {
+        let ls = LineSegment::new([-10.0, 2.0], [1.0, 2.0], e, m).unwrap();
+        let arc = ArcSegment::circle([0.0, 1.0], 2.0).unwrap();
+        assert!(!ls.touches_segment(&arc, e, m));
+        assert!(!arc.touches_segment(&ls, e, m));
+    }
+    {
+        let ls = LineSegment::new([3.0, 2.0], [3.0, -2.0], e, m).unwrap();
+        let arc = ArcSegment::circle([1.0, 1.0], 2.0).unwrap();
+        assert!(ls.touches_segment(&arc, e, m));
+        assert!(arc.touches_segment(&ls, e, m));
+    }
+    {
+        let ls = LineSegment::new([3.0, 2.0], [3.0, -2.0], e, m).unwrap();
+        let arc =
+            ArcSegment::from_center_radius_start_offset_angle([1.0, 1.0], 2.0, 1.0, 1.0, e, m)
+                .unwrap();
+        assert!(!ls.touches_segment(&arc, e, m));
+        assert!(!arc.touches_segment(&ls, e, m));
+    }
 }

@@ -25,13 +25,14 @@ use rayon::iter::ParallelIterator;
 use serde::{Deserialize, Serialize};
 
 use crate::composite::*;
+use crate::line::Line;
 use crate::polysegment::Polysegment;
 use crate::primitive::Primitive;
-use crate::segment::{Segment, arc_segment::ArcSegment, line_segment::LineSegment};
+use crate::segment::{Segment, SegmentRef, arc_segment::ArcSegment, line_segment::LineSegment};
 use crate::{CentroidData, Transformation};
 use crate::{DEFAULT_EPSILON, DEFAULT_MAX_ULPS};
 
-use bounding_box::BoundingBox;
+use bounding_box::{BoundingBox, ToBoundingBox};
 
 /**
 A closed [`Polysegment`] whose last segment is guaranteed to connect back to
@@ -174,7 +175,7 @@ impl Contour {
     }
 
     /**
-    Returns a slice containing all segments of the underlying [`VecDeque`].
+    Returns a slice covering all segments of the underlying [`VecDeque`].
 
     # Examples
 
@@ -185,12 +186,12 @@ impl Contour {
     let contour = Contour::new(polysegment);
 
     // Now the polysegment has been closed and has three segments
-    assert_eq!(contour.segments().len(), contour.len());
+    assert_eq!(contour.as_slice().len(), contour.len());
     ```
      */
-    pub fn segments(&self) -> &[Segment] {
+    pub fn as_slice(&self) -> &[Segment] {
         // Note: When making a contour out of a polysegment, the underlying
-        // VecDeque is made contiguous, hence the first slice contains all
+        // VecDeque is made contiguous, hence the first slice covers all
         // segments and the second one is empty
         return self.0.as_slices().0;
     }
@@ -314,15 +315,15 @@ impl Contour {
     /**
     Returns a front-to-back iterator over all [`Segment`]s of `self`.
      */
-    pub fn iter(&self) -> std::collections::vec_deque::Iter<'_, Segment> {
-        return self.0.iter();
+    pub fn segments(&self) -> std::collections::vec_deque::Iter<'_, Segment> {
+        return self.0.segments();
     }
 
     /**
     Returns a parallel front-to-back iterator over all [`Segment`]s of `self`.
      */
-    pub fn par_iter(&self) -> rayon::collections::vec_deque::Iter<'_, Segment> {
-        return self.0.par_iter();
+    pub fn segments_par(&self) -> rayon::collections::vec_deque::Iter<'_, Segment> {
+        return self.0.segments_par();
     }
 
     /**
@@ -358,92 +359,23 @@ impl Contour {
     }
 
     /**
-    Returns whether `self` contains an `other` contour.
+    TODO
+     */
+    pub fn overlaps(&self, other: &Self, epsilon: f64, max_ulps: u32) -> bool {
+        let b_self = BoundingBox::from(self);
+        let b_other = BoundingBox::from(other);
 
-    A contour contains another contour if the bounding box of the latter is
-    within that of the former and if there is no intersection between the two
-    The specified tolerances `epsilon` and `max_ulps` are used within the
-    intersection algorithm.
-
-    # Examples
-    ```
-    use planar_geo::prelude::*;
-
-    let polysegment = Polysegment::from_points(&[
-        [0.0, 0.0],
-        [1.0, 0.0],
-        [1.0, 1.0],
-        [0.0, 1.0],
-    ]);
-    let outer = Contour::new(polysegment);
-
-    // This contour is inside "outer"
-    let polysegment = Polysegment::from_points(&[
-        [0.1, 0.1],
-        [0.9, 0.1],
-        [0.9, 0.9],
-        [0.1, 0.9],
-    ]);
-    let inner = Contour::new(polysegment);
-    assert!(outer.contains(&inner, 0.0, 0));
-
-    // This contour intersects with "outer"
-    let polysegment = Polysegment::from_points(&[
-        [0.1, 0.1],
-        [1.1, 0.1],
-        [1.1, 0.9],
-        [0.1, 0.9],
-    ]);
-    let inner = Contour::new(polysegment);
-    assert!(!outer.contains(&inner, 0.0, 0));
-    ```
-    */
-    pub fn contains(&self, other: &Self, epsilon: f64, max_ulps: u32) -> bool {
-        // Check if the bounding box of self contains the bounding box of other.
-        // If that's not the case, self cannot contain other by definition
-        if !BoundingBox::from(self).contains(&BoundingBox::from(other)) {
+        // If the bounding box do not cover each other or intersect, then the
+        // interiors cannot intersect as well
+        if !b_self.covers(&b_other) && !b_other.covers(&b_self) && !b_self.intersects(&b_other) {
             return false;
         }
 
-        /*
-        Check if all end points of segments of other are within self. If that is
-        not the the case, the contour is not contained.
-        */
-        if other
-            .points()
-            .any(|point| !self.contains_point(point, epsilon, max_ulps))
-        {
-            return false;
-        }
-
-        /*
-        Check for intersection between self and other. This check seems
-        superfluous, as the previous point containing check already detects
-        some intersections, but is actually necessary because a segment might be
-        partially outside self while its end points are inside it. As this is
-        a costly check to make, it is done at the end.
-         */
-        return self
-            .polysegment()
-            .intersections_polysegment_par(other.polysegment(), epsilon, max_ulps)
-            .count()
-            == 0;
+        // Iterate through all segments of self and check if they intersect with
+        // any of the segments of other. If they do, check if they just touch.
+        // If that is not the case, the interiors overlap
+        return true;
     }
-
-    // /**
-    // TODO
-    //  */
-    // pub fn interiors_intersect(&self, other: &Self, epsilon: f64, max_ulps: u32)
-    // -> bool {     let b_self = BoundingBox::from(self);
-    //     let b_other = BoundingBox::from(other);
-
-    //     // If the bounding box do not contain each other or intersect, then the
-    //     // interiors cannot intersect as well
-    //     if !b_self.contains(&b_other) && !b_other.contains(&b_self) &&
-    // !b_self.intersects(&b_other) {         return false;
-    //     }
-
-    // }
 
     /**
     Cuts `self` into multiple polysegments by intersecting it with `other` and returns
@@ -528,7 +460,7 @@ impl Contour {
     */
     pub fn area(&self) -> f64 {
         return self
-            .iter()
+            .segments()
             .map(|segment| match segment {
                 Segment::LineSegment(line) => {
                     0.5 * (line.start()[0] * line.stop()[1] - line.stop()[0] * line.start()[1])
@@ -789,6 +721,64 @@ impl Contour {
         let tail = [x_tail, y_tail];
         return Contour::arrow_from_tail_length_angle(tail, length, angle, stem_width, head_size);
     }
+
+    /// The algorithms are almost identical, hence the function is reused and
+    /// a compile-time boolean is used to differentiate
+    fn covers_or_contains_point<const COVERS: bool>(
+        &self,
+        point: [f64; 2],
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> bool {
+        // First coarse, but fast test: Check if the point is inside the bounding box
+        let bb = BoundingBox::from(self);
+        if COVERS {
+            if !bb.approx_covers_point(point, epsilon, max_ulps) {
+                return false;
+            }
+        } else {
+            if !bb.contains_point(point) {
+                return false;
+            }
+        }
+
+        // Check if the point is located on the edge of the polysegment
+        for segment in self.segments() {
+            if segment.covers_point(point, epsilon, max_ulps) {
+                if COVERS {
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+        }
+
+        // Use the ray casting algorithm
+        let ray_start = [bb.xmin() - 1.0, point[1]];
+        if let Ok(ray) = LineSegment::new(point, ray_start, epsilon, max_ulps) {
+            let mut counter = 0;
+
+            // Dummy start value which is guaranteed not to be an intersection,
+            // because it is outside the bounding box of self.
+            let mut last_intersection = ray_start;
+            for s in self.segments() {
+                if !(ray.touches_segment(s, epsilon, max_ulps)) {
+                    for i in s.intersections_segment(&ray, epsilon, max_ulps) {
+                        // Deduplication of subsequent identical intersections
+                        counter += approx::ulps_ne!(
+                            i,
+                            last_intersection,
+                            epsilon = epsilon,
+                            max_ulps = max_ulps
+                        ) as usize;
+                        last_intersection = i;
+                    }
+                }
+            }
+            return counter.is_odd();
+        }
+        return false;
+    }
 }
 
 impl crate::composite::private::Sealed for Contour {}
@@ -806,24 +796,14 @@ impl Composite for Contour {
         return CentroidData::from(self).into();
     }
 
-    fn intersections_primitive<'a, T: Primitive>(
-        &'a self,
-        primitive: &'a T,
-        epsilon: f64,
-        max_ulps: u32,
-    ) -> impl Iterator<Item = Intersection> + 'a {
-        self.polysegment()
-            .intersections_primitive(primitive, epsilon, max_ulps)
+    fn iter<'a>(&'a self) -> impl Iterator<Item = (SegmentKey, &'a crate::segment::Segment)> {
+        return self.0.iter();
     }
 
-    fn intersections_primitive_par<'a, T: Primitive + std::marker::Sync>(
+    fn par_iter<'a>(
         &'a self,
-        primitive: &'a T,
-        epsilon: f64,
-        max_ulps: u32,
-    ) -> impl ParallelIterator<Item = Intersection> + 'a {
-        self.polysegment()
-            .intersections_primitive_par(primitive, epsilon, max_ulps)
+    ) -> impl ParallelIterator<Item = (SegmentKey, &'a crate::segment::Segment)> {
+        return self.0.par_iter();
     }
 
     fn intersections_polysegment<'a>(
@@ -952,60 +932,151 @@ impl Composite for Contour {
             .map(Intersection::switch);
     }
 
-    /**
-    This function check if the point is on the contour OR inside it.
+    fn covers_point(&self, point: [f64; 2], epsilon: f64, max_ulps: u32) -> bool {
+        return self.covers_or_contains_point::<true>(point, epsilon, max_ulps);
+    }
 
-    # Examples
+    fn covers_segment<'a, T: Into<SegmentRef<'a>>>(
+        &self,
+        segment: T,
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> bool {
+        let segment: SegmentRef = segment.into();
 
-    ```
-    use planar_geo::prelude::*;
-
-    let rect = Contour::rectangle([0.0, 1.0], [1.0, 0.0]);
-
-    // Point on the polysegment forming the contour
-    assert!(rect.contains_point([0.5, 1.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
-    assert!(rect.polysegment().contains_point([0.5, 1.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
-
-    // Point inside the contour
-    assert!(rect.contains_point([0.5, 0.5], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
-    assert!(!rect.polysegment().contains_point([0.5, 0.5], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
-
-    // Point outside contour
-    assert!(!rect.contains_point([2.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
-    assert!(!rect.polysegment().contains_point([2.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
-    ```
-     */
-    fn contains_point(&self, point: [f64; 2], epsilon: f64, max_ulps: u32) -> bool {
-        // First coarse, but fast test: Check if the point is inside the polygon
-        let bb = BoundingBox::from(self);
-        if !bb.approx_contains_point(point, epsilon, max_ulps) {
+        // If the segment is outside the bounding box of self, then it is surely
+        // not covered.
+        if !self.bounding_box().covers(&segment.bounding_box()) {
             return false;
         }
 
-        // Check if the point is located on the edge of the polysegment
-        for segment in self.0.vec_deque().iter() {
-            if segment.contains_point(point, epsilon, max_ulps) {
+        // Are the start or stop point outside self?
+        if !self.covers_point(segment.start(), epsilon, max_ulps)
+            || !self.covers_point(segment.stop(), epsilon, max_ulps)
+        {
+            return false;
+        }
+
+        let mut intersections: Vec<[f64; 2]> = self
+            .intersections_primitive(&segment, epsilon, max_ulps)
+            .map(|i| i.point)
+            .collect();
+        if intersections.is_empty() {
+            return true;
+        }
+
+        match segment {
+            SegmentRef::LineSegment(line_segment) => {
+                // Sort the intersections in ascending order by their distance
+                // to line_segment.start().
+                let p = line_segment.start();
+                intersections.sort_by(|a, b| {
+                    ((a[0] - p[0]).powi(2) + (a[1] - p[1]).powi(2))
+                        .total_cmp(&((b[0] - p[0]).powi(2) + (b[1] - p[1]).powi(2)))
+                });
+
+                // Create individual segments out of the sorted intersections
+                // and check if their middle point is outside self.
+                for w in intersections.windows(2) {
+                    if let Some(start) = w.get(0) {
+                        if let Some(stop) = w.get(1) {
+                            let mx = 0.5 * (start[0] + stop[0]);
+                            let my = 0.5 * (start[1] + stop[1]);
+                            if !self.covers_point([mx, my], epsilon, max_ulps) {
+                                return false;
+                            }
+                        }
+                    }
+                }
                 return true;
             }
-        }
-
-        // Use the ray casting algorithm
-        if let Ok(ray) = LineSegment::new(
-            [bb.xmin() - 1.0, point[1]],
-            point,
-            DEFAULT_EPSILON,
-            DEFAULT_MAX_ULPS,
-        ) {
-            let mut counter = 0;
-            for segment in self.0.vec_deque().iter() {
-                counter += segment
-                    .intersections_primitive(&ray, epsilon, max_ulps)
-                    .len();
+            SegmentRef::ArcSegment(arc_segment) => {
+                /*
+                Calculate the angles of all intersection points relative to the
+                center of arc_segment, then sort them ascending (if arc_segment
+                is positive) or descending (if arc_segment is negative).
+                This separates arc_segment in multiple arc segments. Calculate
+                their middle point and check if that point is covered within
+                self. If that is true for all partial segments, then the entire
+                arc_segment is also covered in self.
+                 */
+                todo!();
             }
-            return counter.is_odd();
-        } else {
+        }
+    }
+
+    fn contains_point(&self, point: [f64; 2], epsilon: f64, max_ulps: u32) -> bool {
+        return self.covers_or_contains_point::<false>(point, epsilon, max_ulps);
+    }
+
+    fn contains_segment<'a, T: Into<crate::prelude::SegmentRef<'a>>>(
+        &self,
+        segment: T,
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> bool {
+        let segment: SegmentRef = segment.into();
+
+        // If the segment is outside the bounding box of self, then it is surely
+        // not covered.
+        if !self.bounding_box().contains(&segment.bounding_box()) {
             return false;
         }
+
+        // Are the start or stop point outside self?
+        if !self.contains_point(segment.start(), epsilon, max_ulps)
+            || !self.contains_point(segment.stop(), epsilon, max_ulps)
+        {
+            return false;
+        }
+
+        return self
+            .intersections_primitive(&segment, epsilon, max_ulps)
+            .map(|i| i.point)
+            .count()
+            == 0;
+    }
+
+    fn covers_composite<'a, T: Composite>(
+        &'a self,
+        other: &'a T,
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> bool {
+        return other.covers_contour(self, epsilon, max_ulps);
+    }
+
+    fn covers_composite_par<'a, T: Composite>(
+        &'a self,
+        other: &'a T,
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> bool
+    where
+        T: Sync,
+    {
+        return other.covers_contour_par(self, epsilon, max_ulps);
+    }
+
+    fn contains_composite<'a, T: Composite>(
+        &'a self,
+        other: &'a T,
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> bool {
+        return other.contains_contour(self, epsilon, max_ulps);
+    }
+
+    fn contains_composite_par<'a, T: Composite>(
+        &'a self,
+        other: &'a T,
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> bool
+    where
+        T: Sync,
+    {
+        return other.contains_contour_par(self, epsilon, max_ulps);
     }
 }
 
@@ -1039,9 +1110,9 @@ impl Transformation for Contour {
     }
 }
 
-impl From<&Contour> for BoundingBox {
-    fn from(value: &Contour) -> BoundingBox {
-        return BoundingBox::from(&value.0);
+impl ToBoundingBox for Contour {
+    fn bounding_box(&self) -> BoundingBox {
+        return self.0.bounding_box();
     }
 }
 
@@ -1106,10 +1177,10 @@ pub enum ArrowHeadSize {
 
 impl ArrowHeadSize {
     /**
-    Returns the arrow head height contained in `self`.
+    Returns the arrow head height covered in `self`.
 
     In case of the [`ArrowHeadSize::Height`] variant, this is simply the
-    contained value. For the [`ArrowHeadSize::SideLength`] variant, it is
+    covered value. For the [`ArrowHeadSize::SideLength`] variant, it is
     calculated as `sqrt(3) / 2` (half the square root of 3).
 
     # Examples
@@ -1132,10 +1203,10 @@ impl ArrowHeadSize {
     }
 
     /**
-    Returns the arrow head side length contained in `self`.
+    Returns the arrow head side length covered in `self`.
 
     In case of the [`ArrowHeadSize::SideLength`] variant, this is simply the
-    contained value. For the [`ArrowHeadSize::Height`] variant, it is
+    covered value. For the [`ArrowHeadSize::Height`] variant, it is
     calculated as `2 / sqrt(3)` (2 divided by square root of 3).
 
     # Examples
