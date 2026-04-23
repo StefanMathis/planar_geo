@@ -593,37 +593,87 @@ impl LineSegment {
         epsilon: f64,
         max_ulps: u32,
     ) -> bool {
-        fn is_endpoint(ls: &LineSegment, pt: [f64; 2], epsilon: f64, max_ulps: u32) -> bool {
-            return ulps_eq!(pt, ls.start(), epsilon = epsilon, max_ulps = max_ulps)
-                || ulps_eq!(pt, ls.stop(), epsilon = epsilon, max_ulps = max_ulps);
-        }
-
-        let other: super::SegmentRef = other.into();
-        match other {
-            super::SegmentRef::LineSegment(line_segment) => {
-                match self.intersections_line_segment(line_segment, epsilon, max_ulps) {
-                    PrimitiveIntersections::Zero => false,
-                    PrimitiveIntersections::One(i) => {
-                        return is_endpoint(self, i, epsilon, max_ulps)
-                            || is_endpoint(line_segment, i, epsilon, max_ulps);
-                    }
-                    PrimitiveIntersections::Two(_) => true,
-                }
-            }
-            super::SegmentRef::ArcSegment(arc_segment) => {
-                self.touches_arc_segment(arc_segment, epsilon, max_ulps)
-            }
-        }
+        return self
+            .touches_and_intersections(other.into(), epsilon, max_ulps)
+            .0;
     }
 
-    pub(crate) fn touches_arc_segment(
+    pub(crate) fn touches_and_intersections(
         &self,
-        arc_segment: &super::ArcSegment,
+        other: super::SegmentRef<'_>,
         epsilon: f64,
         max_ulps: u32,
-    ) -> bool {
+    ) -> (bool, PrimitiveIntersections) {
+        fn ep_ls(s: &LineSegment, pt: [f64; 2], epsilon: f64, max_ulps: u32) -> bool {
+            return ulps_eq!(pt, s.start(), epsilon = epsilon, max_ulps = max_ulps)
+                || ulps_eq!(pt, s.stop(), epsilon = epsilon, max_ulps = max_ulps);
+        }
+
+        fn ep_as(s: &super::ArcSegment, pt: [f64; 2], epsilon: f64, max_ulps: u32) -> bool {
+            return ulps_eq!(pt, s.start(), epsilon = epsilon, max_ulps = max_ulps)
+                || ulps_eq!(pt, s.stop(), epsilon = epsilon, max_ulps = max_ulps);
+        }
+
+        let intersections = self.intersections_primitive(&other, epsilon, max_ulps);
+        let touches = match other {
+            super::SegmentRef::LineSegment(line_segment) => match intersections {
+                PrimitiveIntersections::Zero => false,
+                PrimitiveIntersections::One(i) => {
+                    ep_ls(self, i, epsilon, max_ulps) || ep_ls(line_segment, i, epsilon, max_ulps)
+                }
+                PrimitiveIntersections::Two(_) => true,
+            },
+            super::SegmentRef::ArcSegment(arc_segment) => match intersections {
+                PrimitiveIntersections::Zero => false,
+                PrimitiveIntersections::One(i) => {
+                    ep_ls(self, i, epsilon, max_ulps)
+                        || ep_as(arc_segment, i, epsilon, max_ulps)
+                        || self.is_tangent(arc_segment, epsilon, max_ulps)
+                }
+                PrimitiveIntersections::Two([i1, i2]) => {
+                    // Are the intersections end points?
+                    (ep_ls(self, i1, epsilon, max_ulps)
+                        || ep_as(arc_segment, i1, epsilon, max_ulps))
+                        && (ep_ls(self, i2, epsilon, max_ulps)
+                            || ep_as(arc_segment, i2, epsilon, max_ulps))
+                }
+            },
+        };
+        return (touches, intersections);
+    }
+
+    /**
+    Returns whether `self` is a tangent of `arc_segment`.
+
+    A [`LineSegment`] is a tangent of an [`ArcSegment`](super::ArcSegment) if
+    they touch in a single point and the line segment is perpendicular to the
+    straight line connecting this point and the center of the arc.
+
+    # Examples
+
+    ```
+    use std::f64::consts::PI;
+    use planar_geo::prelude::*;
+
+    let ls = LineSegment::new([-2.0, 0.0], [2.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap();
+
+    // Arc touches ls at its end points, but ls is not a tangent
+    let arc = ArcSegment::from_center_radius_start_offset_angle([0.0, 0.0], 2.0, 0.0, PI, 0.0, 0).unwrap();
+    assert!(!ls.is_tangent(&arc, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+
+    // Arc which touches ls at [0.0, 0.0]
+    let arc = ArcSegment::from_center_radius_start_offset_angle([0.0, 2.0], 2.0, PI, PI, 0.0, 0).unwrap();
+    assert!(ls.is_tangent(&arc, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+
+    // Underlying circle touches ls in [0.0, 0.0], but that intersection point is not part of arc
+    let arc = ArcSegment::from_center_radius_start_offset_angle([0.0, 2.0], 2.0, 0.0, PI, 0.0, 0).unwrap();
+    assert!(!ls.is_tangent(&arc, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    ```
+     */
+    pub fn is_tangent(&self, arc_segment: &super::ArcSegment, epsilon: f64, max_ulps: u32) -> bool {
         let [x1, y1] = self.start();
         let [x2, y2] = self.stop();
+
         let [cx, cy] = arc_segment.center();
         let r = arc_segment.radius();
 

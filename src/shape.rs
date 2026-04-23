@@ -443,6 +443,50 @@ impl Shape {
         }
         return None;
     }
+
+    /**
+    TODO
+     */
+    pub fn overlaps_segment<'a, T: Into<SegmentRef<'a>>>(
+        &self,
+        segment: T,
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> bool {
+        let segment: SegmentRef = segment.into();
+        /*
+        The segment overlaps the shape if it overlaps the outer contour and is
+        not contained in one of the shape's holes
+         */
+        if !self
+            .contour()
+            .overlaps_segment(segment.clone(), epsilon, max_ulps)
+        {
+            return false;
+        }
+        for hole in self.holes() {
+            if hole.contains_segment(segment.clone(), epsilon, max_ulps) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+    TODO
+     */
+    pub fn overlaps_contour(&self, contour: &Contour, epsilon: f64, max_ulps: u32) -> bool {
+        contour
+            .segments_par()
+            .any(|s| self.overlaps_segment(s, epsilon, max_ulps))
+    }
+
+    /**
+
+    */
+    pub fn overlaps_shape(&self, other: &Self, epsilon: f64, max_ulps: u32) -> bool {
+        self.overlaps_contour(other.contour(), epsilon, max_ulps)
+    }
 }
 
 impl crate::composite::private::Sealed for Shape {}
@@ -679,7 +723,7 @@ impl Composite for Shape {
         })
     }
 
-    fn covers_composite<'a, T: Composite>(
+    fn covers_composite<'a, T: Composite + Sync>(
         &'a self,
         other: &'a T,
         epsilon: f64,
@@ -691,19 +735,7 @@ impl Composite for Shape {
         return other.covers_shape(self, epsilon, max_ulps);
     }
 
-    fn covers_composite_par<'a, T: Composite + Sync>(
-        &'a self,
-        other: &'a T,
-        epsilon: f64,
-        max_ulps: u32,
-    ) -> bool
-    where
-        Self: Sized,
-    {
-        return other.covers_shape_par(self, epsilon, max_ulps);
-    }
-
-    fn contains_composite<'a, T: Composite>(
+    fn contains_composite<'a, T: Composite + Sync>(
         &'a self,
         other: &'a T,
         epsilon: f64,
@@ -714,27 +746,13 @@ impl Composite for Shape {
     {
         return other.contains_shape(self, epsilon, max_ulps);
     }
-
-    fn contains_composite_par<'a, T: Composite + Sync>(
-        &'a self,
-        other: &'a T,
-        epsilon: f64,
-        max_ulps: u32,
-    ) -> bool
-    where
-        Self: Sized,
-    {
-        return other.contains_shape_par(self, epsilon, max_ulps);
-    }
 }
 
-impl From<Shape> for Contour {
-    fn from(shape: Shape) -> Contour {
-        return shape
-            .0
-            .into_iter()
-            .next()
-            .expect("the shape contains at least one line.");
+impl TryFrom<Contour> for Shape {
+    type Error = ShapeConstructorError<Vec<Contour>>;
+
+    fn try_from(value: Contour) -> Result<Self, Self::Error> {
+        return Shape::new(vec![value]);
     }
 }
 

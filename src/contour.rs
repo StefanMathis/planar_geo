@@ -17,15 +17,14 @@ documentation for details on invariants, construction, and usage.
 */
 
 use std::collections::VecDeque;
+use std::f64::consts::TAU;
 
 use compare_variables::*;
-use num::Integer;
 use rayon::iter::ParallelIterator;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 use crate::composite::*;
-use crate::line::Line;
 use crate::polysegment::Polysegment;
 use crate::primitive::Primitive;
 use crate::segment::{Segment, SegmentRef, arc_segment::ArcSegment, line_segment::LineSegment};
@@ -361,20 +360,121 @@ impl Contour {
     /**
     TODO
      */
-    pub fn overlaps(&self, other: &Self, epsilon: f64, max_ulps: u32) -> bool {
-        let b_self = BoundingBox::from(self);
-        let b_other = BoundingBox::from(other);
+    pub fn overlaps_segment<'a, T: Into<SegmentRef<'a>>>(
+        &self,
+        segment: T,
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> bool {
+        let segment: SegmentRef = segment.into();
 
-        // If the bounding box do not cover each other or intersect, then the
-        // interiors cannot intersect as well
-        if !b_self.covers(&b_other) && !b_other.covers(&b_self) && !b_self.intersects(&b_other) {
+        // If the segment is outside the bounding box of self, then the segment
+        // and the contour surely don't overlap
+        if !self
+            .bounding_box()
+            .approx_covers(&segment.bounding_box(), epsilon, max_ulps)
+        {
             return false;
         }
 
-        // Iterate through all segments of self and check if they intersect with
-        // any of the segments of other. If they do, check if they just touch.
-        // If that is not the case, the interiors overlap
-        return true;
+        match segment {
+            SegmentRef::LineSegment(line_segment) => {
+                /*
+                Sort the intersection points by their distance to
+                line_segment.start(). Each pair of neighboring intersections
+                describes a part of line_segment. If the middle points of these
+                parts are all contained in self, then the entire line segment is
+                also contained in self.
+                 */
+                let mut intersections: Vec<[f64; 2]> = self
+                    .intersections_primitive_par(&segment, epsilon, max_ulps)
+                    .map(|i| i.point)
+                    .collect();
+                intersections.push(line_segment.start());
+                intersections.push(line_segment.stop());
+
+                // Sort the intersections in ascending order by their distance
+                // to line_segment.start().
+                let s = line_segment.start();
+                intersections.sort_unstable_by(|a, b| {
+                    ((a[0] - s[0]).powi(2) + (a[1] - s[1]).powi(2))
+                        .total_cmp(&((b[0] - s[0]).powi(2) + (b[1] - s[1]).powi(2)))
+                });
+
+                // Create individual segments out of the sorted intersections
+                // and check if their middle point is contained in self
+                for w in intersections.windows(2) {
+                    if let Some(start) = w.get(0) {
+                        if let Some(stop) = w.get(1) {
+                            let mx = 0.5 * (start[0] + stop[0]);
+                            let my = 0.5 * (start[1] + stop[1]);
+                            if self.contains_point([mx, my], epsilon, max_ulps) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+                return false;
+            }
+            SegmentRef::ArcSegment(arc_segment) => {
+                /*
+                Calculate the angles of all intersection points relative to the
+                center of arc_segment, then sort them. This separates
+                arc_segment in multiple arc segments. Calculate their middle
+                point and check if that point is contained within self. If that is
+                true for all partial segments, then the entire arc_segment is
+                also contained in self.
+                 */
+                let c = arc_segment.center();
+                let r = arc_segment.radius();
+
+                let mut offset_angles: Vec<f64> = self
+                    .intersections_primitive_par(&segment, epsilon, max_ulps)
+                    .map(|i| ((i.point[1] - c[1]).atan2(i.point[0] - c[0])).rem_euclid(TAU))
+                    .collect();
+
+                offset_angles.sort_unstable_by(f64::total_cmp);
+
+                for w in offset_angles.windows(2) {
+                    if let Some(start) = w.get(0) {
+                        if let Some(stop) = w.get(1) {
+                            let mid_angle = 0.5 * (stop + start);
+                            let mx = c[0] + r * mid_angle.cos();
+                            let my = c[1] + r * mid_angle.sin();
+                            if self.contains_point([mx, my], epsilon, max_ulps) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+                return false;
+            }
+        }
+    }
+
+    /**
+    TODO
+     */
+    pub fn overlaps_contour<'a>(&self, other: &Self, epsilon: f64, max_ulps: u32) -> bool {
+        let b_self = BoundingBox::from(self);
+        let b_other = BoundingBox::from(other);
+
+        // If the bounding boxes do not overlap, then self and other also can't overlap
+        if !b_self.overlaps(&b_other) {
+            return false;
+        }
+
+        return self
+            .intersections_contour_par(other, epsilon, max_ulps)
+            .any(|i| {
+                if let Some(s_self) = self.segment(i.left) {
+                    return other.overlaps_segment(s_self, epsilon, max_ulps);
+                }
+                if let Some(s_other) = other.segment(i.right) {
+                    return self.overlaps_segment(s_other, epsilon, max_ulps);
+                }
+                return false;
+            });
     }
 
     /**
@@ -753,31 +853,66 @@ impl Contour {
             }
         }
 
-        // Use the ray casting algorithm
-        let ray_start = [bb.xmin() - 1.0, point[1]];
-        if let Ok(ray) = LineSegment::new(point, ray_start, epsilon, max_ulps) {
-            let mut counter = 0;
+        let mut inside = false;
+        for segment in self.segments() {
+            match segment {
+                Segment::LineSegment(l) => {
+                    let [x1, y1] = l.start();
+                    let [x2, y2] = l.stop();
 
-            // Dummy start value which is guaranteed not to be an intersection,
-            // because it is outside the bounding box of self.
-            let mut last_intersection = ray_start;
-            for s in self.segments() {
-                if !(ray.touches_segment(s, epsilon, max_ulps)) {
-                    for i in s.intersections_segment(&ray, epsilon, max_ulps) {
-                        // Deduplication of subsequent identical intersections
-                        counter += approx::ulps_ne!(
-                            i,
-                            last_intersection,
-                            epsilon = epsilon,
-                            max_ulps = max_ulps
-                        ) as usize;
-                        last_intersection = i;
+                    // Skip horizontal line segments
+                    if approx::ulps_eq!(y1, y2, epsilon = epsilon, max_ulps = max_ulps) {
+                        continue;
+                    }
+
+                    if (y1 > point[1]) != (y2 > point[1]) {
+                        let x_intersect = x1 + (point[1] - y1) * (x2 - x1) / (y2 - y1);
+                        if x_intersect > point[0] {
+                            inside = !inside;
+                        }
+                    }
+                }
+                Segment::ArcSegment(a) => {
+                    for split in a.split_y_monotonic(epsilon, max_ulps) {
+                        if let Some(partial_arc) = split {
+                            let [cx, cy] = partial_arc.center();
+                            let r = partial_arc.radius();
+
+                            let dy = point[1] - cy;
+                            let disc = r * r - dy * dy;
+
+                            if disc < 0.0 {
+                                continue;
+                            }
+                            let sqrt = disc.sqrt();
+
+                            // Only one of these can be valid due to y-monotonicity
+                            let candidates = [cx - sqrt, cx + sqrt];
+
+                            let mut hit = None;
+
+                            for x in candidates {
+                                let theta = (point[1] - cy).atan2(x - cx);
+                                if partial_arc.covers_angle(theta) {
+                                    hit = Some(x);
+                                    break;
+                                }
+                            }
+
+                            if let Some(x_intersect) = hit {
+                                if x_intersect > point[0] {
+                                    inside = !inside;
+                                }
+                            }
+                        } else {
+                            // Once a None is hit, no other arc will follow
+                            break;
+                        }
                     }
                 }
             }
-            return counter.is_odd();
         }
-        return false;
+        return inside;
     }
 }
 
@@ -943,10 +1078,12 @@ impl Composite for Contour {
         max_ulps: u32,
     ) -> bool {
         let segment: SegmentRef = segment.into();
-
         // If the segment is outside the bounding box of self, then it is surely
         // not covered.
-        if !self.bounding_box().covers(&segment.bounding_box()) {
+        if !self
+            .bounding_box()
+            .approx_covers(&segment.bounding_box(), epsilon, max_ulps)
+        {
             return false;
         }
 
@@ -957,22 +1094,26 @@ impl Composite for Contour {
             return false;
         }
 
-        let mut intersections: Vec<[f64; 2]> = self
-            .intersections_primitive(&segment, epsilon, max_ulps)
-            .map(|i| i.point)
-            .collect();
-        if intersections.is_empty() {
-            return true;
-        }
-
         match segment {
             SegmentRef::LineSegment(line_segment) => {
+                /*
+                Sort the intersection points by their distance to
+                line_segment.start(). Each pair of neighboring intersections
+                describes a part of line_segment. If the middle points of these
+                parts are all covered by self, then the entire line segment is
+                also covered by self.
+                 */
+                let mut intersections: Vec<[f64; 2]> = self
+                    .intersections_primitive_par(&segment, epsilon, max_ulps)
+                    .map(|i| i.point)
+                    .collect();
+
                 // Sort the intersections in ascending order by their distance
                 // to line_segment.start().
-                let p = line_segment.start();
-                intersections.sort_by(|a, b| {
-                    ((a[0] - p[0]).powi(2) + (a[1] - p[1]).powi(2))
-                        .total_cmp(&((b[0] - p[0]).powi(2) + (b[1] - p[1]).powi(2)))
+                let s = line_segment.start();
+                intersections.sort_unstable_by(|a, b| {
+                    ((a[0] - s[0]).powi(2) + (a[1] - s[1]).powi(2))
+                        .total_cmp(&((b[0] - s[0]).powi(2) + (b[1] - s[1]).powi(2)))
                 });
 
                 // Create individual segments out of the sorted intersections
@@ -993,14 +1134,35 @@ impl Composite for Contour {
             SegmentRef::ArcSegment(arc_segment) => {
                 /*
                 Calculate the angles of all intersection points relative to the
-                center of arc_segment, then sort them ascending (if arc_segment
-                is positive) or descending (if arc_segment is negative).
-                This separates arc_segment in multiple arc segments. Calculate
-                their middle point and check if that point is covered within
-                self. If that is true for all partial segments, then the entire
-                arc_segment is also covered in self.
+                center of arc_segment, then sort them. This separates
+                arc_segment in multiple arc segments. Calculate their middle
+                point and check if that point is covered by self. If that is
+                true for all partial segments, then the entire arc_segment is
+                also covered by self.
                  */
-                todo!();
+                let c = arc_segment.center();
+                let r = arc_segment.radius();
+
+                let mut offset_angles: Vec<f64> = self
+                    .intersections_primitive_par(&segment, epsilon, max_ulps)
+                    .map(|i| ((i.point[1] - c[1]).atan2(i.point[0] - c[0])).rem_euclid(TAU))
+                    .collect();
+
+                offset_angles.sort_unstable_by(f64::total_cmp);
+
+                for w in offset_angles.windows(2) {
+                    if let Some(start) = w.get(0) {
+                        if let Some(stop) = w.get(1) {
+                            let mid_angle = 0.5 * (stop + start);
+                            let mx = c[0] + r * mid_angle.cos();
+                            let my = c[1] + r * mid_angle.sin();
+                            if !self.covers_point([mx, my], epsilon, max_ulps) {
+                                return false;
+                            }
+                        }
+                    }
+                }
+                return true;
             }
         }
     }
@@ -1037,7 +1199,7 @@ impl Composite for Contour {
             == 0;
     }
 
-    fn covers_composite<'a, T: Composite>(
+    fn covers_composite<'a, T: Composite + Sync>(
         &'a self,
         other: &'a T,
         epsilon: f64,
@@ -1046,37 +1208,13 @@ impl Composite for Contour {
         return other.covers_contour(self, epsilon, max_ulps);
     }
 
-    fn covers_composite_par<'a, T: Composite>(
-        &'a self,
-        other: &'a T,
-        epsilon: f64,
-        max_ulps: u32,
-    ) -> bool
-    where
-        T: Sync,
-    {
-        return other.covers_contour_par(self, epsilon, max_ulps);
-    }
-
-    fn contains_composite<'a, T: Composite>(
+    fn contains_composite<'a, T: Composite + Sync>(
         &'a self,
         other: &'a T,
         epsilon: f64,
         max_ulps: u32,
     ) -> bool {
         return other.contains_contour(self, epsilon, max_ulps);
-    }
-
-    fn contains_composite_par<'a, T: Composite>(
-        &'a self,
-        other: &'a T,
-        epsilon: f64,
-        max_ulps: u32,
-    ) -> bool
-    where
-        T: Sync,
-    {
-        return other.contains_contour_par(self, epsilon, max_ulps);
     }
 }
 
@@ -1159,6 +1297,24 @@ impl From<BoundingBox> for Contour {
 impl From<&BoundingBox> for Contour {
     fn from(bounding_box: &BoundingBox) -> Self {
         return Polysegment::from(bounding_box).into();
+    }
+}
+
+impl From<Segment> for Contour {
+    fn from(value: Segment) -> Self {
+        return Polysegment::from(value).into();
+    }
+}
+
+impl From<LineSegment> for Contour {
+    fn from(value: LineSegment) -> Self {
+        return Polysegment::from(value).into();
+    }
+}
+
+impl From<ArcSegment> for Contour {
+    fn from(value: ArcSegment) -> Self {
+        return Polysegment::from(value).into();
     }
 }
 

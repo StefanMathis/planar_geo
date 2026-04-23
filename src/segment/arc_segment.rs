@@ -21,8 +21,8 @@ use compare_variables::compare_variables;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    CentroidData, Rotation2, Transformation,
     primitive::{Primitive, PrimitiveIntersections},
-    {CentroidData, Rotation2, Transformation},
 };
 use bounding_box::{BoundingBox, ToBoundingBox};
 
@@ -227,7 +227,7 @@ impl ArcSegment {
     Creates an [`ArcSegment`] from its `center`, `radius`, `start_angle` and
     `stop_angle`. This fails in the following cases:
     - `radius` is not positive.
-    - `start_angle` is approximately equal to stop_angle (checked with
+    - `start_angle` is approximately equal to `stop_angle` (checked with
     [`approx::ulps_eq`] and the provided `epsilon` and `max_ulps`).
 
     # Examples
@@ -1089,6 +1089,51 @@ impl ArcSegment {
         )
     }
 
+    /**
+    Returns whether `line_segment` is a tangent of `self`.
+
+    A [`LineSegment`](super::LineSegment) is a tangent of an [`ArcSegment`] if
+    they touch in a single point and the line segment is perpendicular to the
+    straight line connecting this point and the center of the arc.
+
+    # Examples
+
+    ```
+    use std::f64::consts::PI;
+    use planar_geo::prelude::*;
+
+    let arc = ArcSegment::from_center_radius_start_offset_angle([0.0, 0.0], 2.0, 0.0, PI, 0.0, 0).unwrap();
+
+    // Horizontal line segment which touches the arc at [0.0, 2.0]
+    let ls = LineSegment::new([-2.0, 2.0], [2.0, 2.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap();
+    assert!(arc.is_tangent(&ls, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+
+    // The underlying line is a tangent, but point [0.0, 2.0] is not part of the line segment
+    let ls = LineSegment::new([-2.0, 2.0], [-4.0, 2.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap();
+    assert!(!arc.is_tangent(&ls, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+
+    // Line segment intersects the arc twice
+    let ls = LineSegment::new([-2.0, 1.9], [2.0, 1.9], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap();
+    assert!(!arc.is_tangent(&ls, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+
+    // Vertical line segment which touches the arc at [2.0, 0.0]
+    let ls = LineSegment::new([2.0, 0.0], [2.0, 1.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap();
+    assert!(arc.is_tangent(&ls, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+
+    // Line segment touches the arc at [2.0, 0.0], but is not perpendicular to [0.0, 0.0] - [2.0, 0.0]
+    let ls = LineSegment::new([2.0, 0.0], [3.0, 1.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap();
+    assert!(!arc.is_tangent(&ls, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    ```
+     */
+    pub fn is_tangent(
+        &self,
+        line_segment: &super::LineSegment,
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> bool {
+        return line_segment.is_tangent(self, epsilon, max_ulps);
+    }
+
     /// Returns whether `self` and `other` are touching.
     ///
     /// The two segments are touching if they are intersecting but not
@@ -1147,31 +1192,64 @@ impl ArcSegment {
         epsilon: f64,
         max_ulps: u32,
     ) -> bool {
-        let other: super::SegmentRef = other.into();
+        return self
+            .touches_and_intersections(other.into(), epsilon, max_ulps)
+            .0;
+    }
+
+    pub(crate) fn touches_and_intersections(
+        &self,
+        other: super::SegmentRef<'_>,
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> (bool, PrimitiveIntersections) {
+        fn ep_as(s: &super::ArcSegment, pt: [f64; 2], epsilon: f64, max_ulps: u32) -> bool {
+            return ulps_eq!(pt, s.start(), epsilon = epsilon, max_ulps = max_ulps)
+                || ulps_eq!(pt, s.stop(), epsilon = epsilon, max_ulps = max_ulps);
+        }
+
         match other {
             super::SegmentRef::LineSegment(line_segment) => {
-                line_segment.touches_arc_segment(self, epsilon, max_ulps)
+                return line_segment.touches_and_intersections(self.into(), epsilon, max_ulps);
             }
             super::SegmentRef::ArcSegment(arc_segment) => {
-                // If center and radius are identical, the arc segments are part
-                // of the same circle and therefore touch
-                if self.same_circle(&arc_segment, epsilon, max_ulps) {
-                    return true;
+                if std::ptr::eq(self, arc_segment) {
+                    return (true, PrimitiveIntersections::Zero);
                 }
 
-                match self.intersections_arc_segment(arc_segment, epsilon, max_ulps) {
+                let intersections = self.intersections_arc_segment(arc_segment, epsilon, max_ulps);
+                let touches = match intersections {
                     PrimitiveIntersections::Zero => false,
                     PrimitiveIntersections::One(i) => {
-                        // Arc segment are touching if their tangent is the
-                        // same. This is the case if the vectors i - center are
-                        // colinear.
-                        let a = [i[0] - self.center[0], i[1] - self.center[1]];
-                        let b = [i[0] - arc_segment.center[0], i[1] - arc_segment.center[1]];
-                        let cross = a[0] * b[1] - a[1] * b[0];
-                        ulps_eq!(cross, 0.0, epsilon = epsilon, max_ulps = max_ulps)
+                        if ep_as(self, i, epsilon, max_ulps)
+                            || ep_as(arc_segment, i, epsilon, max_ulps)
+                        {
+                            true
+                        } else {
+                            // Arc segment are touching if their tangent is the
+                            // same. This is the case if the vectors i - center are
+                            // colinear.
+                            let a = [i[0] - self.center[0], i[1] - self.center[1]];
+                            let b = [i[0] - arc_segment.center[0], i[1] - arc_segment.center[1]];
+                            let cross = a[0] * b[1] - a[1] * b[0];
+                            ulps_eq!(cross, 0.0, epsilon = epsilon, max_ulps = max_ulps)
+                        }
                     }
-                    PrimitiveIntersections::Two(_) => false,
-                }
+                    PrimitiveIntersections::Two([i1, i2]) => {
+                        // If center and radius are identical, the arc segments are part
+                        // of the same circle and therefore touch
+                        if self.same_circle(&arc_segment, epsilon, max_ulps) {
+                            true
+                        } else {
+                            // Are the intersections end points?
+                            (ep_as(self, i1, epsilon, max_ulps)
+                                || ep_as(arc_segment, i1, epsilon, max_ulps))
+                                && (ep_as(self, i2, epsilon, max_ulps)
+                                    || ep_as(arc_segment, i2, epsilon, max_ulps))
+                        }
+                    }
+                };
+                return (touches, intersections);
             }
         }
     }
@@ -1234,6 +1312,97 @@ impl ArcSegment {
             }
         }
         return intersections;
+    }
+
+    /// Split arc in y-monotonic segments (where each y-value appears at most
+    /// once)
+    pub(crate) fn split_y_monotonic(&self, epsilon: f64, max_ulps: u32) -> [Option<ArcSegment>; 3] {
+        // Cover special case of a circle
+        let start_angle = if self.is_circle() {
+            -FRAC_PI_2
+        } else {
+            self.start_angle()
+        };
+
+        let mut angles = [Some(start_angle), None, None, None];
+        let mut free_slot = 1;
+        if self.is_positive() {
+            if self.start_angle() > FRAC_PI_2 {
+                if self.covers_angle(3.0 * FRAC_PI_2) {
+                    angles[free_slot] = Some(3.0 * FRAC_PI_2);
+                    free_slot += 1;
+                }
+                if self.covers_angle(FRAC_PI_2) {
+                    angles[free_slot] = Some(FRAC_PI_2);
+                    free_slot += 1;
+                }
+            } else {
+                if self.covers_angle(FRAC_PI_2) {
+                    angles[free_slot] = Some(FRAC_PI_2);
+                    free_slot += 1;
+                }
+                if self.covers_angle(3.0 * FRAC_PI_2) {
+                    angles[free_slot] = Some(3.0 * FRAC_PI_2);
+                    free_slot += 1;
+                }
+            }
+        } else {
+            if self.start_angle() < FRAC_PI_2 {
+                if self.covers_angle(3.0 * FRAC_PI_2) {
+                    angles[free_slot] = Some(3.0 * FRAC_PI_2);
+                    free_slot += 1;
+                }
+                if self.covers_angle(FRAC_PI_2) {
+                    angles[free_slot] = Some(FRAC_PI_2);
+                    free_slot += 1;
+                }
+            } else {
+                if self.covers_angle(FRAC_PI_2) {
+                    angles[free_slot] = Some(FRAC_PI_2);
+                    free_slot += 1;
+                }
+                if self.covers_angle(3.0 * FRAC_PI_2) {
+                    angles[free_slot] = Some(3.0 * FRAC_PI_2);
+                    free_slot += 1;
+                }
+            }
+        }
+        if ulps_ne!(
+            self.start_angle().rem_euclid(TAU),
+            self.stop_angle().rem_euclid(TAU),
+            epsilon = epsilon,
+            max_ulps = max_ulps
+        ) {
+            angles[free_slot] = Some(self.stop_angle());
+        }
+
+        let mut arcs = [None, None, None];
+        free_slot = 0;
+        for w in angles.windows(2) {
+            // Check if both angles are "Some"
+            let start_angle = match w[0] {
+                Some(a) => a,
+                None => break,
+            };
+            let stop_angle = match w[1] {
+                Some(a) => a,
+                None => break,
+            };
+
+            if let Ok(arc) = ArcSegment::from_center_radius_start_stop_angle(
+                self.center(),
+                self.radius(),
+                start_angle,
+                stop_angle,
+                epsilon,
+                max_ulps,
+            ) {
+                arcs[free_slot] = Some(arc);
+                free_slot += 1;
+            }
+        }
+
+        return arcs;
     }
 }
 

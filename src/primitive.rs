@@ -369,6 +369,10 @@ intersection methods forspecific types are available as well
 and are particularily useful when using [`Primitive`] to define a trait object
 (which cannot use generic functions).
 
+All intersection functions first check if the bounding boxes of the two
+primitives overlap (short-circuiting the evaluation if they don't). Hence, it is
+not necessary to check this before calling an intersection method.
+
 By definition, a primitive does not self-intersect, but it does intersect with
 equal primitives:
 

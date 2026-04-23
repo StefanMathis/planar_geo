@@ -1,4 +1,7 @@
-use std::f64::{INFINITY, NEG_INFINITY, consts::PI};
+use std::f64::{
+    INFINITY, NEG_INFINITY,
+    consts::{FRAC_PI_2, PI},
+};
 
 use planar_geo::prelude::*;
 
@@ -889,6 +892,7 @@ fn test_touches_line_segment() {
         assert!(ls1.touches_segment(&ls2, e, m));
         assert!(ls2.touches_segment(&ls1, e, m));
     }
+    {}
 }
 
 #[test]
@@ -932,5 +936,26 @@ fn test_touches_arc_segments() {
                 .unwrap();
         assert!(!ls.touches_segment(&arc, e, m));
         assert!(!arc.touches_segment(&ls, e, m));
+    }
+    {
+        let ls = LineSegment::new([-1.0, 0.0], [1.0, 0.0], e, m).unwrap();
+        let arc = ArcSegment::from_center_radius_start_offset_angle([0.0, 0.0], 1.0, 0.0, PI, e, m)
+            .unwrap();
+        assert!(ls.touches_segment(&arc, e, m));
+        assert!(arc.touches_segment(&ls, e, m));
+    }
+    {
+        let ls = LineSegment::new([0.0, 0.0], [0.0, 1.0], e, m).unwrap();
+        let arc = ArcSegment::from_center_radius_start_offset_angle([0.0, 0.0], 1.0, 0.0, PI, e, m)
+            .unwrap();
+        assert!(ls.touches_segment(&arc, e, m));
+        assert!(arc.touches_segment(&ls, e, m));
+    }
+    {
+        let ls = LineSegment::new([-1.0, 0.0], [1.0, 0.0], e, m).unwrap();
+        let arc =
+            ArcSegment::from_start_center_angle([0.0, 1.0], [1.0, 1.0], FRAC_PI_2, e, m).unwrap();
+        assert!(ls.touches_segment(&arc, e, m));
+        assert!(arc.touches_segment(&ls, e, m));
     }
 }

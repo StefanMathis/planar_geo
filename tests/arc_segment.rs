@@ -66,6 +66,19 @@ fn test_covers_point() {
         assert!(s.covers(&pt2, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
         assert!(s.covers(&pt3, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
     }
+    {
+        let arc = ArcSegment::from_center_radius_start_offset_angle(
+            [0.0, 0.0],
+            1.0,
+            0.0,
+            FRAC_PI_2,
+            DEFAULT_EPSILON,
+            DEFAULT_MAX_ULPS,
+        )
+        .unwrap();
+        assert!(arc.covers_point([0.99498743710662, 0.1], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+        assert!(!arc.covers_point([-0.99498743710662, 0.1], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    }
 }
 
 #[test]
@@ -292,6 +305,24 @@ fn test_line_segment_arc_intersection() {
         .into();
         let intersections = arc.intersections_primitive(&line, DEFAULT_EPSILON, DEFAULT_MAX_ULPS);
         assert_eq!(intersections.len(), 1);
+    }
+    {
+        let arc: Segment = ArcSegment::from_center_radius_start_offset_angle(
+            [0.0, 0.0],
+            1.0,
+            0.0,
+            FRAC_PI_2,
+            DEFAULT_EPSILON,
+            DEFAULT_MAX_ULPS,
+        )
+        .unwrap()
+        .into();
+        let line: Segment =
+            LineSegment::new([0.0, 0.1], [-4.0, 0.1], DEFAULT_EPSILON, DEFAULT_MAX_ULPS)
+                .unwrap()
+                .into();
+        let intersections = arc.intersections_primitive(&line, DEFAULT_EPSILON, DEFAULT_MAX_ULPS);
+        assert_eq!(intersections.len(), 0);
     }
 }
 
@@ -1164,5 +1195,20 @@ fn test_touches_arc_segment() {
             .unwrap();
         assert!(!c.touches_segment(&a, e, m));
         assert!(!a.touches_segment(&c, e, m));
+    }
+    {
+        let a1 = ArcSegment::from_start_center_angle([1.0, 0.0], [0.0, 0.0], PI, e, m).unwrap();
+        let a2 =
+            ArcSegment::from_start_center_angle([0.0, 1.0], [1.0, 1.0], FRAC_PI_2, e, m).unwrap();
+        assert!(a1.touches_segment(&a2, e, m));
+        assert!(a2.touches_segment(&a1, e, m));
+    }
+    {
+        let a1 =
+            ArcSegment::from_start_center_angle([0.0, 1.0], [0.0, 0.0], FRAC_PI_2, e, m).unwrap();
+        let a2 =
+            ArcSegment::from_start_center_angle([0.0, 1.0], [1.0, 1.0], FRAC_PI_2, e, m).unwrap();
+        assert!(a1.touches_segment(&a2, e, m));
+        assert!(a2.touches_segment(&a1, e, m));
     }
 }

@@ -456,3 +456,217 @@ fn test_centroid() {
         approx::assert_abs_diff_eq!(shape.centroid(), [0.5, 1.0], epsilon = 1e-3);
     }
 }
+
+#[test]
+fn test_covers_shape() {
+    let e = DEFAULT_EPSILON;
+    let m = DEFAULT_MAX_ULPS;
+    {
+        let c = Contour::new(Polysegment::from_points(&[
+            [0.0, 0.0],
+            [1.0, 0.0],
+            [1.0, 1.0],
+            [0.0, 1.0],
+        ]));
+        let s1 = Shape::try_from(c).unwrap();
+        assert!(s1.covers_shape(&s1, e, m));
+
+        let c = Contour::new(Polysegment::from_points(&[
+            [0.0, 0.0],
+            [2.0, 0.0],
+            [2.0, 1.0],
+            [0.0, 1.0],
+        ]));
+        let s2 = Shape::try_from(c).unwrap();
+        assert!(!s1.covers_shape(&s2, e, m));
+        assert!(s2.covers_shape(&s1, e, m));
+
+        let c = Contour::new(Polysegment::from_points(&[
+            [0.0, 0.0],
+            [2.0, 0.0],
+            [2.0, 0.5],
+            [0.0, 0.5],
+        ]));
+        let s2 = Shape::try_from(c).unwrap();
+        assert!(!s1.covers_shape(&s2, e, m));
+        assert!(!s2.covers_shape(&s1, e, m));
+    }
+    {
+        let c = Contour::new(Polysegment::from_points(&[
+            [0.0, 0.0],
+            [1.0, 0.0],
+            [1.0, 1.0],
+            [0.0, 1.0],
+        ]));
+        let h = Contour::new(Polysegment::from_points(&[
+            [0.1, 0.1],
+            [0.9, 0.1],
+            [0.9, 0.9],
+            [0.1, 0.9],
+        ]));
+        let s1 = Shape::new(vec![c, h]).unwrap();
+        assert!(s1.covers_shape(&s1, e, m));
+
+        let c = Contour::new(Polysegment::from_points(&[
+            [0.0, 0.0],
+            [0.1, 0.0],
+            [0.1, 1.0],
+            [0.0, 1.0],
+        ]));
+        let s2 = Shape::try_from(c).unwrap();
+        assert!(s1.covers_shape(&s2, e, m));
+        assert!(!s2.covers_shape(&s1, e, m));
+
+        let c = Contour::new(Polysegment::from_points(&[
+            [0.01, 0.1],
+            [0.09, 0.1],
+            [0.09, 0.9],
+            [0.01, 0.9],
+        ]));
+        let s2 = Shape::try_from(c).unwrap();
+        assert!(s1.covers_shape(&s2, e, m));
+        assert!(!s2.covers_shape(&s1, e, m));
+
+        let c = Contour::new(Polysegment::from_points(&[
+            [0.11, 0.11],
+            [0.89, 0.11],
+            [0.89, 0.89],
+            [0.11, 0.89],
+        ]));
+        let s2 = Shape::try_from(c).unwrap();
+        assert!(!s1.covers_shape(&s2, e, m));
+        assert!(!s2.covers_shape(&s1, e, m));
+    }
+}
+
+#[test]
+fn test_covers_point() {
+    let e = DEFAULT_EPSILON;
+    let m = DEFAULT_MAX_ULPS;
+
+    {
+        let c = Contour::new(Polysegment::from_points(&[
+            [0.0, 0.0],
+            [1.0, 0.0],
+            [1.0, 1.0],
+            [0.0, 1.0],
+        ]));
+        let h = Contour::new(Polysegment::from_points(&[
+            [0.1, 0.1],
+            [0.9, 0.1],
+            [0.9, 0.9],
+            [0.1, 0.9],
+        ]));
+        let s1 = Shape::new(vec![c, h]).unwrap();
+        assert!(s1.covers_point([0.05, 0.5], e, m));
+        assert!(!s1.covers_point([0.5, 0.5], e, m));
+        assert!(s1.covers_point([0.1, 0.5], e, m));
+    }
+}
+
+#[test]
+fn test_contains_point() {
+    let e = DEFAULT_EPSILON;
+    let m = DEFAULT_MAX_ULPS;
+
+    {
+        let c = Contour::new(Polysegment::from_points(&[
+            [0.0, 0.0],
+            [1.0, 0.0],
+            [1.0, 1.0],
+            [0.0, 1.0],
+        ]));
+        let h = Contour::new(Polysegment::from_points(&[
+            [0.1, 0.1],
+            [0.9, 0.1],
+            [0.9, 0.9],
+            [0.1, 0.9],
+        ]));
+        let s1 = Shape::new(vec![c, h]).unwrap();
+        assert!(s1.contains_point([0.05, 0.5], e, m));
+        assert!(!s1.contains_point([0.5, 0.5], e, m));
+        assert!(!s1.contains_point([0.1, 0.5], e, m));
+    }
+}
+
+#[test]
+fn test_contains_shape() {
+    let e = DEFAULT_EPSILON;
+    let m = DEFAULT_MAX_ULPS;
+    {
+        let c = Contour::new(Polysegment::from_points(&[
+            [0.0, 0.0],
+            [1.0, 0.0],
+            [1.0, 1.0],
+            [0.0, 1.0],
+        ]));
+        let s1 = Shape::try_from(c).unwrap();
+        assert!(!s1.contains_shape(&s1, e, m));
+
+        let c = Contour::new(Polysegment::from_points(&[
+            [0.0, 0.0],
+            [2.0, 0.0],
+            [2.0, 1.0],
+            [0.0, 1.0],
+        ]));
+        let s2 = Shape::try_from(c).unwrap();
+        assert!(!s1.contains_shape(&s2, e, m));
+        assert!(!s2.contains_shape(&s1, e, m));
+
+        let c = Contour::new(Polysegment::from_points(&[
+            [0.0, 0.0],
+            [2.0, 0.0],
+            [2.0, 0.5],
+            [0.0, 0.5],
+        ]));
+        let s2 = Shape::try_from(c).unwrap();
+        assert!(!s1.contains_shape(&s2, e, m));
+        assert!(!s2.contains_shape(&s1, e, m));
+    }
+    {
+        let c = Contour::new(Polysegment::from_points(&[
+            [0.0, 0.0],
+            [1.0, 0.0],
+            [1.0, 1.0],
+            [0.0, 1.0],
+        ]));
+        let h = Contour::new(Polysegment::from_points(&[
+            [0.1, 0.1],
+            [0.9, 0.1],
+            [0.9, 0.9],
+            [0.1, 0.9],
+        ]));
+        let s1 = Shape::new(vec![c, h]).unwrap();
+        assert!(!s1.contains_shape(&s1, e, m));
+
+        let c = Contour::new(Polysegment::from_points(&[
+            [0.0, 0.0],
+            [0.1, 0.0],
+            [0.1, 1.0],
+            [0.0, 1.0],
+        ]));
+        let s2 = Shape::try_from(c).unwrap();
+        assert!(!s1.contains_shape(&s2, e, m));
+        assert!(!s2.contains_shape(&s1, e, m));
+
+        let c = Contour::new(Polysegment::from_points(&[
+            [0.01, 0.1],
+            [0.09, 0.1],
+            [0.09, 0.9],
+            [0.01, 0.9],
+        ]));
+        let s2 = Shape::try_from(c).unwrap();
+        assert!(s1.contains_shape(&s2, e, m));
+        assert!(!s2.contains_shape(&s1, e, m));
+
+        let c = Contour::new(Polysegment::from_points(&[
+            [0.11, 0.11],
+            [0.89, 0.11],
+            [0.89, 0.89],
+            [0.11, 0.89],
+        ]));
+        let s2 = Shape::try_from(c).unwrap();
+        assert!(!s1.contains_shape(&s2, e, m));
+        assert!(!s2.contains_shape(&s1, e, m));
+    }
+}

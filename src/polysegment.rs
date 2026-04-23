@@ -1209,52 +1209,22 @@ impl Composite for Polysegment {
         return false;
     }
 
-    fn covers_composite<'a, T: Composite>(
+    fn covers_composite<'a, T: Composite + Sync>(
         &'a self,
         other: &'a T,
         epsilon: f64,
         max_ulps: u32,
-    ) -> bool
-    where
-        Self: Sized,
-    {
+    ) -> bool {
         return other.covers_polysegment(self, epsilon, max_ulps);
     }
 
-    fn covers_composite_par<'a, T: Composite + Sync>(
+    fn contains_composite<'a, T: Composite + Sync>(
         &'a self,
         other: &'a T,
         epsilon: f64,
         max_ulps: u32,
-    ) -> bool
-    where
-        Self: Sized,
-    {
-        return other.covers_polysegment_par(self, epsilon, max_ulps);
-    }
-
-    fn contains_composite<'a, T: Composite>(
-        &'a self,
-        other: &'a T,
-        epsilon: f64,
-        max_ulps: u32,
-    ) -> bool
-    where
-        Self: Sized,
-    {
+    ) -> bool {
         return other.contains_polysegment(self, epsilon, max_ulps);
-    }
-
-    fn contains_composite_par<'a, T: Composite + Sync>(
-        &'a self,
-        other: &'a T,
-        epsilon: f64,
-        max_ulps: u32,
-    ) -> bool
-    where
-        Self: Sized,
-    {
-        return other.contains_polysegment_par(self, epsilon, max_ulps);
     }
 }
 

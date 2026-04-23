@@ -312,6 +312,10 @@ segment of b (via [`Primitive::intersections_primitive`]).
 As with the intersection methods of [`Primitive`], each intersection function
 takes `epsilon` and `max_ulps` as additional arguments to specify a certain
 tolerance for intersection detection.
+
+All intersection functions first check if the bounding boxes of the two
+primitives overlap (short-circuiting the evaluation if they don't). Hence, it is
+not necessary to check this before calling an intersection method.
  */
 pub trait Composite: private::Sealed {
     /**
@@ -530,24 +534,7 @@ pub trait Composite: private::Sealed {
     assert!(!shape.contains_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
     ```
      */
-    fn contains_polysegment(&self, polysegment: &Polysegment, epsilon: f64, max_ulps: u32) -> bool {
-        return polysegment
-            .segments()
-            .all(|s| self.contains_segment(s, epsilon, max_ulps));
-    }
-
-    /**
-    Returns whether the given [`Polysegment`] is contained within `self`.
-
-    This is the parallelized variant of [`Composite::contains_polysegment`].
-    See its docstring for more information and examples.
-     */
-    fn contains_polysegment_par(
-        &self,
-        polysegment: &Polysegment,
-        epsilon: f64,
-        max_ulps: u32,
-    ) -> bool
+    fn contains_polysegment(&self, polysegment: &Polysegment, epsilon: f64, max_ulps: u32) -> bool
     where
         Self: Sync,
     {
@@ -562,21 +549,11 @@ pub trait Composite: private::Sealed {
     This function just calls [`Composite::contains_polysegment`] on
     `contour.polysegment()`.
     */
-    fn contains_contour(&self, contour: &Contour, epsilon: f64, max_ulps: u32) -> bool {
-        return self.contains_polysegment(contour.polysegment(), epsilon, max_ulps);
-    }
-
-    /**
-    Returns whether the given [`Contour`] is contained within `self`.
-
-    This is the parallelized variant of [`Composite::contains_contour`].
-    See its docstring for more information and examples.
-    */
-    fn contains_contour_par(&self, contour: &Contour, epsilon: f64, max_ulps: u32) -> bool
+    fn contains_contour(&self, contour: &Contour, epsilon: f64, max_ulps: u32) -> bool
     where
         Self: Sync,
     {
-        return self.contains_polysegment_par(contour.polysegment(), epsilon, max_ulps);
+        return self.contains_polysegment(contour.polysegment(), epsilon, max_ulps);
     }
 
     /**
@@ -584,21 +561,11 @@ pub trait Composite: private::Sealed {
 
     A shape is contained within `self` if its outer `contour` is contained.
     */
-    fn contains_shape(&self, shape: &Shape, epsilon: f64, max_ulps: u32) -> bool {
-        return self.contains_contour(shape.contour(), epsilon, max_ulps);
-    }
-
-    /**
-    Returns whether the given [`Shape`] is contained within `self`.
-
-    This is the parallelized variant of [`Composite::contains_contour`].
-    See its docstring for more information and examples.
-    */
-    fn contains_shape_par(&self, shape: &Shape, epsilon: f64, max_ulps: u32) -> bool
+    fn contains_shape(&self, shape: &Shape, epsilon: f64, max_ulps: u32) -> bool
     where
         Self: Sync,
     {
-        return self.contains_contour_par(shape.contour(), epsilon, max_ulps);
+        return self.contains_contour(shape.contour(), epsilon, max_ulps);
     }
 
     /**
@@ -606,20 +573,7 @@ pub trait Composite: private::Sealed {
 
     This is a generalized interface to all specialized `contains_` functions.
      */
-    fn contains_composite<'a, T: Composite>(
-        &'a self,
-        other: &'a T,
-        epsilon: f64,
-        max_ulps: u32,
-    ) -> bool;
-
-    /**
-    Returns whether a type implementing [`Composite`] is contained within `self`.
-
-    This is the parallelized variant of [`Composite::contains_composite`].
-    See its docstring for more information and examples.
-    */
-    fn contains_composite_par<'a, T: Composite + Sync>(
+    fn contains_composite<'a, T: Composite + Sync>(
         &'a self,
         other: &'a T,
         epsilon: f64,
@@ -727,19 +681,7 @@ pub trait Composite: private::Sealed {
     assert!(shape.covers_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
     ```
      */
-    fn covers_polysegment(&self, polysegment: &Polysegment, epsilon: f64, max_ulps: u32) -> bool {
-        return polysegment
-            .segments()
-            .all(|s| self.covers_segment(s, epsilon, max_ulps));
-    }
-
-    /**
-    Returns whether the given [`Polysegment`] is covered by `self`.
-
-    This is the parallelized variant of [`Composite::covers_polysegment`].
-    See its docstring for more information and examples.
-     */
-    fn covers_polysegment_par(&self, polysegment: &Polysegment, epsilon: f64, max_ulps: u32) -> bool
+    fn covers_polysegment(&self, polysegment: &Polysegment, epsilon: f64, max_ulps: u32) -> bool
     where
         Self: Sync,
     {
@@ -754,21 +696,11 @@ pub trait Composite: private::Sealed {
     This function just calls [`Composite::covers_polysegment`] on
     `contour.polysegment()`.
     */
-    fn covers_contour(&self, contour: &Contour, epsilon: f64, max_ulps: u32) -> bool {
-        return self.covers_polysegment(contour.polysegment(), epsilon, max_ulps);
-    }
-
-    /**
-    Returns whether the given [`Contour`] is covered by `self`.
-
-    This is the parallelized variant of [`Composite::covers_contour`].
-    See its docstring for more information and examples.
-    */
-    fn covers_contour_par(&self, contour: &Contour, epsilon: f64, max_ulps: u32) -> bool
+    fn covers_contour(&self, contour: &Contour, epsilon: f64, max_ulps: u32) -> bool
     where
         Self: Sync,
     {
-        return self.covers_polysegment_par(contour.polysegment(), epsilon, max_ulps);
+        return self.covers_polysegment(contour.polysegment(), epsilon, max_ulps);
     }
 
     /**
@@ -776,21 +708,11 @@ pub trait Composite: private::Sealed {
 
     A shape is covered by `self` if its outer `contour` is covered.
     */
-    fn covers_shape(&self, shape: &Shape, epsilon: f64, max_ulps: u32) -> bool {
-        return self.covers_contour(shape.contour(), epsilon, max_ulps);
-    }
-
-    /**
-    Returns whether the given [`Shape`] is covered by `self`.
-
-    This is the parallelized variant of [`Composite::covers_shape`].
-    See its docstring for more information and examples.
-    */
-    fn covers_shape_par(&self, shape: &Shape, epsilon: f64, max_ulps: u32) -> bool
+    fn covers_shape(&self, shape: &Shape, epsilon: f64, max_ulps: u32) -> bool
     where
         Self: Sync,
     {
-        return self.covers_contour_par(shape.contour(), epsilon, max_ulps);
+        return self.covers_contour(shape.contour(), epsilon, max_ulps);
     }
 
     /**
@@ -803,22 +725,9 @@ pub trait Composite: private::Sealed {
         other: &'a T,
         epsilon: f64,
         max_ulps: u32,
-    ) -> bool;
-
-    /**
-    Returns whether a type implementing [`Composite`] is covered by `self`.
-
-    This is the parallelized variant of [`Composite::covers_composite`].
-    See its docstring for more information and examples.
-    */
-    fn covers_composite_par<'a, T: Composite + Sync>(
-        &'a self,
-        other: &'a T,
-        epsilon: f64,
-        max_ulps: u32,
     ) -> bool
     where
-        Self: Sized;
+        Self: Sync;
 
     /**
     Returns an iterator over all intersections of `self` with the `primitive`.
