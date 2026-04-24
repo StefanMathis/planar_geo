@@ -1042,6 +1042,52 @@ fn test_covers_arc_segment() {
                 m
             )
         );
+        assert!(
+            c.covers_segment(
+                &ArcSegment::from_center_radius_start_offset_angle(
+                    [0.5, 0.5],
+                    0.5,
+                    1.5 * FRAC_PI_2,
+                    PI,
+                    e,
+                    m
+                )
+                .unwrap(),
+                e,
+                m
+            )
+        );
+        assert!(
+            c.covers_segment(
+                &ArcSegment::from_center_radius_start_offset_angle(
+                    [0.5, 0.5],
+                    0.5,
+                    FRAC_PI_2,
+                    PI,
+                    e,
+                    m
+                )
+                .unwrap(),
+                e,
+                m
+            )
+        );
+        assert!(
+            c.covers_segment(
+                &ArcSegment::from_center_radius_start_offset_angle([0.5, 0.5], 0.5, 0.0, PI, e, m)
+                    .unwrap(),
+                e,
+                m
+            )
+        );
+        assert!(
+            c.covers_segment(
+                &ArcSegment::from_center_radius_start_offset_angle([0.5, 0.5], 0.5, PI, PI, e, m)
+                    .unwrap(),
+                e,
+                m
+            )
+        );
     }
     {
         let c: Contour = Polysegment::from(
@@ -1166,6 +1212,93 @@ fn test_covers_arc_segment() {
                     2.0,
                     PI - 0.1,
                     PI,
+                    e,
+                    m
+                )
+                .unwrap(),
+                e,
+                m
+            )
+        );
+        assert!(
+            c.covers_segment(
+                &ArcSegment::from_center_radius_start_offset_angle(
+                    [0.0, 0.0],
+                    2.0,
+                    FRAC_PI_2,
+                    PI,
+                    e,
+                    m
+                )
+                .unwrap(),
+                e,
+                m
+            )
+        );
+    }
+    {
+        let c: Contour = Polysegment::from(
+            ArcSegment::from_center_radius_start_offset_angle([0.0, 0.0], 2.0, FRAC_PI_2, PI, e, m)
+                .unwrap(),
+        )
+        .into();
+        assert!(
+            c.covers_segment(
+                &ArcSegment::from_center_radius_start_offset_angle(
+                    [0.0, 0.0],
+                    2.0,
+                    1.25 * FRAC_PI_2,
+                    FRAC_PI_2,
+                    e,
+                    m
+                )
+                .unwrap(),
+                e,
+                m
+            )
+        );
+    }
+    {
+        let c: Contour = Polysegment::from(
+            ArcSegment::from_center_radius_start_offset_angle(
+                [0.0, 0.0],
+                2.0,
+                -FRAC_PI_2,
+                PI,
+                e,
+                m,
+            )
+            .unwrap(),
+        )
+        .into();
+        assert!(
+            c.covers_segment(
+                &ArcSegment::from_center_radius_start_offset_angle(
+                    [0.0, 0.0],
+                    2.0,
+                    -0.75 * FRAC_PI_2,
+                    FRAC_PI_2,
+                    e,
+                    m
+                )
+                .unwrap(),
+                e,
+                m
+            )
+        );
+    }
+    {
+        let c: Contour = Polysegment::from(
+            ArcSegment::from_start_center_angle([1.0, 0.0], [0.0, 0.0], PI, e, m).unwrap(),
+        )
+        .into();
+        assert!(
+            c.covers_segment(
+                &ArcSegment::from_center_radius_start_offset_angle(
+                    [0.0, 0.0],
+                    1.0,
+                    0.1,
+                    PI - 0.2,
                     e,
                     m
                 )
@@ -1625,7 +1758,7 @@ fn test_contains_contour() {
 }
 
 #[test]
-fn test_overlaps_segment() {
+fn test_overlaps_line_segment() {
     let e = DEFAULT_EPSILON;
     let m = DEFAULT_MAX_ULPS;
     {
@@ -1655,7 +1788,7 @@ fn test_overlaps_segment() {
             e,
             m
         ));
-        assert!(c.overlaps_segment(
+        assert!(!c.overlaps_segment(
             &LineSegment::new([0.5, -0.5], [1.5, 0.5], e, m).unwrap(),
             e,
             m
@@ -1675,5 +1808,257 @@ fn test_overlaps_segment() {
             e,
             m
         ));
+    }
+}
+
+#[test]
+fn test_overlaps_arc_segment() {
+    let e = DEFAULT_EPSILON;
+    let m = DEFAULT_MAX_ULPS;
+    {
+        let c = Contour::new(Polysegment::from_points(&[
+            [0.0, 0.0],
+            [0.0, 1.0],
+            [1.0, 1.0],
+            [1.0, 0.0],
+        ]));
+        for (center, start_angle) in [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]
+            .into_iter()
+            .zip([0.0, FRAC_PI_2, 2.0 * FRAC_PI_2, 3.0 * FRAC_PI_2].into_iter())
+        {
+            assert!(
+                c.overlaps_segment(
+                    &ArcSegment::from_center_radius_start_offset_angle(
+                        center,
+                        1.0,
+                        start_angle,
+                        FRAC_PI_2,
+                        e,
+                        m
+                    )
+                    .unwrap(),
+                    e,
+                    m
+                )
+            );
+            assert!(
+                c.overlaps_segment(
+                    &ArcSegment::from_center_radius_start_offset_angle(
+                        center,
+                        1.1,
+                        start_angle,
+                        FRAC_PI_2,
+                        e,
+                        m
+                    )
+                    .unwrap(),
+                    e,
+                    m
+                )
+            );
+            assert!(
+                c.overlaps_segment(
+                    &ArcSegment::from_center_radius_start_offset_angle(
+                        center,
+                        1.1,
+                        start_angle + 0.1,
+                        FRAC_PI_2 - 0.2,
+                        e,
+                        m
+                    )
+                    .unwrap(),
+                    e,
+                    m
+                )
+            );
+            assert!(
+                c.overlaps_segment(
+                    &ArcSegment::from_center_radius_start_offset_angle(
+                        center,
+                        1.1,
+                        start_angle - 0.1,
+                        FRAC_PI_2 + 0.1,
+                        e,
+                        m
+                    )
+                    .unwrap(),
+                    e,
+                    m
+                )
+            );
+            assert!(
+                !c.overlaps_segment(
+                    &ArcSegment::from_center_radius_start_offset_angle(
+                        center,
+                        SQRT_2,
+                        start_angle,
+                        FRAC_PI_2,
+                        e,
+                        m
+                    )
+                    .unwrap(),
+                    e,
+                    m
+                )
+            );
+        }
+    }
+    {
+        let c = Contour::new(Polysegment::from_points(&[
+            [0.0, 0.0],
+            [0.0, 1.0],
+            [1.0, 1.0],
+            [1.0, 0.0],
+        ]));
+        assert!(
+            !c.overlaps_segment(
+                &ArcSegment::from_center_radius_start_offset_angle(
+                    [0.1, 0.1],
+                    SQRT_2,
+                    0.0,
+                    FRAC_PI_2,
+                    e,
+                    m
+                )
+                .unwrap(),
+                e,
+                m
+            )
+        );
+    }
+    {
+        let c1 = Contour::new(Polysegment::from_points(&[
+            [0.0, 0.0],
+            [0.0, 1.0],
+            [1.0, 1.0],
+            [1.0, 0.0],
+        ]));
+        let c2 = Contour::new(Polysegment::from_points(&[
+            [0.1, 0.1],
+            [0.1, 0.9],
+            [0.9, 0.9],
+            [0.9, 0.1],
+        ]));
+        assert!(c1.overlaps_contour(&c2, e, m));
+        assert!(c2.overlaps_contour(&c1, e, m));
+    }
+}
+
+#[test]
+fn test_overlaps_contour() {
+    let e = DEFAULT_EPSILON;
+    let m = DEFAULT_MAX_ULPS;
+    {
+        let c1 = Contour::new(Polysegment::from_points(&[
+            [0.0, 0.0],
+            [0.0, 1.0],
+            [1.0, 1.0],
+            [1.0, 0.0],
+        ]));
+        let c2 = Contour::new(Polysegment::from_points(&[
+            [0.0, 0.0],
+            [0.0, 1.0],
+            [0.5, 1.0],
+            [0.5, 0.0],
+        ]));
+        let c3 = Contour::new(Polysegment::from_points(&[
+            [0.0, 0.0],
+            [0.0, 1.0],
+            [-1.0, 1.0],
+            [-1.0, 0.0],
+        ]));
+        let c4 = Contour::new(Polysegment::from_points(&[
+            [0.1, 0.1],
+            [0.1, 0.9],
+            [0.9, 0.9],
+            [0.9, 0.1],
+        ]));
+
+        assert!(c1.overlaps_contour(&c1, e, m));
+
+        assert!(c1.overlaps_contour(&c2, e, m));
+        assert!(c2.overlaps_contour(&c1, e, m));
+
+        assert!(!c1.overlaps_contour(&c3, e, m));
+        assert!(!c3.overlaps_contour(&c1, e, m));
+
+        assert!(c1.overlaps_contour(&c4, e, m));
+        assert!(c4.overlaps_contour(&c1, e, m));
+    }
+    {
+        let c1 = Contour::new(Polysegment::from_points(&[
+            [0.0, 0.0],
+            [0.0, 1.0],
+            [1.0, 1.0],
+        ]));
+        let c2 = Contour::new(Polysegment::from_points(&[
+            [0.0, 0.0],
+            [1.0, 0.0],
+            [1.0, 1.0],
+        ]));
+        assert!(!c1.overlaps_contour(&c2, e, m));
+        assert!(!c2.overlaps_contour(&c1, e, m));
+    }
+    {
+        let c1 = Contour::from(ArcSegment::circle([0.0, 0.0], 1.0).unwrap());
+        assert!(c1.overlaps_contour(&c1, e, m));
+
+        let c2 = Contour::from(ArcSegment::circle([2.0, 0.0], 1.0).unwrap());
+        assert!(!c1.overlaps_contour(&c2, e, m));
+        assert!(!c2.overlaps_contour(&c1, e, m));
+
+        let c3 = Contour::from(
+            ArcSegment::from_center_radius_start_offset_angle(
+                [0.0, 0.0],
+                1.0,
+                0.0,
+                FRAC_PI_2,
+                e,
+                m,
+            )
+            .unwrap(),
+        );
+        assert!(c1.overlaps_contour(&c3, e, m));
+        assert!(c3.overlaps_contour(&c1, e, m));
+
+        let c4 = Contour::from(
+            ArcSegment::from_center_radius_start_offset_angle(
+                [0.2, 0.0],
+                1.0,
+                0.0,
+                FRAC_PI_2,
+                e,
+                m,
+            )
+            .unwrap(),
+        );
+        assert!(c1.overlaps_contour(&c4, e, m));
+        assert!(c4.overlaps_contour(&c1, e, m));
+
+        let c5 = Contour::from(
+            ArcSegment::from_center_radius_start_offset_angle(
+                [0.2, 0.0],
+                1.0,
+                FRAC_PI_2,
+                FRAC_PI_2,
+                e,
+                m,
+            )
+            .unwrap(),
+        );
+        assert!(c1.overlaps_contour(&c5, e, m));
+        assert!(c5.overlaps_contour(&c1, e, m));
+    }
+    {
+        let c1 = Contour::from(
+            ArcSegment::from_center_radius_start_offset_angle([0.0, 0.0], 1.0, 0.5, PI, e, m)
+                .unwrap(),
+        );
+        let c2 = Contour::from(
+            ArcSegment::from_center_radius_start_offset_angle([0.0, 0.0], 1.0, 0.5 + PI, PI, e, m)
+                .unwrap(),
+        );
+        assert!(!c1.overlaps_contour(&c2, e, m));
+        assert!(!c2.overlaps_contour(&c1, e, m));
     }
 }

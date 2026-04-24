@@ -370,10 +370,7 @@ impl Contour {
 
         // If the segment is outside the bounding box of self, then the segment
         // and the contour surely don't overlap
-        if !self
-            .bounding_box()
-            .approx_covers(&segment.bounding_box(), epsilon, max_ulps)
-        {
+        if !self.bounding_box().overlaps(&segment.bounding_box()) {
             return false;
         }
 
@@ -427,15 +424,24 @@ impl Contour {
                  */
                 let c = arc_segment.center();
                 let r = arc_segment.radius();
+                let dir = if arc_segment.is_positive() { 1.0 } else { -1.0 };
+                let start_angle = arc_segment.start_angle();
 
-                let mut offset_angles: Vec<f64> = self
+                let mut angles: Vec<f64> = self
                     .intersections_primitive_par(&segment, epsilon, max_ulps)
-                    .map(|i| ((i.point[1] - c[1]).atan2(i.point[0] - c[0])).rem_euclid(TAU))
+                    .map(|i| {
+                        let mut a = (i.point[1] - c[1]).atan2(i.point[0] - c[0]);
+                        let needs_wrap = (dir * (a - start_angle) < -epsilon) as i32 as f64;
+                        a += dir * needs_wrap * TAU;
+                        a
+                    })
                     .collect();
+                angles.push(arc_segment.start_angle());
+                angles.push(arc_segment.stop_angle());
 
-                offset_angles.sort_unstable_by(f64::total_cmp);
+                angles.sort_unstable_by(f64::total_cmp);
 
-                for w in offset_angles.windows(2) {
+                for w in angles.windows(2) {
                     if let Some(start) = w.get(0) {
                         if let Some(stop) = w.get(1) {
                             let mid_angle = 0.5 * (stop + start);
@@ -455,7 +461,11 @@ impl Contour {
     /**
     TODO
      */
-    pub fn overlaps_contour<'a>(&self, other: &Self, epsilon: f64, max_ulps: u32) -> bool {
+    pub fn overlaps_contour(&self, other: &Self, epsilon: f64, max_ulps: u32) -> bool {
+        if std::ptr::eq(self, other) {
+            return true;
+        }
+
         let b_self = BoundingBox::from(self);
         let b_other = BoundingBox::from(other);
 
@@ -464,17 +474,25 @@ impl Contour {
             return false;
         }
 
-        return self
-            .intersections_contour_par(other, epsilon, max_ulps)
-            .any(|i| {
-                if let Some(s_self) = self.segment(i.left) {
-                    return other.overlaps_segment(s_self, epsilon, max_ulps);
-                }
-                if let Some(s_other) = other.segment(i.right) {
-                    return self.overlaps_segment(s_other, epsilon, max_ulps);
-                }
-                return false;
-            });
+        // Does any segment of self overlap other? If no segment of self
+        // overlaps other, the inverse is also true (and is therefore not checked)
+        if self
+            .segments_par()
+            .any(|s| other.overlaps_segment(s, epsilon, max_ulps))
+        {
+            return true;
+        }
+
+        // Does one of the segments cover the other one?
+        return self.covers_contour(other, epsilon, max_ulps)
+            || other.covers_contour(self, epsilon, max_ulps);
+    }
+
+    /**
+
+    */
+    pub fn overlaps_shape(&self, shape: &crate::shape::Shape, epsilon: f64, max_ulps: u32) -> bool {
+        return shape.overlaps_contour(self, epsilon, max_ulps);
     }
 
     /**
@@ -1142,15 +1160,22 @@ impl Composite for Contour {
                  */
                 let c = arc_segment.center();
                 let r = arc_segment.radius();
+                let dir = if arc_segment.is_positive() { 1.0 } else { -1.0 };
+                let start_angle = arc_segment.start_angle();
 
-                let mut offset_angles: Vec<f64> = self
+                let mut angles: Vec<f64> = self
                     .intersections_primitive_par(&segment, epsilon, max_ulps)
-                    .map(|i| ((i.point[1] - c[1]).atan2(i.point[0] - c[0])).rem_euclid(TAU))
+                    .map(|i| {
+                        let mut a = (i.point[1] - c[1]).atan2(i.point[0] - c[0]);
+                        let needs_wrap = (dir * (a - start_angle) < -epsilon) as i32 as f64;
+                        a += dir * needs_wrap * TAU;
+                        a
+                    })
                     .collect();
 
-                offset_angles.sort_unstable_by(f64::total_cmp);
+                angles.sort_unstable_by(f64::total_cmp);
 
-                for w in offset_angles.windows(2) {
+                for w in angles.windows(2) {
                     if let Some(start) = w.get(0) {
                         if let Some(stop) = w.get(1) {
                             let mid_angle = 0.5 * (stop + start);

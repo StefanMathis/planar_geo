@@ -465,7 +465,7 @@ impl Shape {
             return false;
         }
         for hole in self.holes() {
-            if hole.contains_segment(segment.clone(), epsilon, max_ulps) {
+            if hole.covers_segment(segment.clone(), epsilon, max_ulps) {
                 return false;
             }
         }
@@ -476,16 +476,28 @@ impl Shape {
     TODO
      */
     pub fn overlaps_contour(&self, contour: &Contour, epsilon: f64, max_ulps: u32) -> bool {
-        contour
-            .segments_par()
-            .any(|s| self.overlaps_segment(s, epsilon, max_ulps))
+        // If other either not overlaps the outer contour of the shape or if it
+        // is completely covered by one of the holes, then there is no overlap
+
+        if !(self.contour().overlaps_contour(contour, epsilon, max_ulps)) {
+            return false;
+        }
+
+        for hole in self.holes() {
+            if hole.covers_contour(contour, epsilon, max_ulps) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
 
     */
     pub fn overlaps_shape(&self, other: &Self, epsilon: f64, max_ulps: u32) -> bool {
-        self.overlaps_contour(other.contour(), epsilon, max_ulps)
+        return std::ptr::eq(self, other)
+            || (self.overlaps_contour(other.contour(), epsilon, max_ulps)
+                && other.overlaps_contour(self.contour(), epsilon, max_ulps));
     }
 }
 
