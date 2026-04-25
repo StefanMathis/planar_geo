@@ -358,144 +358,6 @@ impl Contour {
     }
 
     /**
-    TODO
-     */
-    pub fn overlaps_segment<'a, T: Into<SegmentRef<'a>>>(
-        &self,
-        segment: T,
-        epsilon: f64,
-        max_ulps: u32,
-    ) -> bool {
-        let segment: SegmentRef = segment.into();
-
-        // If the segment is outside the bounding box of self, then the segment
-        // and the contour surely don't overlap
-        if !self.bounding_box().overlaps(&segment.bounding_box()) {
-            return false;
-        }
-
-        match segment {
-            SegmentRef::LineSegment(line_segment) => {
-                /*
-                Sort the intersection points by their distance to
-                line_segment.start(). Each pair of neighboring intersections
-                describes a part of line_segment. If the middle points of these
-                parts are all contained in self, then the entire line segment is
-                also contained in self.
-                 */
-                let mut intersections: Vec<[f64; 2]> = self
-                    .intersections_primitive_par(&segment, epsilon, max_ulps)
-                    .map(|i| i.point)
-                    .collect();
-                intersections.push(line_segment.start());
-                intersections.push(line_segment.stop());
-
-                // Sort the intersections in ascending order by their distance
-                // to line_segment.start().
-                let s = line_segment.start();
-                intersections.sort_unstable_by(|a, b| {
-                    ((a[0] - s[0]).powi(2) + (a[1] - s[1]).powi(2))
-                        .total_cmp(&((b[0] - s[0]).powi(2) + (b[1] - s[1]).powi(2)))
-                });
-
-                // Create individual segments out of the sorted intersections
-                // and check if their middle point is contained in self
-                for w in intersections.windows(2) {
-                    if let Some(start) = w.get(0) {
-                        if let Some(stop) = w.get(1) {
-                            let mx = 0.5 * (start[0] + stop[0]);
-                            let my = 0.5 * (start[1] + stop[1]);
-                            if self.contains_point([mx, my], epsilon, max_ulps) {
-                                return true;
-                            }
-                        }
-                    }
-                }
-                return false;
-            }
-            SegmentRef::ArcSegment(arc_segment) => {
-                /*
-                Calculate the angles of all intersection points relative to the
-                center of arc_segment, then sort them. This separates
-                arc_segment in multiple arc segments. Calculate their middle
-                point and check if that point is contained within self. If that is
-                true for all partial segments, then the entire arc_segment is
-                also contained in self.
-                 */
-                let c = arc_segment.center();
-                let r = arc_segment.radius();
-                let dir = if arc_segment.is_positive() { 1.0 } else { -1.0 };
-                let start_angle = arc_segment.start_angle();
-
-                let mut angles: Vec<f64> = self
-                    .intersections_primitive_par(&segment, epsilon, max_ulps)
-                    .map(|i| {
-                        let mut a = (i.point[1] - c[1]).atan2(i.point[0] - c[0]);
-                        let needs_wrap = (dir * (a - start_angle) < -epsilon) as i32 as f64;
-                        a += dir * needs_wrap * TAU;
-                        a
-                    })
-                    .collect();
-                angles.push(arc_segment.start_angle());
-                angles.push(arc_segment.stop_angle());
-
-                angles.sort_unstable_by(f64::total_cmp);
-
-                for w in angles.windows(2) {
-                    if let Some(start) = w.get(0) {
-                        if let Some(stop) = w.get(1) {
-                            let mid_angle = 0.5 * (stop + start);
-                            let mx = c[0] + r * mid_angle.cos();
-                            let my = c[1] + r * mid_angle.sin();
-                            if self.contains_point([mx, my], epsilon, max_ulps) {
-                                return true;
-                            }
-                        }
-                    }
-                }
-                return false;
-            }
-        }
-    }
-
-    /**
-    TODO
-     */
-    pub fn overlaps_contour(&self, other: &Self, epsilon: f64, max_ulps: u32) -> bool {
-        if std::ptr::eq(self, other) {
-            return true;
-        }
-
-        let b_self = BoundingBox::from(self);
-        let b_other = BoundingBox::from(other);
-
-        // If the bounding boxes do not overlap, then self and other also can't overlap
-        if !b_self.overlaps(&b_other) {
-            return false;
-        }
-
-        // Does any segment of self overlap other? If no segment of self
-        // overlaps other, the inverse is also true (and is therefore not checked)
-        if self
-            .segments_par()
-            .any(|s| other.overlaps_segment(s, epsilon, max_ulps))
-        {
-            return true;
-        }
-
-        // Does one of the segments cover the other one?
-        return self.covers_contour(other, epsilon, max_ulps)
-            || other.covers_contour(self, epsilon, max_ulps);
-    }
-
-    /**
-
-    */
-    pub fn overlaps_shape(&self, shape: &crate::shape::Shape, epsilon: f64, max_ulps: u32) -> bool {
-        return shape.overlaps_contour(self, epsilon, max_ulps);
-    }
-
-    /**
     Cuts `self` into multiple polysegments by intersecting it with `other` and returns
     those them.
 
@@ -1224,7 +1086,7 @@ impl Composite for Contour {
             == 0;
     }
 
-    fn covers_composite<'a, T: Composite + Sync>(
+    fn covers_composite<'a, T: Composite>(
         &'a self,
         other: &'a T,
         epsilon: f64,
@@ -1233,13 +1095,151 @@ impl Composite for Contour {
         return other.covers_contour(self, epsilon, max_ulps);
     }
 
-    fn contains_composite<'a, T: Composite + Sync>(
+    fn contains_composite<'a, T: Composite>(
         &'a self,
         other: &'a T,
         epsilon: f64,
         max_ulps: u32,
     ) -> bool {
         return other.contains_contour(self, epsilon, max_ulps);
+    }
+
+    fn overlaps_segment<'a, T: Into<SegmentRef<'a>>>(
+        &self,
+        segment: T,
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> bool {
+        let segment: SegmentRef = segment.into();
+
+        // If the segment is outside the bounding box of self, then the segment
+        // and the contour surely don't overlap
+        if !self.bounding_box().overlaps(&segment.bounding_box()) {
+            return false;
+        }
+
+        match segment {
+            SegmentRef::LineSegment(line_segment) => {
+                /*
+                Sort the intersection points by their distance to
+                line_segment.start(). Each pair of neighboring intersections
+                describes a part of line_segment. If the middle points of these
+                parts are all contained in self, then the entire line segment is
+                also contained in self.
+                 */
+                let mut intersections: Vec<[f64; 2]> = self
+                    .intersections_primitive_par(&segment, epsilon, max_ulps)
+                    .map(|i| i.point)
+                    .collect();
+                intersections.push(line_segment.start());
+                intersections.push(line_segment.stop());
+
+                // Sort the intersections in ascending order by their distance
+                // to line_segment.start().
+                let s = line_segment.start();
+                intersections.sort_unstable_by(|a, b| {
+                    ((a[0] - s[0]).powi(2) + (a[1] - s[1]).powi(2))
+                        .total_cmp(&((b[0] - s[0]).powi(2) + (b[1] - s[1]).powi(2)))
+                });
+
+                // Create individual segments out of the sorted intersections
+                // and check if their middle point is contained in self
+                for w in intersections.windows(2) {
+                    if let Some(start) = w.get(0) {
+                        if let Some(stop) = w.get(1) {
+                            let mx = 0.5 * (start[0] + stop[0]);
+                            let my = 0.5 * (start[1] + stop[1]);
+                            if self.contains_point([mx, my], epsilon, max_ulps) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+                return false;
+            }
+            SegmentRef::ArcSegment(arc_segment) => {
+                /*
+                Calculate the angles of all intersection points relative to the
+                center of arc_segment, then sort them. This separates
+                arc_segment in multiple arc segments. Calculate their middle
+                point and check if that point is contained within self. If that is
+                true for all partial segments, then the entire arc_segment is
+                also contained in self.
+                 */
+                let c = arc_segment.center();
+                let r = arc_segment.radius();
+                let dir = if arc_segment.is_positive() { 1.0 } else { -1.0 };
+                let start_angle = arc_segment.start_angle();
+
+                let mut angles: Vec<f64> = self
+                    .intersections_primitive_par(&segment, epsilon, max_ulps)
+                    .map(|i| {
+                        let mut a = (i.point[1] - c[1]).atan2(i.point[0] - c[0]);
+                        let needs_wrap = (dir * (a - start_angle) < -epsilon) as i32 as f64;
+                        a += dir * needs_wrap * TAU;
+                        a
+                    })
+                    .collect();
+                angles.push(arc_segment.start_angle());
+                angles.push(arc_segment.stop_angle());
+
+                angles.sort_unstable_by(f64::total_cmp);
+
+                for w in angles.windows(2) {
+                    if let Some(start) = w.get(0) {
+                        if let Some(stop) = w.get(1) {
+                            let mid_angle = 0.5 * (stop + start);
+                            let mx = c[0] + r * mid_angle.cos();
+                            let my = c[1] + r * mid_angle.sin();
+                            if self.contains_point([mx, my], epsilon, max_ulps) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+                return false;
+            }
+        }
+    }
+
+    fn overlaps_contour(&self, other: &Self, epsilon: f64, max_ulps: u32) -> bool {
+        if std::ptr::eq(self, other) {
+            return true;
+        }
+
+        let b_self = BoundingBox::from(self);
+        let b_other = BoundingBox::from(other);
+
+        // If the bounding boxes do not overlap, then self and other also can't overlap
+        if !b_self.overlaps(&b_other) {
+            return false;
+        }
+
+        // Does any segment of self overlap other? If no segment of self
+        // overlaps other, the inverse is also true (and is therefore not checked)
+        if self
+            .segments_par()
+            .any(|s| other.overlaps_segment(s, epsilon, max_ulps))
+        {
+            return true;
+        }
+
+        // Does one of the segments cover the other one?
+        return self.covers_contour(other, epsilon, max_ulps)
+            || other.covers_contour(self, epsilon, max_ulps);
+    }
+
+    fn overlaps_shape(&self, shape: &crate::shape::Shape, epsilon: f64, max_ulps: u32) -> bool {
+        return shape.overlaps_contour(self, epsilon, max_ulps);
+    }
+
+    fn overlaps_composite<'a, T: Composite>(
+        &'a self,
+        other: &'a T,
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> bool {
+        return other.overlaps_contour(self, epsilon, max_ulps);
     }
 }
 

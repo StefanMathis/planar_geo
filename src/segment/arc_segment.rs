@@ -1144,10 +1144,10 @@ impl ArcSegment {
     /// single intersection point and their tangents at this point must be
     /// identical.
     #[doc = ""]
-    #[cfg_attr(feature = "doc-images", doc = "![Touching and dividing][four_arcs]")]
+    #[cfg_attr(feature = "doc-images", doc = "![Touching and dividing][touching]")]
     #[cfg_attr(
         feature = "doc-images",
-        embed_doc_image::embed_doc_image("four_arcs", "docs/img/example_four_arcs.svg")
+        embed_doc_image::embed_doc_image("touching", "docs/img/touching.svg")
     )]
     #[cfg_attr(
         not(feature = "doc-images"),

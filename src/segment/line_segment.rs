@@ -554,10 +554,10 @@ impl LineSegment {
     /// [`Primitive::covers_point`]). If `other` is an
     /// [`ArcSegment`](super::ArcSegment), `self` must be a tangent of `other`.
     #[doc = ""]
-    #[cfg_attr(feature = "doc-images", doc = "![Touching and dividing][four_arcs]")]
+    #[cfg_attr(feature = "doc-images", doc = "![Touching and dividing][touching]")]
     #[cfg_attr(
         feature = "doc-images",
-        embed_doc_image::embed_doc_image("four_arcs", "docs/img/example_four_arcs.svg")
+        embed_doc_image::embed_doc_image("touching", "docs/img/touching.svg")
     )]
     #[cfg_attr(
         not(feature = "doc-images"),

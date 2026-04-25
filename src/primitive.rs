@@ -395,7 +395,7 @@ assert_eq!(
 );
 ```
  */
-pub trait Primitive: private::Sealed {
+pub trait Primitive: private::Sealed + Sync {
     /**
     Returns `true` if `self` covers the given point.
 

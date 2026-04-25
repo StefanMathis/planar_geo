@@ -1209,7 +1209,7 @@ impl Composite for Polysegment {
         return false;
     }
 
-    fn covers_composite<'a, T: Composite + Sync>(
+    fn covers_composite<'a, T: Composite>(
         &'a self,
         other: &'a T,
         epsilon: f64,
@@ -1218,13 +1218,49 @@ impl Composite for Polysegment {
         return other.covers_polysegment(self, epsilon, max_ulps);
     }
 
-    fn contains_composite<'a, T: Composite + Sync>(
+    fn contains_composite<'a, T: Composite>(
         &'a self,
         other: &'a T,
         epsilon: f64,
         max_ulps: u32,
     ) -> bool {
         return other.contains_polysegment(self, epsilon, max_ulps);
+    }
+
+    fn overlaps_segment<'a, T: Into<SegmentRef<'a>>>(
+        &self,
+        _segment: T,
+        _epsilon: f64,
+        _max_ulps: u32,
+    ) -> bool {
+        return false;
+    }
+
+    fn overlaps_contour(
+        &self,
+        _contour: &crate::prelude::Contour,
+        _epsilon: f64,
+        _max_ulps: u32,
+    ) -> bool {
+        return false;
+    }
+
+    fn overlaps_shape(
+        &self,
+        _shape: &crate::prelude::Shape,
+        _epsilon: f64,
+        _max_ulps: u32,
+    ) -> bool {
+        return false;
+    }
+
+    fn overlaps_composite<'a, T: Composite>(
+        &'a self,
+        _other: &'a T,
+        _epsilon: f64,
+        _max_ulps: u32,
+    ) -> bool {
+        return false;
     }
 }
 

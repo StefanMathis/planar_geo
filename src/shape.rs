@@ -443,62 +443,6 @@ impl Shape {
         }
         return None;
     }
-
-    /**
-    TODO
-     */
-    pub fn overlaps_segment<'a, T: Into<SegmentRef<'a>>>(
-        &self,
-        segment: T,
-        epsilon: f64,
-        max_ulps: u32,
-    ) -> bool {
-        let segment: SegmentRef = segment.into();
-        /*
-        The segment overlaps the shape if it overlaps the outer contour and is
-        not contained in one of the shape's holes
-         */
-        if !self
-            .contour()
-            .overlaps_segment(segment.clone(), epsilon, max_ulps)
-        {
-            return false;
-        }
-        for hole in self.holes() {
-            if hole.covers_segment(segment.clone(), epsilon, max_ulps) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    /**
-    TODO
-     */
-    pub fn overlaps_contour(&self, contour: &Contour, epsilon: f64, max_ulps: u32) -> bool {
-        // If other either not overlaps the outer contour of the shape or if it
-        // is completely covered by one of the holes, then there is no overlap
-
-        if !(self.contour().overlaps_contour(contour, epsilon, max_ulps)) {
-            return false;
-        }
-
-        for hole in self.holes() {
-            if hole.covers_contour(contour, epsilon, max_ulps) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    /**
-
-    */
-    pub fn overlaps_shape(&self, other: &Self, epsilon: f64, max_ulps: u32) -> bool {
-        return std::ptr::eq(self, other)
-            || (self.overlaps_contour(other.contour(), epsilon, max_ulps)
-                && other.overlaps_contour(self.contour(), epsilon, max_ulps));
-    }
 }
 
 impl crate::composite::private::Sealed for Shape {}
@@ -735,7 +679,7 @@ impl Composite for Shape {
         })
     }
 
-    fn covers_composite<'a, T: Composite + Sync>(
+    fn covers_composite<'a, T: Composite>(
         &'a self,
         other: &'a T,
         epsilon: f64,
@@ -747,7 +691,7 @@ impl Composite for Shape {
         return other.covers_shape(self, epsilon, max_ulps);
     }
 
-    fn contains_composite<'a, T: Composite + Sync>(
+    fn contains_composite<'a, T: Composite>(
         &'a self,
         other: &'a T,
         epsilon: f64,
@@ -757,6 +701,62 @@ impl Composite for Shape {
         Self: Sized,
     {
         return other.contains_shape(self, epsilon, max_ulps);
+    }
+
+    fn overlaps_segment<'a, T: Into<SegmentRef<'a>>>(
+        &self,
+        segment: T,
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> bool {
+        let segment: SegmentRef = segment.into();
+        /*
+        The segment overlaps the shape if it overlaps the outer contour and is
+        not contained in one of the shape's holes
+         */
+        if !self
+            .contour()
+            .overlaps_segment(segment.clone(), epsilon, max_ulps)
+        {
+            return false;
+        }
+        for hole in self.holes() {
+            if hole.covers_segment(segment.clone(), epsilon, max_ulps) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    fn overlaps_contour(&self, contour: &Contour, epsilon: f64, max_ulps: u32) -> bool {
+        // If other either not overlaps the outer contour of the shape or if it
+        // is completely covered by one of the holes, then there is no overlap
+
+        if !(self.contour().overlaps_contour(contour, epsilon, max_ulps)) {
+            return false;
+        }
+
+        for hole in self.holes() {
+            if hole.covers_contour(contour, epsilon, max_ulps) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    fn overlaps_shape(&self, other: &Self, epsilon: f64, max_ulps: u32) -> bool {
+        return std::ptr::eq(self, other)
+            || (self.overlaps_contour(other.contour(), epsilon, max_ulps)
+                && other.overlaps_contour(self.contour(), epsilon, max_ulps));
+    }
+
+    fn overlaps_composite<'a, T: Composite>(
+        &'a self,
+        other: &'a T,
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> bool {
+        return other.overlaps_shape(self, epsilon, max_ulps);
     }
 }
 
