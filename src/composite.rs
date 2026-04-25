@@ -232,14 +232,14 @@ pub(crate) mod private {
 }
 
 /**
-A trait for types composed of multiple [`Segment`](Segment)s:
+A trait for types composed of multiple [`Segment`]s:
 [`Polysegment`]s, [`Contour`]s and [`Shape`]s.
 
 This trait provides methods for retrieving properties shared between all
 composite types (like e.g. the number of segments), coverage, containment and
 overlap checks and intersection calculation. It is not meant to be implemented
 for other types, hence it is
-[sealed](https://rust-lang.github.io/api-guidelines/future-proofing.htm.
+[sealed](<https://rust-lang.github.io/api-guidelines/future-proofing.htm>).
 
 # Properties
 

@@ -547,11 +547,10 @@ impl LineSegment {
 
     /// Returns whether `self` and `other` are touching.
     ///
-    /// The two segments are touching if they are intersecting but not
-    /// dividing each other. If `other` is a
-    /// [`LineSegment`](super::LineSegment), one or both of the end points of
-    /// one line segment must be covered by the second one (see
-    /// [`Primitive::covers_point`]). If `other` is an
+    /// Two segments are touching if they are intersecting but not dividing each
+    /// other. If `other` is a [`LineSegment`], one or both of the end points of
+    /// one line segment must be covered by the second one
+    /// (see [`Primitive::covers_point`]). If `other` is an
     /// [`ArcSegment`](super::ArcSegment), `self` must be a tangent of `other`.
     #[doc = ""]
     #[cfg_attr(feature = "doc-images", doc = "![Touching and dividing][touching]")]

@@ -289,7 +289,12 @@ impl Segment {
     }
 
     /**
-    TODO
+    Returns whether `self` and `other` are touching.
+
+    Two segments are touching if they are intersecting but not dividing each
+    other. Depending on the type of `self`, this function forwards to
+    [`LineSegment::touches_segment`] or [`ArcSegment::touches_segment`], see
+    their respective docstrings for further explanation and examples.
      */
     pub fn touches_segment<'a, T: Into<SegmentRef<'a>>>(
         &self,
@@ -659,9 +664,12 @@ impl<'a> SegmentRef<'a> {
     }
 
     /**
-    TODO
+    Returns whether `self` and `other` are touching.
 
-    See [`Segment::touches`] for further explanation and examples.
+    Two segments are touching if they are intersecting but not dividing each
+    other. Depending on the type of `self`, this function forwards to
+    [`LineSegment::touches_segment`] or [`ArcSegment::touches_segment`], see
+    their respective docstrings for further explanation and examples.
      */
     pub fn touches_segment<'b, T: Into<SegmentRef<'b>>>(
         &self,
