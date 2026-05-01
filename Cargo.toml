@@ -1,6 +1,6 @@
 [package]
 name = "planar_geo"
-version = "0.4.0"
+version = "0.4.1"
 edition = "2024"
 description = "A Rust library for 2D geometry: geometric objects, algorithms and visualization"
 readme = "README.md"
@@ -17,7 +17,7 @@ serde = { version = "1", features = ["derive"], optional = true }
 deserialize_untagged_verbose_error = { version = "^0.1.5", optional = true }
 geometry-predicates = "0.3"
 approx = { package = "approxim", version = "0.6", features = ["array_impl"] }
-compare_variables = { version = "^0.2.0" }
+compare_variables = { version = "^0.3.0" }
 embed-doc-image = { version = "^0.1.4", optional = true }
 
 [features]

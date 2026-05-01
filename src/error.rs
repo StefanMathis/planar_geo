@@ -156,9 +156,9 @@ impl From<ErrorType> for Error {
     }
 }
 
-impl From<ComparisonError<f64>> for Error {
-    fn from(err: ComparisonError<f64>) -> Self {
-        return ErrorType::ComparisonError(err).into();
+impl From<Comparison<f64>> for Error {
+    fn from(err: Comparison<f64>) -> Self {
+        return ErrorType::Comparison(err).into();
     }
 }
 
@@ -168,7 +168,7 @@ An enum containing all errors which can occur when using this crate.
 #[derive(Debug)]
 pub enum ErrorType {
     /// Received values outside of expected value ranges
-    ComparisonError(ComparisonError<f64>),
+    Comparison(Comparison<f64>),
     /// An arc can only be constructed from three points if these points are not
     /// collinear, i.e. are not on a single straight line.
     Collinear([[f64; 2]; 3]),
@@ -192,7 +192,7 @@ pub enum ErrorType {
 impl std::fmt::Display for ErrorType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ErrorType::ComparisonError(err) => err.fmt(f),
+            ErrorType::Comparison(err) => err.fmt(f),
             ErrorType::Collinear(pts) => {
                 write!(f, "given points {:?} are collinear.", pts)
             }
