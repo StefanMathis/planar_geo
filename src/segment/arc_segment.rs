@@ -102,20 +102,20 @@ impl ArcSegment {
     use planar_geo::segment::ArcSegment;
 
     // Successful creation
-    let arc = ArcSegment::from_center_radius_start_offset_angle([1.0, 1.0], 2.0, 0.0, -FRAC_PI_2, 0.0, 0).unwrap();
+    let arc = ArcSegment::new([1.0, 1.0], 2.0, 0.0, -FRAC_PI_2, 0.0, 0).unwrap();
     approx::assert_abs_diff_eq!(arc.start(), [3.0, 1.0], epsilon = 1e-15);
     approx::assert_abs_diff_eq!(arc.stop(), [1.0, -1.0], epsilon = 1e-15);
 
     // Example forming a full circle
-    let arc = ArcSegment::from_center_radius_start_offset_angle([1.0, 1.0], 2.0, 0.0, TAU, 0.0, 0).unwrap();
+    let arc = ArcSegment::new([1.0, 1.0], 2.0, 0.0, TAU, 0.0, 0).unwrap();
     approx::assert_abs_diff_eq!(arc.start(), [3.0, 1.0], epsilon = 1e-15);
     approx::assert_abs_diff_eq!(arc.stop(), [3.0, 1.0], epsilon = 1e-15);
 
     // Radius is not positive
-    assert!(ArcSegment::from_center_radius_start_offset_angle([1.0, 1.0], -2.0, 0.0, -FRAC_PI_2, 0.0, 0).is_err());
+    assert!(ArcSegment::new([1.0, 1.0], -2.0, 0.0, -FRAC_PI_2, 0.0, 0).is_err());
 
     // Offset angle is zero
-    assert!(ArcSegment::from_center_radius_start_offset_angle([1.0, 1.0], 2.0, 0.0, 0.0, 0.0, 0).is_err());
+    assert!(ArcSegment::new([1.0, 1.0], 2.0, 0.0, 0.0, 0.0, 0).is_err());
     ```
      */
     pub fn new(
