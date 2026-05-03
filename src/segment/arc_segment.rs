@@ -86,6 +86,57 @@ pub struct ArcSegment {
 
 impl ArcSegment {
     /**
+    Creates an [`ArcSegment`] from its `center`, `radius`, `start_angle` and
+    `offset_angle`. This fails in the following cases:
+    - `radius` is not positive.
+    - `offset_angle` is approximately zero (checked with [`approx::ulps_eq`] and
+    the provided `epsilon` and `max_ulps`).
+
+    This function is an alias for
+    [`ArcSegment::from_center_radius_start_offset_angle`].
+
+    # Examples
+
+    ```
+    use std::f64::consts::{FRAC_PI_2, TAU};
+    use planar_geo::segment::ArcSegment;
+
+    // Successful creation
+    let arc = ArcSegment::from_center_radius_start_offset_angle([1.0, 1.0], 2.0, 0.0, -FRAC_PI_2, 0.0, 0).unwrap();
+    approx::assert_abs_diff_eq!(arc.start(), [3.0, 1.0], epsilon = 1e-15);
+    approx::assert_abs_diff_eq!(arc.stop(), [1.0, -1.0], epsilon = 1e-15);
+
+    // Example forming a full circle
+    let arc = ArcSegment::from_center_radius_start_offset_angle([1.0, 1.0], 2.0, 0.0, TAU, 0.0, 0).unwrap();
+    approx::assert_abs_diff_eq!(arc.start(), [3.0, 1.0], epsilon = 1e-15);
+    approx::assert_abs_diff_eq!(arc.stop(), [3.0, 1.0], epsilon = 1e-15);
+
+    // Radius is not positive
+    assert!(ArcSegment::from_center_radius_start_offset_angle([1.0, 1.0], -2.0, 0.0, -FRAC_PI_2, 0.0, 0).is_err());
+
+    // Offset angle is zero
+    assert!(ArcSegment::from_center_radius_start_offset_angle([1.0, 1.0], 2.0, 0.0, 0.0, 0.0, 0).is_err());
+    ```
+     */
+    pub fn new(
+        center: [f64; 2],
+        radius: f64,
+        start_angle: f64,
+        offset_angle: f64,
+        epsilon: f64,
+        max_ulps: u32,
+    ) -> crate::error::Result<Self> {
+        return Self::from_center_radius_start_offset_angle(
+            center,
+            radius,
+            start_angle,
+            offset_angle,
+            epsilon,
+            max_ulps,
+        );
+    }
+
+    /**
     Returns the center of `self`.
      */
     pub fn center(&self) -> [f64; 2] {
