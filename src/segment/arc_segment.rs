@@ -1761,6 +1761,59 @@ impl ToBoundingBox for ArcSegment {
     }
 }
 
+impl approx::AbsDiffEq for ArcSegment {
+    type Epsilon = f64;
+
+    fn default_epsilon() -> f64 {
+        f64::default_epsilon()
+    }
+
+    fn abs_diff_eq(&self, other: &Self, epsilon: f64) -> bool {
+        return self.center.abs_diff_eq(&other.center, epsilon)
+            && self.radius.abs_diff_eq(&other.radius, epsilon)
+            && self.start_angle.abs_diff_eq(&other.start_angle, epsilon)
+            && self.offset_angle.abs_diff_eq(&other.offset_angle, epsilon);
+    }
+}
+
+impl approx::RelativeEq for ArcSegment {
+    fn default_max_relative() -> f64 {
+        f64::default_max_relative()
+    }
+
+    fn relative_eq(&self, other: &Self, epsilon: f64, max_relative: f64) -> bool {
+        return self
+            .center
+            .relative_eq(&other.center, epsilon, max_relative)
+            && self
+                .radius
+                .relative_eq(&other.radius, epsilon, max_relative)
+            && self
+                .start_angle
+                .relative_eq(&other.start_angle, epsilon, max_relative)
+            && self
+                .offset_angle
+                .relative_eq(&other.offset_angle, epsilon, max_relative);
+    }
+}
+
+impl approx::UlpsEq for ArcSegment {
+    fn default_max_ulps() -> u32 {
+        f64::default_max_ulps()
+    }
+
+    fn ulps_eq(&self, other: &Self, epsilon: f64, max_ulps: u32) -> bool {
+        return self.center.ulps_eq(&other.center, epsilon, max_ulps)
+            && self.radius.ulps_eq(&other.radius, epsilon, max_ulps)
+            && self
+                .start_angle
+                .ulps_eq(&other.start_angle, epsilon, max_ulps)
+            && self
+                .offset_angle
+                .ulps_eq(&other.offset_angle, epsilon, max_ulps);
+    }
+}
+
 impl From<&ArcSegment> for CentroidData {
     fn from(value: &ArcSegment) -> Self {
         let inv_3 = 1.0 / 3.0;

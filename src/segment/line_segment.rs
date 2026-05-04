@@ -895,6 +895,41 @@ impl ToBoundingBox for LineSegment {
     }
 }
 
+impl approx::AbsDiffEq for LineSegment {
+    type Epsilon = f64;
+
+    fn default_epsilon() -> f64 {
+        f64::default_epsilon()
+    }
+
+    fn abs_diff_eq(&self, other: &Self, epsilon: f64) -> bool {
+        return self.start.abs_diff_eq(&other.start, epsilon)
+            && self.stop.abs_diff_eq(&other.stop, epsilon);
+    }
+}
+
+impl approx::RelativeEq for LineSegment {
+    fn default_max_relative() -> f64 {
+        f64::default_max_relative()
+    }
+
+    fn relative_eq(&self, other: &Self, epsilon: f64, max_relative: f64) -> bool {
+        return self.start.relative_eq(&other.start, epsilon, max_relative)
+            && self.stop.relative_eq(&other.stop, epsilon, max_relative);
+    }
+}
+
+impl approx::UlpsEq for LineSegment {
+    fn default_max_ulps() -> u32 {
+        f64::default_max_ulps()
+    }
+
+    fn ulps_eq(&self, other: &Self, epsilon: f64, max_ulps: u32) -> bool {
+        return self.start.ulps_eq(&other.start, epsilon, max_ulps)
+            && self.stop.ulps_eq(&other.stop, epsilon, max_ulps);
+    }
+}
+
 impl From<&LineSegment> for CentroidData {
     fn from(value: &LineSegment) -> Self {
         // Apply the formula for a triangle with one vertex being (0,0)

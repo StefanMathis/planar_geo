@@ -31,8 +31,8 @@ use serde::Serialize;
 use deserialize_untagged_verbose_error::DeserializeUntaggedVerboseError;
 
 use crate::{
+    CentroidData, DEFAULT_EPSILON, DEFAULT_MAX_ULPS, Transformation,
     primitive::{Primitive, PrimitiveIntersections},
-    {CentroidData, Transformation},
 };
 
 /**
@@ -77,6 +77,122 @@ pub enum Segment {
 }
 
 impl Segment {
+    /// Returns an iterator over the segments of the polygon formed by the given
+    /// `points`, possibly with fillets of the specified `radii` in the corners.
+    ///
+    /// When creating the individual segments, the following rules are applied:
+    /// - The fillet at corner `n` is formed from `points[n-1]`, `points[n]`,
+    /// `points[n+1]` and `radii[n-1]` using [`ArcSegment::fillet`]
+    /// - If the radius is not positive, the corner is formed from two
+    /// [`LineSegment`]s (`points[n-1]` to `points[n]` and `points[n]` to
+    /// `points[n+1]`.
+    /// - If `radii.len() + 2 > points.len()`, all radii with indices larger
+    /// than `points.len() - 2` will be ignored.
+    /// - If `radii.len() + 2 < points.len()`, all "superfluous points" will
+    /// simply result in additional [`LineSegment`]s connecting them.
+    /// - If a radius is too large, it is set to the largest possible value. For
+    /// example, if the three points are `[0, 0]`, `[1, 0]` and `[1, 1]`, the
+    /// largest possible radius is obviously 1.
+    /// - The start point of the next segment is the stop point of the last one.
+    /// Together with the previous rule, this means that a fillet can limit the
+    /// radius of its successor. For example, assume that
+    /// `points = [[0, 0], [1, 0], [1, 1], [0, 1]]` and `radii = [0.5, 1.0]`.
+    /// The first fillet [`ArcSegment`] will start at `[0.5, 0.0]` and stop at
+    /// `[1, 0.5]`. Therefore, the radius of the second fillet will be limited
+    /// to `0.5`, since its construction points are `[1, 0.5]`, `[1, 1]` and
+    /// `[0, 1]`. Note that without the previous fillet, its construction points
+    /// would be `[1, 0.0]`, `[1, 1]` and `[0, 1]`, resulting in a radius of
+    /// `1`.
+    ///
+    /// # Examples
+    #[doc = ""]
+    #[cfg_attr(feature = "doc-images", doc = "![Fillet chain][fillet_chain]")]
+    #[cfg_attr(
+        feature = "doc-images",
+        embed_doc_image::embed_doc_image("fillet_chain", "docs/img/fillet_chain.svg")
+    )]
+    #[cfg_attr(
+        not(feature = "doc-images"),
+        doc = "**Doc images not enabled**. Compile docs with `cargo doc --features 'doc-images'` and Rust version >= 1.54."
+    )]
+    /// ```
+    /// use std::f64::consts::FRAC_PI_2;
+    /// use planar_geo::prelude::*;
+    /// use approx;
+    ///
+    /// let e = DEFAULT_EPSILON;
+    /// let m = DEFAULT_MAX_ULPS;
+    /// let mut iter = Segment::fillet_chain(
+    ///    &[
+    ///         [0.0, 0.0],
+    ///         [1.0, 0.0],
+    ///         [1.0, 0.5],
+    ///         [0.5, 0.5],
+    ///         [0.5, 1.0],
+    ///         [0.0, 1.0],
+    ///     ],
+    ///     &[0.5, 0.0, 0.25, 2.0],
+    /// );
+    /// approx::assert_abs_diff_eq!(
+    ///     iter.next(),
+    ///     Some(
+    ///         LineSegment::new([0.0, 0.0], [0.5, 0.0], e, m)
+    ///             .unwrap()
+    ///              .into()
+    ///     ),
+    ///     epsilon = 1e-8
+    /// );
+    /// approx::assert_abs_diff_eq!(
+    ///     iter.next(),
+    ///     Some(
+    ///         ArcSegment::from_start_center_angle([0.5, 0.0], [0.5, 0.5], FRAC_PI_2, e, m)
+    ///             .unwrap()
+    ///             .into()
+    ///     ),
+    ///     epsilon = 1e-8
+    /// );
+    /// approx::assert_abs_diff_eq!(
+    ///     iter.next(),
+    ///     Some(
+    ///         LineSegment::new([1.0, 0.5], [0.75, 0.5], e, m)
+    ///             .unwrap()
+    ///              .into()
+    ///     ),
+    ///     epsilon = 1e-8
+    /// );
+    /// approx::assert_abs_diff_eq!(
+    ///     iter.next(),
+    ///     Some(
+    ///         ArcSegment::from_start_center_angle([0.75, 0.5], [0.75, 0.75], -FRAC_PI_2, e, m)
+    ///             .unwrap()
+    ///             .into()
+    ///     ),
+    ///     epsilon = 1e-8
+    /// );
+    /// approx::assert_abs_diff_eq!(
+    ///     iter.next(),
+    ///     Some(
+    ///         ArcSegment::from_start_center_angle([0.5, 0.75], [0.25, 0.75], FRAC_PI_2, e, m)
+    ///             .unwrap()
+    ///             .into()
+    ///     ),
+    ///     epsilon = 1e-8
+    /// );
+    /// approx::assert_abs_diff_eq!(
+    ///     iter.next(),
+    ///     Some(
+    ///         LineSegment::new([0.25, 1.0], [0.0, 1.0], e, m)
+    ///             .unwrap()
+    ///              .into()
+    ///     ),
+    ///     epsilon = 1e-8
+    /// );
+    /// assert_eq!(iter.next(), None);
+    /// ```
+    pub fn fillet_chain<'a>(points: &'a [[f64; 2]], radii: &'a [f64]) -> FilletChainIterator<'a> {
+        return FilletChainIterator::new(points, radii);
+    }
+
     /**
     Returns the start point of the underlying segment variant.
      */
@@ -432,6 +548,71 @@ impl ToBoundingBox for Segment {
     }
 }
 
+impl approx::AbsDiffEq for Segment {
+    type Epsilon = f64;
+
+    fn default_epsilon() -> f64 {
+        f64::default_epsilon()
+    }
+
+    fn abs_diff_eq(&self, other: &Self, epsilon: f64) -> bool {
+        match self {
+            Segment::LineSegment(line_self) => match other {
+                Segment::LineSegment(line_other) => line_self.abs_diff_eq(line_other, epsilon),
+                Segment::ArcSegment(_) => false,
+            },
+            Segment::ArcSegment(arc_self) => match other {
+                Segment::LineSegment(_) => false,
+                Segment::ArcSegment(arc_other) => arc_self.abs_diff_eq(arc_other, epsilon),
+            },
+        }
+    }
+}
+
+impl approx::RelativeEq for Segment {
+    fn default_max_relative() -> f64 {
+        f64::default_max_relative()
+    }
+
+    fn relative_eq(&self, other: &Self, epsilon: f64, max_relative: f64) -> bool {
+        match self {
+            Segment::LineSegment(line_self) => match other {
+                Segment::LineSegment(line_other) => {
+                    line_self.relative_eq(line_other, epsilon, max_relative)
+                }
+                Segment::ArcSegment(_) => false,
+            },
+            Segment::ArcSegment(arc_self) => match other {
+                Segment::LineSegment(_) => false,
+                Segment::ArcSegment(arc_other) => {
+                    arc_self.relative_eq(arc_other, epsilon, max_relative)
+                }
+            },
+        }
+    }
+}
+
+impl approx::UlpsEq for Segment {
+    fn default_max_ulps() -> u32 {
+        f64::default_max_ulps()
+    }
+
+    fn ulps_eq(&self, other: &Self, epsilon: f64, max_ulps: u32) -> bool {
+        match self {
+            Segment::LineSegment(line_self) => match other {
+                Segment::LineSegment(line_other) => {
+                    line_self.ulps_eq(line_other, epsilon, max_ulps)
+                }
+                Segment::ArcSegment(_) => false,
+            },
+            Segment::ArcSegment(arc_self) => match other {
+                Segment::LineSegment(_) => false,
+                Segment::ArcSegment(arc_other) => arc_self.ulps_eq(arc_other, epsilon, max_ulps),
+            },
+        }
+    }
+}
+
 impl From<&Segment> for CentroidData {
     fn from(value: &Segment) -> Self {
         match value {
@@ -527,6 +708,107 @@ pub enum SegmentPolygonizer {
 impl Default for SegmentPolygonizer {
     fn default() -> Self {
         return SegmentPolygonizer::InnerSegments(1);
+    }
+}
+
+/**
+Iterator over a chain of connected fillets.
+
+This struct is created by [`Segment::fillet_chain`]
+
+# Examples
+
+```
+use approx;
+use planar_geo::prelude::*;
+
+let mut iter = Segment::fillet_chain(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]], &[0.5]);
+approx::assert_abs_diff_eq!(
+    iter.next(),
+    Some(
+        LineSegment::new([0.0, 0.0], [0.5, 0.0], e, m)
+            .unwrap()
+            .into()
+    )
+);
+approx::assert_abs_diff_eq!(
+    iter.next(),
+    Some(
+        ArcSegment::from_start_center_angle([0.5, 0.0], [0.5, 0.5], FRAC_PI_2, e, m)
+            .unwrap()
+            .into()
+    ),
+    epsilon = 1e-8,
+);
+approx::assert_abs_diff_eq!(
+    iter.next(),
+    Some(
+        LineSegment::new([1.0, 0.5], [1.0, 1.0], e, m)
+            .unwrap()
+            .into()
+    ),
+    epsilon = 1e-8,
+);
+assert_eq!(iter.next(), None);
+```
+ */
+#[derive(Debug, Clone)]
+pub struct FilletChainIterator<'a> {
+    points: &'a [[f64; 2]],
+    radii: &'a [f64],
+    pt_counter: usize,
+    r_counter: usize,
+    start_next_seg: Option<[f64; 2]>,
+}
+
+impl<'a> FilletChainIterator<'a> {
+    fn new(points: &'a [[f64; 2]], radii: &'a [f64]) -> Self {
+        Self {
+            points,
+            radii,
+            pt_counter: 0,
+            r_counter: 0,
+            start_next_seg: None,
+        }
+    }
+}
+
+impl<'a> Iterator for FilletChainIterator<'a> {
+    type Item = Segment;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let b = self.points.get(self.pt_counter + 1)?.clone();
+        let c = self.points.get(self.pt_counter + 2).cloned().unwrap_or(b);
+        let r = self.radii.get(self.r_counter).cloned().unwrap_or(0.0);
+
+        let a = match self.start_next_seg {
+            Some(pt) => pt,
+            None => self.points.get(self.pt_counter)?.clone(),
+        };
+
+        match ArcSegment::fillet(a, b, c, r, DEFAULT_EPSILON, DEFAULT_MAX_ULPS) {
+            Ok(arc) => match LineSegment::new(a, arc.start(), DEFAULT_EPSILON, DEFAULT_MAX_ULPS) {
+                Ok(ls) => {
+                    self.start_next_seg = Some(arc.start());
+                    return Some(ls.into());
+                }
+                Err(_) => {
+                    self.r_counter += 1;
+                    self.pt_counter += 1;
+                    self.start_next_seg = Some(arc.stop());
+                    return Some(arc.into());
+                }
+            },
+            Err(_) => {
+                self.start_next_seg = Some(b);
+                self.r_counter += 1;
+                self.pt_counter += 1;
+                match LineSegment::new(a, b, DEFAULT_EPSILON, DEFAULT_MAX_ULPS) {
+                    Ok(ls) => return Some(ls.into()),
+                    Err(_) => return self.next(),
+                }
+            }
+        }
     }
 }
 
