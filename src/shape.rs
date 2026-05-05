@@ -14,6 +14,7 @@ usage.
 use crate::CentroidData;
 use crate::composite::{Composite, Intersection, SegmentKey};
 use crate::error::ShapeConstructorError;
+use crate::polysegment::Polysegment;
 use crate::segment::SegmentRef;
 use crate::{DEFAULT_EPSILON, DEFAULT_MAX_ULPS};
 use crate::{Transformation, contour::Contour};
@@ -765,6 +766,14 @@ impl TryFrom<Contour> for Shape {
 
     fn try_from(value: Contour) -> Result<Self, Self::Error> {
         return Shape::new(vec![value]);
+    }
+}
+
+impl TryFrom<Polysegment> for Shape {
+    type Error = ShapeConstructorError<Vec<Contour>>;
+
+    fn try_from(value: Polysegment) -> Result<Self, Self::Error> {
+        return Shape::new(vec![value.into()]);
     }
 }
 
