@@ -17,8 +17,7 @@ fn main() {
     ];
     let radii = &[0.5, 0.0, 0.25, 2.0];
     let underlying = Polysegment::from_points(points);
-    let iter = Segment::fillet_chain(points, radii);
-    let fillet_chain = Polysegment::from_iter(iter);
+    let fillet_chain = Polysegment::from_fillet_chain(points, radii);
 
     let mut underlying_style = Style::default();
     underlying_style.line_color = Color {
@@ -34,7 +33,7 @@ fn main() {
 
     let mut bb = BoundingBox::from_points(points.iter().cloned()).expect("has points");
     bb.scale(1.01);
-    let view = Viewport::from_bounding_box(&bb, SideLength::Long(600));
+    let view = Viewport::from_bounding_box(&bb, SideLength::Long(300));
 
     let fp = file_path("fillet_chain");
     view.write_to_file(&fp, |cr| {

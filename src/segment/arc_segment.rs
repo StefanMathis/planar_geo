@@ -1769,10 +1769,11 @@ impl approx::AbsDiffEq for ArcSegment {
     }
 
     fn abs_diff_eq(&self, other: &Self, epsilon: f64) -> bool {
-        return self.center.abs_diff_eq(&other.center, epsilon)
-            && self.radius.abs_diff_eq(&other.radius, epsilon)
-            && self.start_angle.abs_diff_eq(&other.start_angle, epsilon)
-            && self.offset_angle.abs_diff_eq(&other.offset_angle, epsilon);
+        return self.start().abs_diff_eq(&other.start(), epsilon)
+            && self
+                .segment_point(0.5)
+                .abs_diff_eq(&other.segment_point(0.5), epsilon)
+            && self.stop().abs_diff_eq(&other.stop(), epsilon);
     }
 }
 
@@ -1783,17 +1784,16 @@ impl approx::RelativeEq for ArcSegment {
 
     fn relative_eq(&self, other: &Self, epsilon: f64, max_relative: f64) -> bool {
         return self
-            .center
-            .relative_eq(&other.center, epsilon, max_relative)
+            .start()
+            .relative_eq(&other.start(), epsilon, max_relative)
+            && self.segment_point(0.5).relative_eq(
+                &other.segment_point(0.5),
+                epsilon,
+                max_relative,
+            )
             && self
-                .radius
-                .relative_eq(&other.radius, epsilon, max_relative)
-            && self
-                .start_angle
-                .relative_eq(&other.start_angle, epsilon, max_relative)
-            && self
-                .offset_angle
-                .relative_eq(&other.offset_angle, epsilon, max_relative);
+                .stop()
+                .relative_eq(&other.stop(), epsilon, max_relative);
     }
 }
 
@@ -1803,14 +1803,11 @@ impl approx::UlpsEq for ArcSegment {
     }
 
     fn ulps_eq(&self, other: &Self, epsilon: f64, max_ulps: u32) -> bool {
-        return self.center.ulps_eq(&other.center, epsilon, max_ulps)
-            && self.radius.ulps_eq(&other.radius, epsilon, max_ulps)
+        return self.start().ulps_eq(&other.start(), epsilon, max_ulps)
             && self
-                .start_angle
-                .ulps_eq(&other.start_angle, epsilon, max_ulps)
-            && self
-                .offset_angle
-                .ulps_eq(&other.offset_angle, epsilon, max_ulps);
+                .segment_point(0.5)
+                .ulps_eq(&other.segment_point(0.5), epsilon, max_ulps)
+            && self.stop().ulps_eq(&other.stop(), epsilon, max_ulps);
     }
 }
 

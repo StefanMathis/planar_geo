@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="600" height="600" viewBox="0 0 600 600">
-<rect x="-60" y="-60" width="720" height="720" fill="rgb(100%, 100%, 100%)" fill-opacity="1"/>
-<path fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="miter" stroke="rgb(30.000001%, 30.000001%, 30.000001%)" stroke-opacity="1" stroke-dasharray="4 4" stroke-miterlimit="10" d="M 2.96875 597.03125 L 597.03125 597.03125 L 597.03125 300 L 300 300 L 300 2.96875 L 2.96875 2.96875 "/>
-<path fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="miter" stroke="rgb(0%, 0%, 0%)" stroke-opacity="1" stroke-miterlimit="10" d="M 2.96875 597.03125 L 300 597.03125 C 464.046875 597.03125 597.03125 464.046875 597.03125 300 L 448.515625 300 C 366.492188 300 300 233.507812 300 151.484375 C 300 112.097656 284.351562 74.320312 256.5 46.46875 C 228.648438 18.617188 190.875 2.96875 151.484375 2.96875 L 2.96875 2.96875 "/>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="300" height="300" viewBox="0 0 300 300">
+<rect x="-30" y="-30" width="360" height="360" fill="rgb(100%, 100%, 100%)" fill-opacity="1"/>
+<path fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="miter" stroke="rgb(30.000001%, 30.000001%, 30.000001%)" stroke-opacity="1" stroke-dasharray="4 4" stroke-miterlimit="10" d="M 1.484375 298.515625 L 298.515625 298.515625 L 298.515625 150 L 150 150 L 150 1.484375 L 1.484375 1.484375 "/>
+<path fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="miter" stroke="rgb(0%, 0%, 0%)" stroke-opacity="1" stroke-miterlimit="10" d="M 1.484375 298.515625 L 150 298.515625 C 232.023438 298.515625 298.515625 232.023438 298.515625 150 L 224.257812 150 C 183.246094 150 150 116.753906 150 75.742188 C 150 56.046875 142.175781 37.160156 128.25 23.234375 C 114.324219 9.308594 95.4375 1.484375 75.742188 1.484375 L 1.484375 1.484375 "/>
 </svg>

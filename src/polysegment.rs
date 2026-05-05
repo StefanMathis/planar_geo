@@ -187,6 +187,105 @@ impl Polysegment {
         return Self(segments);
     }
 
+    /// Returns a [`Polysegment`] representing the polyline formed by the given
+    /// `points`, possibly with fillets of the specified `radii` in the corners.
+    ///
+    /// This method is a wrapper around [`Segment::fillet_chain`], see its
+    /// docstring for details.
+    ///
+    /// # Examples
+    ///
+    /// This polysegment was created with the code given below. The dashed
+    /// lines show the underlying polygon without fillets (which can be created
+    /// with [`Polysegment::from_points(points)`](Polysegment::from_points)).
+    #[doc = ""]
+    #[cfg_attr(feature = "doc-images", doc = "![Fillet chain][fillet_chain]")]
+    #[cfg_attr(
+        feature = "doc-images",
+        embed_doc_image::embed_doc_image("fillet_chain", "docs/img/fillet_chain.svg")
+    )]
+    #[cfg_attr(
+        not(feature = "doc-images"),
+        doc = "**Doc images not enabled**. Compile docs with `cargo doc --features 'doc-images'` and Rust version >= 1.54."
+    )]
+    /// ```
+    /// use std::f64::consts::FRAC_PI_2;
+    /// use planar_geo::prelude::*;
+    /// use approx;
+    ///
+    /// let e = DEFAULT_EPSILON;
+    /// let m = DEFAULT_MAX_ULPS;
+    /// let polysegment = Polysegment::from_fillet_chain(
+    ///    &[
+    ///         [0.0, 0.0],
+    ///         [1.0, 0.0],
+    ///         [1.0, 0.5],
+    ///         [0.5, 0.5],
+    ///         [0.5, 1.0],
+    ///         [0.0, 1.0],
+    ///     ],
+    ///     &[0.5, 0.0, 0.25, 2.0],
+    /// );
+    /// approx::assert_abs_diff_eq!(
+    ///     polysegment.get(0),
+    ///     Some(
+    ///         &(LineSegment::new([0.0, 0.0], [0.5, 0.0], e, m)
+    ///             .unwrap()
+    ///              .into())
+    ///     ),
+    ///     epsilon = 1e-8
+    /// );
+    /// approx::assert_abs_diff_eq!(
+    ///     polysegment.get(1),
+    ///     Some(
+    ///         &(ArcSegment::from_start_center_angle([0.5, 0.0], [0.5, 0.5], FRAC_PI_2, e, m)
+    ///             .unwrap()
+    ///             .into())
+    ///     ),
+    ///     epsilon = 1e-8
+    /// );
+    /// approx::assert_abs_diff_eq!(
+    ///     polysegment.get(2),
+    ///     Some(
+    ///         &(LineSegment::new([1.0, 0.5], [0.75, 0.5], e, m)
+    ///             .unwrap()
+    ///              .into())
+    ///     ),
+    ///     epsilon = 1e-8
+    /// );
+    /// approx::assert_abs_diff_eq!(
+    ///     polysegment.get(3),
+    ///     Some(
+    ///         &(ArcSegment::from_start_center_angle([0.75, 0.5], [0.75, 0.75], -FRAC_PI_2, e, m)
+    ///             .unwrap()
+    ///             .into())
+    ///     ),
+    ///     epsilon = 1e-8
+    /// );
+    /// approx::assert_abs_diff_eq!(
+    ///     polysegment.get(4),
+    ///     Some(
+    ///         &(ArcSegment::from_start_center_angle([0.5, 0.75], [0.25, 0.75], FRAC_PI_2, e, m)
+    ///             .unwrap()
+    ///             .into())
+    ///     ),
+    ///     epsilon = 1e-8
+    /// );
+    /// approx::assert_abs_diff_eq!(
+    ///     polysegment.get(5),
+    ///     Some(
+    ///         &(LineSegment::new([0.25, 1.0], [0.0, 1.0], e, m)
+    ///             .unwrap()
+    ///              .into())
+    ///     ),
+    ///     epsilon = 1e-8
+    /// );
+    /// assert_eq!(polysegment.len(), 6);
+    /// ```
+    pub fn from_fillet_chain(points: &[[f64; 2]], radii: &[f64]) -> Self {
+        return Self::from_iter(Segment::fillet_chain(points, radii));
+    }
+
     /**
     "Closes" the [`Polysegment`] by connecting the start point of the first /
     "front" segment with the stop point of the last / "back" segment with a

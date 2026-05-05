@@ -77,8 +77,9 @@ pub enum Segment {
 }
 
 impl Segment {
-    /// Returns an iterator over the segments of the polygon formed by the given
-    /// `points`, possibly with fillets of the specified `radii` in the corners.
+    /// Returns an iterator over the segments of the polyline formed by the
+    /// given `points`, possibly with fillets of the specified `radii` in the
+    /// corners.
     ///
     /// When creating the individual segments, the following rules are applied:
     /// - The fillet at corner `n` is formed from `points[n-1]`, `points[n]`,
@@ -105,6 +106,9 @@ impl Segment {
     /// `1`.
     ///
     /// # Examples
+    ///
+    /// This chain of segments was created with the code given below. The dashed
+    /// lines show the underlying polygon without fillets.
     #[doc = ""]
     #[cfg_attr(feature = "doc-images", doc = "![Fillet chain][fillet_chain]")]
     #[cfg_attr(
@@ -714,13 +718,17 @@ impl Default for SegmentPolygonizer {
 /**
 Iterator over a chain of connected fillets.
 
-This struct is created by [`Segment::fillet_chain`]
+This struct is created by [`Segment::fillet_chain`].
 
 # Examples
 
 ```
+use std::f64::consts::FRAC_PI_2;
 use approx;
 use planar_geo::prelude::*;
+
+let e = DEFAULT_EPSILON;
+let m = DEFAULT_MAX_ULPS;
 
 let mut iter = Segment::fillet_chain(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]], &[0.5]);
 approx::assert_abs_diff_eq!(
