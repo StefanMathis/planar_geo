@@ -95,42 +95,79 @@ fn test_rectangle() {
 }
 
 #[test]
-fn test_cut_on_line() {
-    let vertices = [
-        [1.0, 0.0],
-        [1.0, 1.0],
-        [2.0, 1.0],
-        [2.0, 2.0],
-        [-2.0, 2.0],
-        [-2.0, 1.0],
-        [-1.0, 1.0],
-        [-1.0, 0.0],
-    ];
-    let slot_equivalent = Contour::new(Polysegment::from_points(vertices.as_slice()));
+fn test_intersection_cut() {
+    {
+        // Regression test (found in stem_slot crate)
+        let arc = ArcSegment::from_center_radius_start_offset_angle(
+            [-0.0035575567453493533, 0.0017499999999999948],
+            0.0010000000000000022,
+            3.054659664751011,
+            1.6577293156336776,
+            DEFAULT_EPSILON,
+            DEFAULT_MAX_ULPS,
+        )
+        .expect("valid arc");
+        let contour = Contour::from(arc.clone());
+        let cut = Polysegment::from_points([[-10.0, 0.00075], [10.0, 0.00075]].as_slice());
+        let separated_lines = contour.intersection_cut(&cut, DEFAULT_EPSILON, DEFAULT_MAX_ULPS);
+        assert_eq!(separated_lines.len(), 1);
 
-    let cut = Polysegment::from_points([[-10.0, 1.0], [10.0, 1.0]].as_slice());
-
-    let separated_lines = slot_equivalent.intersection_cut(&cut, 0.0, 0);
-    assert_eq!(separated_lines.len(), 4);
-
-    assert_eq!(separated_lines[0].num_segments(), 3);
-    for point in separated_lines[0].points() {
-        assert!(point[1] <= 1.0);
+        let cut_seg = &separated_lines[0][1];
+        match cut_seg {
+            Segment::LineSegment(_) => panic!("Must be an ArcSegment"),
+            Segment::ArcSegment(cut_arc) => {
+                approx::assert_abs_diff_eq!(arc.radius(), cut_arc.radius(), epsilon = 1e-3);
+                approx::assert_abs_diff_eq!(arc.center(), cut_arc.center(), epsilon = 1e-3);
+                approx::assert_abs_diff_eq!(
+                    arc.start_angle(),
+                    cut_arc.start_angle(),
+                    epsilon = 1e-3
+                );
+                approx::assert_abs_diff_eq!(
+                    arc.offset_angle(),
+                    cut_arc.offset_angle(),
+                    epsilon = 1e-3
+                );
+            }
+        }
     }
+    {
+        let vertices = [
+            [1.0, 0.0],
+            [1.0, 1.0],
+            [2.0, 1.0],
+            [2.0, 2.0],
+            [-2.0, 2.0],
+            [-2.0, 1.0],
+            [-1.0, 1.0],
+            [-1.0, 0.0],
+        ];
+        let contour = Contour::new(Polysegment::from_points(vertices.as_slice()));
 
-    assert_eq!(separated_lines[1].num_segments(), 1);
-    for point in separated_lines[1].points() {
-        assert!(point[1] == 1.0);
-    }
+        let cut = Polysegment::from_points([[-10.0, 1.0], [10.0, 1.0]].as_slice());
 
-    assert_eq!(separated_lines[2].num_segments(), 3);
-    for point in separated_lines[2].points() {
-        assert!(point[1] >= 1.0);
-    }
+        let separated_lines = contour.intersection_cut(&cut, 0.0, 0);
+        assert_eq!(separated_lines.len(), 4);
 
-    assert_eq!(separated_lines[3].num_segments(), 1);
-    for point in separated_lines[3].points() {
-        assert!(point[1] == 1.0);
+        assert_eq!(separated_lines[0].num_segments(), 3);
+        for point in separated_lines[0].points() {
+            assert!(point[1] <= 1.0);
+        }
+
+        assert_eq!(separated_lines[1].num_segments(), 1);
+        for point in separated_lines[1].points() {
+            assert!(point[1] == 1.0);
+        }
+
+        assert_eq!(separated_lines[2].num_segments(), 3);
+        for point in separated_lines[2].points() {
+            assert!(point[1] >= 1.0);
+        }
+
+        assert_eq!(separated_lines[3].num_segments(), 1);
+        for point in separated_lines[3].points() {
+            assert!(point[1] == 1.0);
+        }
     }
 }
 

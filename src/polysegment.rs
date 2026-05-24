@@ -833,12 +833,18 @@ impl Polysegment {
                             return None;
                         }
                     }
-                    Segment::ArcSegment(_) => {
+                    Segment::ArcSegment(a) => {
                         let normalized_stop = [stop[0] - center[0], stop[1] - center[1]];
                         let normalized_start = [start[0] - center[0], start[1] - center[1]];
                         let stop_angle = normalized_stop[1].atan2(normalized_stop[0]);
                         let start_angle = normalized_start[1].atan2(normalized_start[0]);
-                        let offset_angle = stop_angle - start_angle;
+                        let offset_angle =
+                            (stop_angle - start_angle).rem_euclid(std::f64::consts::TAU);
+                        let offset_angle = if a.is_positive() {
+                            offset_angle
+                        } else {
+                            -offset_angle
+                        };
 
                         if let Ok(arc) = ArcSegment::from_start_center_angle(
                             start,
@@ -847,6 +853,7 @@ impl Polysegment {
                             epsilon,
                             max_ulps,
                         ) {
+                            println!("{:?}", arc.is_positive());
                             return Some(arc.into());
                         } else {
                             return None;
