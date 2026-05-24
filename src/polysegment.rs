@@ -853,7 +853,6 @@ impl Polysegment {
                             epsilon,
                             max_ulps,
                         ) {
-                            println!("{:?}", arc.is_positive());
                             return Some(arc.into());
                         } else {
                             return None;
