@@ -3,7 +3,7 @@ use std::f64::consts::{FRAC_PI_2, FRAC_PI_4, PI};
 use cairo_viewport::{SideLength, Viewport};
 use planar_geo::{
     contour::ArrowHeadSize,
-    draw::{Color, LineStyle, Style},
+    draw::{Color, LineCap, LineJoin, LineStyle, Style},
     prelude::*,
 };
 
@@ -21,6 +21,8 @@ fn test_horizontal_arrow() {
         let mut style = Style::default();
         style.line_style = LineStyle::Solid;
         style.background_color = Color::new(1.0, 1.0, 1.0, 1.0);
+        style.line_cap = LineCap::Round;
+        style.line_join = LineJoin::Miter;
 
         let view = Viewport::from_bounding_box(&arrow.bounding_box(), SideLength::Long(500));
 

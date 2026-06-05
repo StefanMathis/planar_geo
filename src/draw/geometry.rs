@@ -33,6 +33,8 @@ use crate::polysegment::Polysegment;
 use crate::prelude::ArrowHeadSize;
 use crate::segment::{ArcSegment, LineSegment, Segment};
 use crate::shape::Shape;
+pub use cairo::LineCap;
+pub use cairo::LineJoin;
 
 impl Segment {
     /**
