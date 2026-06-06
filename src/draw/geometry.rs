@@ -555,7 +555,7 @@ impl Style {
     /**
     Creates a new instance of [`Style`] from its components.
      */
-    pub fn new(
+    pub const fn new(
         line_color: Color,
         background_color: Color,
         line_width: f64,
