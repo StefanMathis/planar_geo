@@ -1309,7 +1309,7 @@ impl ArcSegment {
     ///
     /// The input line is assumed to be in WORLD coordinates:
     ///
-    ///     a x + b y + c = 0
+    /// a x + b y + c = 0
     ///
     /// where (a, b) is NOT required to be normalized.
     ///
@@ -1322,17 +1322,17 @@ impl ArcSegment {
     /// This function internally translates the problem into the
     /// circle-centered coordinate system:
     ///
-    ///     x' = x - ox
-    ///     y' = y - oy
+    /// x' = x - ox
+    /// y' = y - oy
     ///
     /// After translation, the circle becomes:
     ///
-    ///     x'^2 + y'^2 = r^2
+    /// x'^2 + y'^2 = r^2
     ///
     /// and the line becomes:
     ///
-    ///     a x' + b y' + c' = 0
-    ///     where c' = c + a·ox + b·oy
+    /// a x' + b y' + c' = 0
+    /// where c' = c + a·ox + b·oy
     ///
     /// IMPORTANT:
     /// - The translation is purely internal.
