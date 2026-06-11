@@ -1189,13 +1189,10 @@ impl Primitive for LineSegment {
         epsilon: f64,
         max_ulps: u32,
     ) -> PrimitiveIntersections {
-        // Algorithm from https://cp-algorithms.com/geometry/circle-line-intersection.html
-        let center = arc_segment.center();
-
-        let x1 = self.start[0] - center[0];
-        let y1 = self.start[1] - center[1];
-        let x2 = self.stop[0] - center[0];
-        let y2 = self.stop[1] - center[1];
+        let x1 = self.start[0];
+        let y1 = self.start[1];
+        let x2 = self.stop[0];
+        let y2 = self.stop[1];
 
         // Calculate values A, B and C as used in the circle-line-intersection algorithm
         // "Koordinatenform", see https://de.wikipedia.org/wiki/Koordinatenform

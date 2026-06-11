@@ -31,6 +31,13 @@ fn test_convert_to_geo() {
 #[test]
 fn test_covers_point() {
     {
+        let line = Line::from_point_angle([0.0, 1.0], 0.0);
+        assert!(line.covers_point([1.0, 1.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+        assert!(line.covers_point([2.0, 1.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+        assert!(line.covers_point([100000.0, 1.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+        assert!(!line.covers_point([100000.0, 0.9], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    }
+    {
         let line = Line::from_point_angle([0.0, 0.0], -FRAC_PI_4);
         assert!(line.covers_point([1.0, -1.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
         assert!(!line.covers_point([1.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
@@ -134,7 +141,7 @@ fn test_identical() {
 }
 
 #[test]
-fn test_intersection() {
+fn test_intersection_line_line() {
     {
         let line_segment =
             LineSegment::new([0.0, 0.0], [2.0, 2.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap();
@@ -243,7 +250,33 @@ fn test_intersection_with_covered_line_segment() {
 }
 
 #[test]
-fn transformation() {
+fn test_intersection_arc_segment() {
+    {
+        // Regression test from stem_slot crate
+        let line = Line {
+            a: -0.0,
+            b: 1.0,
+            c: -0.0020953915850751483,
+        };
+        let arc = ArcSegment::new(
+            [0.0025088728825159476, 0.0029999999999999936],
+            0.0009999999999999935,
+            4.71238898038469,
+            1.4835298641951864,
+            DEFAULT_EPSILON,
+            DEFAULT_MAX_ULPS,
+        )
+        .unwrap();
+        approx::assert_abs_diff_eq!(
+            arc.intersections_primitive(&line, DEFAULT_EPSILON, DEFAULT_MAX_ULPS),
+            PrimitiveIntersections::One([0.002935116493197851, 0.0020953915850751483]),
+            epsilon = 1e-6
+        );
+    }
+}
+
+#[test]
+fn test_transformation() {
     {
         let mut line = Line::from_point_angle([0.0, 0.0], 0.25 * PI);
         assert!(!line.covers_point([2.0, -2.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));

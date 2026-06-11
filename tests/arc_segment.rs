@@ -84,6 +84,38 @@ fn test_covers_point() {
 #[test]
 fn test_arc_arc_intersection() {
     {
+        let center = [9.0, 1.0];
+        let radius = 1.0;
+        let start_angle = 1.5 * std::f64::consts::PI;
+        let offset_angle = 0.5 * std::f64::consts::PI;
+        let arc1 = ArcSegment::from_center_radius_start_offset_angle(
+            center,
+            radius,
+            start_angle,
+            offset_angle,
+            0.0,
+            0,
+        )
+        .unwrap();
+
+        let center = [-9.0, 1.0];
+        let radius = 1.0;
+        let start_angle = std::f64::consts::PI;
+        let offset_angle = 0.5 * std::f64::consts::PI;
+        let arc2 = ArcSegment::from_center_radius_start_offset_angle(
+            center,
+            radius,
+            start_angle,
+            offset_angle,
+            0.0,
+            0,
+        )
+        .unwrap();
+
+        let intersections = arc1.intersections_primitive(&arc2, DEFAULT_EPSILON, DEFAULT_MAX_ULPS);
+        assert_eq!(intersections.len(), 0);
+    }
+    {
         let center = [0.0, 0.0];
         let radius = 1.0;
         let start_angle = 0.0;

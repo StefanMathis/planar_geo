@@ -1305,7 +1305,51 @@ impl ArcSegment {
         }
     }
 
-    /// Algorithm from https://cp-algorithms.com/geometry/circle-line-intersection.html
+    /// Intersects a (world-space) infinite line with this circle.
+    ///
+    /// The input line is assumed to be in WORLD coordinates:
+    ///
+    ///     a x + b y + c = 0
+    ///
+    /// where (a, b) is NOT required to be normalized.
+    ///
+    /// The circle has center (ox, oy) and radius r.
+    ///
+    /// ------------------------------------------------------------
+    /// COORDINATE MODEL
+    /// ------------------------------------------------------------
+    ///
+    /// This function internally translates the problem into the
+    /// circle-centered coordinate system:
+    ///
+    ///     x' = x - ox
+    ///     y' = y - oy
+    ///
+    /// After translation, the circle becomes:
+    ///
+    ///     x'^2 + y'^2 = r^2
+    ///
+    /// and the line becomes:
+    ///
+    ///     a x' + b y' + c' = 0
+    ///     where c' = c + a·ox + b·oy
+    ///
+    /// IMPORTANT:
+    /// - The translation is purely internal.
+    /// - All returned points are converted back to WORLD space.
+    /// - No caller-visible coordinate transform is required.
+    ///
+    /// ------------------------------------------------------------
+    /// GEOMETRIC METHOD
+    /// ------------------------------------------------------------
+    ///
+    /// 1. Project origin onto the line in circle-centered space.
+    /// 2. Compute distance from circle center to line.
+    /// 3. If distance > r → no intersection.
+    /// 4. If distance == r → tangent (1 point).
+    /// 5. If distance < r → 2 intersection points.
+    ///
+    /// Direction vector along the line is perpendicular to (a, b).
     pub(crate) fn intersections_line_circle(
         &self,
         a: f64,
@@ -1314,52 +1358,61 @@ impl ArcSegment {
         epsilon: f64,
         max_ulps: u32,
     ) -> PrimitiveIntersections {
-        let denom = a * a + b * b;
+        let [ox, oy] = self.center();
+        let r = self.radius();
 
-        let x0 = -a * c / denom;
-        let y0 = -b * c / denom;
+        // Translate line into circle-centered coordinate system
+        let c = c + a * ox + b * oy;
 
-        // Argument for the sqrt function
-        let arg = self.radius().powi(2) - c.powi(2) / denom;
+        let normal_len_sq = a * a + b * b;
+
+        // Projection of origin onto the line (in local frame)
+        let x0 = -a * c / normal_len_sq;
+        let y0 = -b * c / normal_len_sq;
+
+        // squared distance from origin to line
+        let dist_to_line_sq = c * c / normal_len_sq;
+
+        // remaining squared radius after projection
+        let radial_discriminant = r * r - dist_to_line_sq;
 
         let mut intersections = PrimitiveIntersections::Zero;
 
-        if arg < 0.0 {
-            // If the argument is negative, no intersection exists
-        } else if ulps_eq!(arg, 0.0, epsilon = epsilon, max_ulps = max_ulps) {
-            // Special case: Argument of the sqrt-function is exactly zero => point equals
-            // center + (x0, y0)
-            let mut pt = self.center();
-            pt.translate([x0, y0]);
+        // Tangent case (1 intersection)
+        if ulps_eq!(
+            radial_discriminant,
+            0.0,
+            epsilon = epsilon,
+            max_ulps = max_ulps
+        ) {
+            let pt = [x0 + ox, y0 + oy];
             if self.covers_point(pt, epsilon, max_ulps) {
                 intersections.push(pt);
             }
-        } else {
-            // Intersects exist
-            let m = (arg / denom).sqrt();
+        } else if radial_discriminant > 0.0 {
+            // Secant case (2 intersections)
 
-            // Calculate the two possible points
+            let m = (radial_discriminant / normal_len_sq).sqrt();
+
+            // Points in circle-centered frame
             let xa = x0 + b * m;
             let ya = y0 - a * m;
             let xb = x0 - b * m;
             let yb = y0 + a * m;
 
-            // Check if the points are actually in the arc. If a point is not in the
-            // arc, return None
-            let mut pta = self.center();
-            pta.translate([xa, ya]);
+            // Convert to world coordinates BEFORE angle test
+            let pa = [xa + ox, ya + oy];
+            let pb = [xb + ox, yb + oy];
 
-            let mut ptb = self.center();
-            ptb.translate([xb, yb]);
-
-            let angle_a = ya.atan2(xa);
-            let angle_b = yb.atan2(xb);
+            // Angles are defined relative to circle center in WORLD space
+            let angle_a = (pa[1] - oy).atan2(pa[0] - ox);
+            let angle_b = (pb[1] - oy).atan2(pb[0] - ox);
 
             if self.covers_angle(angle_a) {
-                intersections.push(pta);
+                intersections.push([xa + ox, ya + oy]);
             }
             if self.covers_angle(angle_b) {
-                intersections.push(ptb);
+                intersections.push([xb + ox, yb + oy]);
             }
         }
         return intersections;
@@ -1576,27 +1629,42 @@ impl Primitive for ArcSegment {
             return PrimitiveIntersections::Zero;
         }
 
-        // Algorithm from https://cp-algorithms.com/geometry/circle-circle-intersection.html
+        /*
+        Compute intersection of two circles via radical axis reduction.
+
+        We derive a line (radical axis) in WORLD coordinates:
+
+            a x + b y + c = 0
+
+        where:
+            a = 2 (C1x - C2x)
+            b = 2 (C1y - C2y)
+            c = C2·C2 - C1·C1 + r1² - r2²
+
+        This line represents all points with equal power w.r.t. both circles.
+
+        IMPORTANT INVARIANT:
+        - No coordinate translation is performed here.
+        - This line is already in WORLD space.
+        - Any local coordinate handling is done inside `intersections_line_circle`.
+        */
         let radius_arc1 = self.radius();
         let radius_arc2 = arc_segment.radius();
         let center_arc1 = self.center();
         let center_arc2 = arc_segment.center();
 
-        // Assume the first circle is in the origin and shift the second circle
-        // accordingly. The new center coordinates of arc 2 / circle 2 therefore
-        // are:
-        let x2 = center_arc2[0] - center_arc1[0];
-        let y2 = center_arc2[1] - center_arc1[1];
-
-        // Represent the second circle as a line
-        let a = -2.0 * x2;
-        let b = -2.0 * y2;
-        let c = x2.powi(2) + y2.powi(2) + (radius_arc1).powi(2) - (radius_arc2).powi(2);
-
-        // Check if the two circles are (approxmately) identical. This is the
-        // case, if c == 0. In that case, return the "common" end points (if
-        // there are any).
-        if approx::ulps_eq!(c, 0.0, epsilon = epsilon, max_ulps = max_ulps) {
+        // Circles are identical
+        if ulps_eq!(
+            radius_arc1,
+            radius_arc2,
+            epsilon = epsilon,
+            max_ulps = max_ulps
+        ) && ulps_eq!(
+            center_arc1,
+            center_arc2,
+            epsilon = epsilon,
+            max_ulps = max_ulps
+        ) {
             let mut intersections = PrimitiveIntersections::Zero;
             if self.covers_angle(arc_segment.start_angle()) {
                 intersections.push(arc_segment.start());
@@ -1617,20 +1685,31 @@ impl Primitive for ArcSegment {
                 intersections.push(self.stop());
             }
             return intersections;
-        } else {
-            /*
-            Filter the found intersections by checking if they are actually part
-            of the "other" arc segment. This is necessary because the algorithm
-            is designed to find circle-circle intersections.
-             */
-            let mut intersections = PrimitiveIntersections::Zero;
-            for i in self.intersections_line_circle(a, b, c, epsilon, max_ulps) {
-                if arc_segment.covers_point(i, epsilon, max_ulps) {
-                    intersections.push(i);
-                }
-            }
-            return intersections;
         }
+
+        // Radical axis (WORLD coordinates)
+        let a = 2.0 * (center_arc1[0] - center_arc2[0]);
+        let b = 2.0 * (center_arc1[1] - center_arc2[1]);
+        let c = center_arc2[0].powi(2) + center_arc2[1].powi(2)
+            - center_arc1[0].powi(2)
+            - center_arc1[1].powi(2)
+            + radius_arc1.powi(2)
+            - radius_arc2.powi(2);
+
+        /*
+        General case:
+
+        1. Intersect radical axis (line) with THIS circle
+        2. This returns points in WORLD coordinates
+        3. Filter by whether points lie inside arc_segment
+        */
+        let mut intersections = PrimitiveIntersections::Zero;
+        for i in self.intersections_line_circle(a, b, c, epsilon, max_ulps) {
+            if arc_segment.covers_point(i, epsilon, max_ulps) {
+                intersections.push(i);
+            }
+        }
+        return intersections;
     }
 
     fn intersections_primitive<T: Primitive>(
