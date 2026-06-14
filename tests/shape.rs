@@ -1,5 +1,5 @@
 use planar_geo::{error::ShapeConstructorError, prelude::*};
-use std::f64::consts::{FRAC_PI_2, SQRT_2};
+use std::f64::consts::{FRAC_PI_2, PI, SQRT_2};
 
 #[test]
 fn test_new() {
@@ -157,7 +157,7 @@ fn test_new() {
 }
 
 #[test]
-fn test_add_hole() {
+fn test_add_hole_line_segments() {
     let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
     let c = Contour::new(Polysegment::from_points(vertices));
 
@@ -187,6 +187,63 @@ fn test_add_hole() {
     let hole = Contour::new(Polysegment::from_points(vertices));
     assert!(shape.add_hole(hole).is_err());
     assert_eq!(shape.holes().len(), 2);
+}
+
+#[test]
+fn test_add_hole_arc_segments() {
+    let e = DEFAULT_EPSILON;
+    let m = DEFAULT_MAX_ULPS;
+
+    {
+        let pts = &[
+            [0.5, 0.0],
+            [0.0, 0.0],
+            [0.0, 1.0],
+            [1.0, 1.0],
+            [1.0, 0.0],
+            [0.5, 0.0],
+        ];
+        let radii = &[0.1, 0.1, 0.1, 0.1];
+        let c: Contour = Polysegment::from_fillet_chain(pts, radii).into();
+        let mut shape = Shape::try_from(c).unwrap();
+        assert_eq!(shape.holes().len(), 0);
+
+        let pts = &[
+            [0.5, 0.2],
+            [0.2, 0.0],
+            [0.2, 0.8],
+            [0.8, 0.8],
+            [0.8, 0.2],
+            [0.5, 0.2],
+        ];
+        let radii = &[0.1, 0.1, 0.1, 0.1];
+        let hole = Polysegment::from_fillet_chain(pts, radii).into();
+        shape.add_hole(hole).unwrap();
+        assert_eq!(shape.holes().len(), 1);
+    }
+    {
+        let mut ps = Polysegment::new();
+        ps.push_back(
+            LineSegment::new([0.0, 0.0], [0.0, 0.3], e, m)
+                .unwrap()
+                .into(),
+        );
+        ps.push_back(
+            ArcSegment::from_center_radius_start_offset_angle([0.0, 0.5], 0.2, 1.5 * PI, PI, e, m)
+                .unwrap()
+                .into(),
+        );
+        ps.extend_back([0.0, 1.0]);
+        ps.extend_back([1.0, 1.0]);
+        ps.extend_back([1.0, 0.0]);
+        let c = Contour::from(ps);
+        let mut shape = Shape::try_from(c).unwrap();
+        assert_eq!(shape.holes().len(), 0);
+
+        let hole = Contour::rectangle([0.5, 0.2], [0.8, 0.8]);
+        shape.add_hole(hole).unwrap();
+        assert_eq!(shape.holes().len(), 1);
+    }
 }
 
 #[test]

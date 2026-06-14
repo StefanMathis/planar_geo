@@ -449,6 +449,152 @@ fn test_contains_point() {
 }
 
 #[test]
+fn test_contains_point_core_contour() {
+    // Test of a bug found in the stem_core crate
+
+    let e = DEFAULT_EPSILON;
+    let m = DEFAULT_MAX_ULPS;
+
+    let mut ps = Polysegment::new();
+    ps.push_back(
+        LineSegment::new([0.0, 0.025], [0.15, 0.025], e, m)
+            .unwrap()
+            .into(),
+    );
+    ps.push_back(
+        LineSegment::new([0.15, 0.025], [0.15, 0.01774999999999992], e, m)
+            .unwrap()
+            .into(),
+    );
+    ps.push_back(
+        LineSegment::new(
+            [0.15, 0.01774999999999992],
+            [0.149, 0.01774999999999992],
+            e,
+            m,
+        )
+        .unwrap()
+        .into(),
+    );
+    ps.push_back(
+        ArcSegment::from_center_radius_start_offset_angle(
+            [0.14899999999999997, 0.014749999999999961],
+            0.0029999999999999593,
+            1.5707963267948828,
+            1.5707963267948963,
+            e,
+            m,
+        )
+        .unwrap()
+        .into(),
+    );
+    ps.push_back(
+        LineSegment::new(
+            [0.146, 0.014750000000000001],
+            [0.146, 0.0027499999999999985],
+            e,
+            m,
+        )
+        .unwrap()
+        .into(),
+    );
+    ps.push_back(
+        ArcSegment::from_center_radius_start_offset_angle(
+            [0.148, 0.002749999999999999],
+            0.001999999999999999,
+            3.141592653589793,
+            1.5707963267948966,
+            e,
+            m,
+        )
+        .unwrap()
+        .into(),
+    );
+    ps.push_back(
+        LineSegment::new([0.148, 0.0007499999999999998], [0.15, 0.00075], e, m)
+            .unwrap()
+            .into(),
+    );
+    ps.push_back(
+        LineSegment::new([0.15, 0.00075], [0.15, 0.0], e, m)
+            .unwrap()
+            .into(),
+    );
+    ps.push_back(
+        LineSegment::new([0.15, 0.0], [0.0, 0.0], e, m)
+            .unwrap()
+            .into(),
+    );
+    ps.push_back(
+        LineSegment::new([0.0, 0.0], [0.0, 0.00075], e, m)
+            .unwrap()
+            .into(),
+    );
+    ps.push_back(
+        LineSegment::new([0.0, 0.00075], [0.002, 0.0007499999999999998], e, m)
+            .unwrap()
+            .into(),
+    );
+    ps.push_back(
+        ArcSegment::from_center_radius_start_offset_angle(
+            [0.0019999999999999996, 0.002749999999999999],
+            0.001999999999999999,
+            4.71238898038469,
+            1.5707963267948966,
+            e,
+            m,
+        )
+        .unwrap()
+        .into(),
+    );
+    ps.push_back(
+        LineSegment::new(
+            [0.003999999999999998, 0.0027499999999999985],
+            [0.004, 0.014750000000000001],
+            e,
+            m,
+        )
+        .unwrap()
+        .into(),
+    );
+    ps.push_back(
+        ArcSegment::from_center_radius_start_offset_angle(
+            [0.0010000000000000408, 0.014749999999999961],
+            0.0029999999999999593,
+            1.3877787807814645e-14,
+            1.5707963267948963,
+            e,
+            m,
+        )
+        .unwrap()
+        .into(),
+    );
+    ps.push_back(
+        LineSegment::new(
+            [0.0009999999999999996, 0.01774999999999992],
+            [0.0, 0.01774999999999992],
+            e,
+            m,
+        )
+        .unwrap()
+        .into(),
+    );
+    let c = Contour::from(ps);
+
+    assert!(
+        c.bounding_box()
+            .contains_point([0.014499999999999999, 0.0007499999999999998])
+    );
+    assert!(
+        c.bounding_box()
+            .contains_point([0.012499999999999999, 0.00075])
+    );
+
+    assert!(c.contains_point([0.014499999999999999, 0.0007499999999999998], e, m));
+    assert!(c.contains_point([0.012499999999999999, 0.00075], e, m));
+}
+
+#[test]
 fn test_covers_point() {
     let e = DEFAULT_EPSILON;
     let m = DEFAULT_MAX_ULPS;
@@ -1716,6 +1862,58 @@ fn test_contains_contour() {
     let e = DEFAULT_EPSILON;
     let m = DEFAULT_MAX_ULPS;
 
+    {
+        let c1 = Contour::rectangle([0.0, 0.0], [0.15, 0.25]);
+        let c2 = Contour::rectangle(
+            [0.008499999999999999, 0.0007499999999999998],
+            [0.0165, 0.01774999999999992],
+        );
+        assert!(c1.contains_contour(&c2, e, m));
+    }
+    {
+        let pts = &[
+            [0.5, 0.0],
+            [0.0, 0.0],
+            [0.0, 1.0],
+            [1.0, 1.0],
+            [1.0, 0.0],
+            [0.5, 0.0],
+        ];
+        let radii = &[0.1, 0.1, 0.1, 0.1];
+        let c1: Contour = Polysegment::from_fillet_chain(pts, radii).into();
+
+        let pts = &[
+            [0.5, 0.2],
+            [0.2, 0.0],
+            [0.2, 0.8],
+            [0.8, 0.8],
+            [0.8, 0.2],
+            [0.5, 0.2],
+        ];
+        let radii = &[0.1, 0.1, 0.1, 0.1];
+        let c2 = Polysegment::from_fillet_chain(pts, radii).into();
+        assert!(c1.contains_contour(&c2, e, m));
+    }
+    {
+        let mut ps = Polysegment::new();
+        ps.push_back(
+            LineSegment::new([0.0, 0.0], [0.0, 0.3], e, m)
+                .unwrap()
+                .into(),
+        );
+        ps.push_back(
+            ArcSegment::from_center_radius_start_offset_angle([0.0, 0.5], 0.2, 1.5 * PI, PI, e, m)
+                .unwrap()
+                .into(),
+        );
+        ps.extend_back([0.0, 1.0]);
+        ps.extend_back([1.0, 1.0]);
+        ps.extend_back([1.0, 0.0]);
+        let c1 = Contour::from(ps);
+        let c2 = Contour::rectangle([0.5, 0.2], [0.8, 0.8]);
+        assert!(c1.contains_contour(&c2, e, m));
+    }
+
     // A countour shares a side with another one
     {
         let c1 = Contour::new(Polysegment::from_points(&[
@@ -1730,7 +1928,7 @@ fn test_contains_contour() {
             [1.5, 2.0],
             [1.5, 1.0],
         ]));
-        assert!(!c1.contains_contour(&c2, e, m))
+        assert!(!c1.contains_contour(&c2, e, m));
     }
     // A countour does not contain itself
     {
@@ -1740,7 +1938,7 @@ fn test_contains_contour() {
             [2.0, 2.0],
             [2.0, 1.0],
         ]));
-        assert!(!c.contains_contour(&c, e, m))
+        assert!(!c.contains_contour(&c, e, m));
     }
     {
         // large contains small
@@ -1792,6 +1990,266 @@ fn test_contains_contour() {
         .into();
         assert!(!c1.contains_contour(&c2, e, m));
     }
+}
+
+#[test]
+fn test_contains_segments() {
+    // Test of a bug found in the stem_core crate
+
+    let e = DEFAULT_EPSILON;
+    let m = DEFAULT_MAX_ULPS;
+
+    let mut ps = Polysegment::new();
+    ps.push_back(
+        LineSegment::new([0.0, 0.025], [0.15, 0.025], e, m)
+            .unwrap()
+            .into(),
+    );
+    ps.push_back(
+        LineSegment::new([0.15, 0.025], [0.15, 0.01774999999999992], e, m)
+            .unwrap()
+            .into(),
+    );
+    ps.push_back(
+        LineSegment::new(
+            [0.15, 0.01774999999999992],
+            [0.149, 0.01774999999999992],
+            e,
+            m,
+        )
+        .unwrap()
+        .into(),
+    );
+    ps.push_back(
+        ArcSegment::from_center_radius_start_offset_angle(
+            [0.14899999999999997, 0.014749999999999961],
+            0.0029999999999999593,
+            1.5707963267948828,
+            1.5707963267948963,
+            e,
+            m,
+        )
+        .unwrap()
+        .into(),
+    );
+    ps.push_back(
+        LineSegment::new(
+            [0.146, 0.014750000000000001],
+            [0.146, 0.0027499999999999985],
+            e,
+            m,
+        )
+        .unwrap()
+        .into(),
+    );
+    ps.push_back(
+        ArcSegment::from_center_radius_start_offset_angle(
+            [0.148, 0.002749999999999999],
+            0.001999999999999999,
+            3.141592653589793,
+            1.5707963267948966,
+            e,
+            m,
+        )
+        .unwrap()
+        .into(),
+    );
+    ps.push_back(
+        LineSegment::new([0.148, 0.0007499999999999998], [0.15, 0.00075], e, m)
+            .unwrap()
+            .into(),
+    );
+    ps.push_back(
+        LineSegment::new([0.15, 0.00075], [0.15, 0.0], e, m)
+            .unwrap()
+            .into(),
+    );
+    ps.push_back(
+        LineSegment::new([0.15, 0.0], [0.0, 0.0], e, m)
+            .unwrap()
+            .into(),
+    );
+    ps.push_back(
+        LineSegment::new([0.0, 0.0], [0.0, 0.00075], e, m)
+            .unwrap()
+            .into(),
+    );
+    ps.push_back(
+        LineSegment::new([0.0, 0.00075], [0.002, 0.0007499999999999998], e, m)
+            .unwrap()
+            .into(),
+    );
+    ps.push_back(
+        ArcSegment::from_center_radius_start_offset_angle(
+            [0.0019999999999999996, 0.002749999999999999],
+            0.001999999999999999,
+            4.71238898038469,
+            1.5707963267948966,
+            e,
+            m,
+        )
+        .unwrap()
+        .into(),
+    );
+    ps.push_back(
+        LineSegment::new(
+            [0.003999999999999998, 0.0027499999999999985],
+            [0.004, 0.014750000000000001],
+            e,
+            m,
+        )
+        .unwrap()
+        .into(),
+    );
+    ps.push_back(
+        ArcSegment::from_center_radius_start_offset_angle(
+            [0.0010000000000000408, 0.014749999999999961],
+            0.0029999999999999593,
+            1.3877787807814645e-14,
+            1.5707963267948963,
+            e,
+            m,
+        )
+        .unwrap()
+        .into(),
+    );
+    ps.push_back(
+        LineSegment::new(
+            [0.0009999999999999996, 0.01774999999999992],
+            [0.0, 0.01774999999999992],
+            e,
+            m,
+        )
+        .unwrap()
+        .into(),
+    );
+    let c = Contour::from(ps);
+
+    assert!(
+        c.contains_segment(
+            &LineSegment::new(
+                [0.012499999999999999, 0.00075],
+                [0.014499999999999999, 0.0007499999999999998],
+                e,
+                m
+            )
+            .unwrap(),
+            e,
+            m
+        )
+    );
+    assert!(
+        c.contains_segment(
+            &ArcSegment::from_center_radius_start_offset_angle(
+                [0.014499999999999999, 0.002749999999999999],
+                0.001999999999999999,
+                4.71238898038469,
+                1.5707963267948966,
+                e,
+                m,
+            )
+            .unwrap(),
+            e,
+            m
+        )
+    );
+    assert!(
+        c.contains_segment(
+            &LineSegment::new(
+                [0.016499999999999997, 0.0027499999999999985],
+                [0.0165, 0.014750000000000001],
+                e,
+                m
+            )
+            .unwrap(),
+            e,
+            m
+        )
+    );
+    assert!(
+        c.contains_segment(
+            &ArcSegment::from_center_radius_start_offset_angle(
+                [0.01350000000000004, 0.014749999999999961],
+                0.0029999999999999593,
+                1.3877787807814645e-14,
+                1.5707963267948963,
+                e,
+                m,
+            )
+            .unwrap(),
+            e,
+            m
+        )
+    );
+    assert!(
+        c.contains_segment(
+            &LineSegment::new(
+                [0.013499999999999998, 0.01774999999999992],
+                [0.0115, 0.01774999999999992],
+                e,
+                m
+            )
+            .unwrap(),
+            e,
+            m
+        )
+    );
+    assert!(
+        c.contains_segment(
+            &ArcSegment::from_center_radius_start_offset_angle(
+                [0.011499999999999958, 0.014749999999999961],
+                0.0029999999999999593,
+                1.5707963267948828,
+                1.5707963267948963,
+                e,
+                m,
+            )
+            .unwrap(),
+            e,
+            m
+        )
+    );
+    assert!(
+        c.contains_segment(
+            &LineSegment::new(
+                [0.008499999999999999, 0.014750000000000001],
+                [0.0085, 0.0027499999999999985],
+                e,
+                m
+            )
+            .unwrap(),
+            e,
+            m
+        )
+    );
+    assert!(
+        c.contains_segment(
+            &ArcSegment::from_center_radius_start_offset_angle(
+                [0.010499999999999999, 0.002749999999999999],
+                0.001999999999999999,
+                3.141592653589793,
+                1.5707963267948966,
+                e,
+                m,
+            )
+            .unwrap(),
+            e,
+            m
+        )
+    );
+    assert!(
+        c.contains_segment(
+            &LineSegment::new(
+                [0.010499999999999999, 0.0007499999999999998],
+                [0.012499999999999999, 0.00075],
+                e,
+                m
+            )
+            .unwrap(),
+            e,
+            m
+        )
+    );
 }
 
 #[test]
