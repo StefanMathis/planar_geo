@@ -1307,6 +1307,10 @@ impl ArcSegment {
 
     /// Intersects a (world-space) infinite line with this circle.
     ///
+    /// This function uses a modified version of the circle-line intersection
+    /// algorithm from cp-algorithms.com:
+    /// https://cp-algorithms.com/geometry/circle-line-intersection.html
+    ///
     /// The input line is assumed to be in WORLD coordinates:
     ///
     /// a x + b y + c = 0
@@ -1618,6 +1622,9 @@ impl Primitive for ArcSegment {
         line_segment.intersections_arc_segment(self, epsilon, max_ulps)
     }
 
+    /// This function uses a modified version of the circle-circle intersection
+    /// algorithm from cp-algorithms.com:
+    /// https://cp-algorithms.com/geometry/circle-circle-intersection.html
     fn intersections_arc_segment(
         &self,
         arc_segment: &ArcSegment,

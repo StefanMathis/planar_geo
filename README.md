@@ -46,7 +46,7 @@ Many CAD, CAM, CNC, robotics, and engineering applications contain true circular
 geometry. However, most computational geometry libraries ultimately represent
 circular arcs as a collection of straight line segments. While this simplifies
 many algorithms, it introduces approximation errors and often requires storing
-large numbers of points.
+large numbers of points to achieve acceptable accuracy.
 
 planar_geo takes a different approach: circular arcs are treated as first-class
 geometric primitives rather than discretized approximations.
@@ -63,10 +63,10 @@ which need to account for both straight and arc line segments (e.g. when
 calculating the area of a contour, albeit the one with "true" arc segments will
 probably be more precise). To some extent, this can be mitigated by discretizing
 the arc segment for those specific cases where speed is paramount (and
-planar_geo does offer algorithms for that). Another problem is that a contour
-in planar_geo can consist of both straight and arc segments, which necessitates
-the usage of an enum for the individual segments and therefore branching every
-time a segment is accessed. If your workload consists exclusively of
+planar_geo does offer algorithms for that). Supporting both straight and arc
+segments within the same contour requires runtime dispatch between segment
+types, introducing a small amount of branching overhead compared to libraries
+that only operate on line segments. If your workload consists exclusively of
 straight-line geometry, libraries specialized for line-segment operations such
 as [geo](https://crates.io/crates/geo) or [geos](https://crates.io/crates/geos)
 may offer better performance.
