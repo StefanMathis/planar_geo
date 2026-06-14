@@ -32,12 +32,44 @@ modify the components. -->
 
 [![Documentation](https://docs.rs/planar_geo/badge.svg)](https://docs.rs/planar_geo)
 
-A Rust library for 2D geometry: geometric objects, algorithms and visualization.
+A computational geometry library that treats circular arcs as first-class
+geometric primitives rather than approximating them with straight line segments.
 
 The full API documentation is available at https://docs.rs/planar_geo/0.4.9/planar_geo.
 > **Feedback welcome!**  
 > Found a bug, missing docs, or have a feature request?  
 > Please open an issue on [GitHub](https://github.com/StefanMathis/planar_geo.git).
+
+# Why another computational geometry library?
+
+Many CAD, CAM, CNC, robotics, and engineering applications contain true circular
+geometry. However, most computational geometry libraries ultimately represent
+circular arcs as a collection of straight line segments. While this simplifies
+many algorithms, it introduces approximation errors and often requires storing
+large numbers of points.
+
+planar_geo takes a different approach: circular arcs are treated as first-class
+geometric primitives rather than discretized approximations.
+Computations involving arc segments (e.g. finding the intersections between
+two arc segments or a circle and a line) are therefore as exact as possible
+within the limits of float precision. Another advantage is the compactness of
+the memory representation, because storing an arc (center, radius, start and
+stop angle) is much cheaper than storing a lot of points representing a
+discretized arc.
+
+Of course, there are downsides to this approach as well. Usually, algorithms
+which only need to deal with straight line segments tend to be faster as those
+which need to account for both straight and arc line segments (e.g. when
+calculating the area of a contour, albeit the one with "true" arc segments will
+probably be more precise). To some extent, this can be mitigated by discretizing
+the arc segment for those specific cases where speed is paramount (and
+planar_geo does offer algorithms for that). Another problem is that a contour
+in planar_geo can consist of both straight and arc segments, which necessitates
+the usage of an enum for the individual segments and therefore branching every
+time a segment is accessed. If your workload consists exclusively of
+straight-line geometry, libraries specialized for line-segment operations such
+as [geo](https://crates.io/crates/geo) or [geos](https://crates.io/crates/geos)
+may offer better performance.
 
 # Overview
 

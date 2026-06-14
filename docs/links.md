@@ -32,6 +32,7 @@ modify the components. -->
 
 [![Documentation](https://docs.rs/planar_geo/badge.svg)](https://docs.rs/planar_geo)
 
-A Rust library for 2D geometry: geometric objects, algorithms and visualization.
+A computational geometry library that treats circular arcs as first-class
+geometric primitives rather than approximating them with straight line segments.
 
 The full API documentation is available at https://docs.rs/planar_geo/{{VERSION}}/planar_geo.
