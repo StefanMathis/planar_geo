@@ -1083,6 +1083,19 @@ fn test_covers_angle() {
         assert!(arc.covers_angle(1e-16));
         assert!(arc.covers_angle(-1e-16));
     }
+    {
+        let arc = ArcSegment::from_center_radius_start_offset_angle(
+            [0.0019999999999999996, 0.002749999999999999],
+            0.001999999999999999,
+            4.71238898038469,
+            1.5707963267948966,
+            0.0,
+            0,
+        )
+        .unwrap();
+        assert!(arc.covers_angle(TAU - 1.5707963267948966));
+        assert!(arc.covers_angle(-1.5707963267948966));
+    }
 }
 
 #[test]

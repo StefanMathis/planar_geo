@@ -1481,27 +1481,37 @@ impl ArcSegment {
             epsilon = epsilon,
             max_ulps = max_ulps
         ) {
-            angles[free_slot] = Some(self.stop_angle());
+            angles[free_slot] = Some(self.stop_angle().rem_euclid(TAU));
         }
 
         let mut arcs = [None, None, None];
         free_slot = 0;
         for w in angles.windows(2) {
             // Check if both angles are "Some"
-            let start_angle = match w[0] {
+            let start_angle: f64 = match w[0] {
                 Some(a) => a,
                 None => break,
             };
-            let stop_angle = match w[1] {
-                Some(a) => a,
+            let mut offset_angle = match w[1] {
+                Some(a) => {
+                    let delta = (a - start_angle).rem_euclid(TAU);
+                    if delta > PI {
+                        (start_angle - a).rem_euclid(TAU)
+                    } else {
+                        delta
+                    }
+                }
                 None => break,
             };
+            if !self.is_positive() {
+                offset_angle = -offset_angle;
+            }
 
-            if let Ok(arc) = ArcSegment::from_center_radius_start_stop_angle(
+            if let Ok(arc) = ArcSegment::from_center_radius_start_offset_angle(
                 self.center(),
                 self.radius(),
                 start_angle,
-                stop_angle,
+                offset_angle,
                 epsilon,
                 max_ulps,
             ) {

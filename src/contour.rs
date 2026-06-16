@@ -19,6 +19,7 @@ documentation for details on invariants, construction, and usage.
 use std::collections::VecDeque;
 use std::f64::consts::TAU;
 
+use approx::ulps_eq;
 use compare_variables::*;
 use rayon::iter::ParallelIterator;
 #[cfg(feature = "serde")]
@@ -733,65 +734,140 @@ impl Contour {
             }
         }
 
+        let [x, y] = point;
+
+        /*
+        TODO: Explain ray cast algorithm
+        // TODO: Explain that we only consider segments where at least one of their
+        // values is above y
+        We use the start point of the next segment as endpoint to simulate "seamless"
+        connection (which is not guaranteed if we would take the end point due to
+        rounding errors of arcs)
+
+         */
+
         let mut inside = false;
-        for segment in self.segments() {
-            match segment {
-                Segment::LineSegment(l) => {
-                    let [x1, y1] = l.start();
-                    let [x2, y2] = l.stop();
+        if let Some(first) = self.segments().next() {
+            let [mut x1, mut y1] = first.start();
+            let shifted_segments = self.segments().skip(1).chain(std::iter::once(first));
 
-                    // Skip horizontal line segments
-                    if approx::ulps_eq!(y1, y2, epsilon = epsilon, max_ulps = max_ulps) {
-                        continue;
-                    }
+            for (seg_idx, (segment, next_segment)) in
+                self.segments().zip(shifted_segments).enumerate()
+            {
+                match segment {
+                    Segment::LineSegment(_) => {
+                        // Substitute the stop point of "segment" with the start
+                        // point of "next_segment" to account for small
+                        // differences between the two due to finite floating
+                        // point precision
+                        let [x2, y2] = next_segment.start();
 
-                    if (y1 > point[1]) != (y2 > point[1]) {
-                        let x_intersect = x1 + (point[1] - y1) * (x2 - x1) / (y2 - y1);
-                        if x_intersect > point[0] {
-                            inside = !inside;
+                        // Skip horizontal line segments
+                        if ulps_eq!(y1, y2, epsilon = epsilon, max_ulps = max_ulps) {
+                            x1 = x2;
+                            // y2 is kept at y1 on purpose
+                            continue;
                         }
+
+                        // Check if the intersection is located on the ray
+                        // (x_intersect > x) and if the intersection is not the
+                        // upper end of the line segment. As discussed at the top,
+                        // the latter check prevents that true intersections at the
+                        // connection between two segments are counted twice.
+                        if (y1 > y) != (y2 > y) {
+                            let x_intersect = x1 + (y - y1) * (x2 - x1) / (y2 - y1);
+                            if x_intersect > x {
+                                inside = !inside;
+                            }
+                        }
+                        x1 = x2;
+                        y1 = y2;
                     }
-                }
-                Segment::ArcSegment(a) => {
-                    for split in a.split_y_monotonic(epsilon, max_ulps) {
-                        if let Some(partial_arc) = split {
-                            let [cx, cy] = partial_arc.center();
-                            let r = partial_arc.radius();
+                    Segment::ArcSegment(a) => {
+                        let partial_arcs = a.split_y_monotonic(epsilon, max_ulps);
+                        let number_partial_segs =
+                            partial_arcs.iter().filter(|a| a.is_some()).count();
 
-                            let dy = point[1] - cy;
-                            let disc = r * r - dy * dy;
-
-                            if disc < 0.0 {
-                                continue;
-                            }
-                            let sqrt = disc.sqrt();
-
-                            // Only one of these can be valid due to y-monotonicity
-                            let candidates = [cx - sqrt, cx + sqrt];
-
-                            let mut hit = None;
-
-                            for x in candidates {
-                                let theta = (point[1] - cy).atan2(x - cx);
-                                if partial_arc.covers_angle(theta) {
-                                    hit = Some(x);
-                                    break;
+                        for (idx_pa, split) in partial_arcs.into_iter().enumerate() {
+                            if let Some(partial_arc) = split {
+                                // If the first argument is a circle, use the start
+                                // point of the first partial arc, since that partial arc
+                                // is the "true" start point of the polysegment
+                                if seg_idx == 0 && idx_pa == 0 {
+                                    [x1, y1] = partial_arc.start();
                                 }
-                            }
 
-                            if let Some(x_intersect) = hit {
-                                if x_intersect > point[0] {
-                                    inside = !inside;
+                                // If the current partial_arc is the last one, its
+                                // end point is the start of the next segment.
+                                let [x2, y2] = if idx_pa + 1 == number_partial_segs {
+                                    next_segment.start()
+                                } else {
+                                    partial_arc.stop()
+                                };
+
+                                // Find the intersections between the underlying circle of
+                                // partial_arc and the horizontal line at y.
+                                let [cx, cy] = partial_arc.center();
+                                let r = partial_arc.radius();
+                                let dy = y - cy;
+                                let mut disc = r * r - dy * dy;
+                                if disc < 0.0 {
+                                    y1 = y2;
+                                    continue;
                                 }
+                                if ulps_eq!(disc, 0.0, epsilon = epsilon, max_ulps = max_ulps) {
+                                    disc = 0.0;
+                                }
+
+                                // x-values of the intersection candidates (y-value = y).
+                                // Since partial_arc is y-monotonous, only one of them
+                                // can be a true intersection. This is checked in
+                                // the "candidates" loop by checking if the angle
+                                // of the intersection is located on the partial_arc.
+                                let sqrt = disc.sqrt();
+                                let candidates = [cx - sqrt, cx + sqrt];
+
+                                for x_intersect in candidates {
+                                    let theta = (y - cy).atan2(x_intersect - cx);
+                                    if partial_arc.covers_angle(theta)
+                                        || ulps_eq!(
+                                            theta,
+                                            partial_arc.start_angle(),
+                                            epsilon = epsilon,
+                                            max_ulps = max_ulps
+                                        )
+                                        || ulps_eq!(
+                                            theta,
+                                            partial_arc.stop_angle(),
+                                            epsilon = epsilon,
+                                            max_ulps = max_ulps
+                                        )
+                                    {
+                                        // Check if the intersection is located
+                                        // on the ray (x_intersect > x) and if
+                                        // the intersection is not the upper end
+                                        // point of the arc. This is the same check
+                                        // as with the line segments to avoid counting
+                                        // true intersections at the connection between two
+                                        // segments twice.
+                                        if x_intersect > x && (y1 > y) != (y2 > y) {
+                                            inside = !inside;
+                                        }
+                                        break;
+                                    }
+                                }
+                                x1 = x2;
+                                y1 = y2;
+                            } else {
+                                // Once a None is hit, no other arc will follow
+                                break;
                             }
-                        } else {
-                            // Once a None is hit, no other arc will follow
-                            break;
                         }
                     }
                 }
             }
         }
+
         return inside;
     }
 }
@@ -857,12 +933,7 @@ impl Composite for Contour {
                 {
                     if let Some(start) = self.polysegment().front() {
                         let pt = start.start();
-                        return !approx::ulps_eq!(
-                            pt,
-                            i.point,
-                            epsilon = epsilon,
-                            max_ulps = max_ulps
-                        );
+                        return !ulps_eq!(pt, i.point, epsilon = epsilon, max_ulps = max_ulps);
                     }
                 };
                 return true;
@@ -885,12 +956,7 @@ impl Composite for Contour {
                 {
                     if let Some(start) = self.polysegment().front() {
                         let pt = start.start();
-                        return !approx::ulps_eq!(
-                            pt,
-                            i.point,
-                            epsilon = epsilon,
-                            max_ulps = max_ulps
-                        );
+                        return !ulps_eq!(pt, i.point, epsilon = epsilon, max_ulps = max_ulps);
                     }
                 };
                 return true;

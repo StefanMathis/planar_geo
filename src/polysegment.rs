@@ -377,8 +377,7 @@ impl Polysegment {
     ```
      */
     pub fn push_back(&mut self, segment: Segment) {
-        let opt_stop = self.back().map(Segment::stop);
-        if let Some(stop) = opt_stop {
+        if let Some(stop) = self.back().map(Segment::stop) {
             if let Ok(ls) =
                 LineSegment::new(stop, segment.start(), DEFAULT_EPSILON, DEFAULT_MAX_ULPS)
             {

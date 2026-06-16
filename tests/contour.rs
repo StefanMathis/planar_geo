@@ -436,15 +436,69 @@ fn test_contains_point() {
         ps.extend_back([0.5, 0.0]);
         let c = Contour::new(ps);
 
+        assert!(c.contains_point([-1.5, 0.0], e, m));
         assert!(c.contains_point([0.0, 0.1], e, m));
         assert!(!c.contains_point([0.0, 0.0], e, m));
-        assert!(c.contains_point([-1.5, 0.0], e, m));
+        assert!(c.contains_point([-1.5, 0.5], e, m));
         assert!(!c.contains_point([-1.0, 0.0], e, m));
         assert!(c.contains_point([-2.0, 0.1], e, m));
         assert!(!c.contains_point([-3.0, -1.0], e, m));
         assert!(c.contains_point([-2.0, -0.2], e, m));
         assert!(!c.contains_point([0.0, -1.0], e, m));
         assert!(!c.contains_point([-5.0, -1.0], e, m));
+    }
+    {
+        let mut ps = Polysegment::new();
+        ps.push_back(
+            ArcSegment::from_start_center_angle([0.0, 1.0], [0.0, 0.0], -FRAC_PI_2, e, m)
+                .unwrap()
+                .into(),
+        );
+        ps.push_back(
+            ArcSegment::from_start_center_angle([1.0, 0.0], [0.0, 0.0], -FRAC_PI_2, e, m)
+                .unwrap()
+                .into(),
+        );
+        let c = Contour::new(ps);
+        assert!(c.contains_point([0.1, 0.0], e, m));
+        assert!(c.contains_point([0.1, 1e-25], e, m));
+        assert!(c.contains_point([0.1, -1e-25], e, m));
+    }
+    {
+        let mut ps = Polysegment::new();
+        ps.push_back(
+            ArcSegment::from_start_center_angle([0.0, 1.0], [0.0, 0.0], -FRAC_PI_2, e, m)
+                .unwrap()
+                .into(),
+        );
+        ps.push_back(
+            ArcSegment::from_start_center_angle([1.0, 0.0], [2.0, 0.5], 0.1, e, m)
+                .unwrap()
+                .into(),
+        );
+        ps.extend_back([0.0, -1.0]);
+        let c = Contour::new(ps);
+        assert!(c.contains_point([0.1, 0.0], e, m));
+        assert!(c.contains_point([0.1, 1e-25], e, m));
+        assert!(c.contains_point([0.1, -1e-25], e, m));
+    }
+    {
+        let mut ps = Polysegment::new();
+        ps.push_back(
+            ArcSegment::from_start_center_angle([0.0, 1.0], [0.0, 0.0], -FRAC_PI_2, e, m)
+                .unwrap()
+                .into(),
+        );
+        ps.push_back(
+            ArcSegment::from_start_center_angle([1.0, 0.0], [2.0, 0.0], FRAC_PI_2, e, m)
+                .unwrap()
+                .into(),
+        );
+        ps.extend_back([0.0, -1.0]);
+        let c = Contour::new(ps);
+        assert!(c.contains_point([0.1, 0.0], e, m));
+        assert!(c.contains_point([0.1, 1e-25], e, m));
+        assert!(c.contains_point([0.1, -1e-25], e, m));
     }
 }
 
@@ -581,17 +635,15 @@ fn test_contains_point_core_contour() {
     );
     let c = Contour::from(ps);
 
-    assert!(
-        c.bounding_box()
-            .contains_point([0.014499999999999999, 0.0007499999999999998])
-    );
-    assert!(
-        c.bounding_box()
-            .contains_point([0.012499999999999999, 0.00075])
-    );
-
+    assert!(c.contains_point([0.0085, 0.0027499999999999994], e, m));
+    assert!(c.contains_point([0.010499999999999999, 0.0007499999999999998], e, m));
+    assert!(c.contains_point([0.013499999999999998, 0.01774999999999992], e, m));
+    assert!(c.contains_point([0.0165, 0.014750000000000001], e, m));
     assert!(c.contains_point([0.014499999999999999, 0.0007499999999999998], e, m));
     assert!(c.contains_point([0.012499999999999999, 0.00075], e, m));
+    assert!(c.contains_point([0.016499999999999997, 0.0027499999999999985], e, m));
+    assert!(!c.contains_point([-2.0, 0.0027499999999999994], e, m));
+    assert!(!c.contains_point([0.0, 0.00275], e, m));
 }
 
 #[test]
