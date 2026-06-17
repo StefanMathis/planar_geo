@@ -1,6 +1,6 @@
 [package]
 name = "planar_geo"
-version = "0.4.9"
+version = "0.4.10"
 edition = "2024"
 description = "A computational geometry library that treats circular arcs as first-class geometric primitives rather than approximating them with straight line segments."
 readme = "README.md"
