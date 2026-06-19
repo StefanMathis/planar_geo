@@ -10,22 +10,13 @@ fn file_path(filename: &str) -> PathBuf {
 }
 
 fn main() {
-    let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_ULPS;
-
     let first_arc =
-        ArcSegment::from_center_radius_start_offset_angle([1.5, 0.0], 1.5, PI, -FRAC_PI_2, e, m)
-            .expect("radius is positive and offset angle is not zero");
-    let line = LineSegment::new([1.5, 1.5], [3.5, 1.5], e, m).expect("segment length is not zero");
-    let second_arc = ArcSegment::from_center_radius_start_offset_angle(
-        [3.5, 0.0],
-        1.5,
-        FRAC_PI_2,
-        -FRAC_PI_2,
-        e,
-        m,
-    )
-    .expect("radius is positive and offset angle is not zero");
+        ArcSegment::from_center_radius_start_sweep_angle([1.5, 0.0], 1.5, PI, -FRAC_PI_2)
+            .expect("radius is positive and sweep angle is not zero");
+    let line = LineSegment::new([1.5, 1.5], [3.5, 1.5]).expect("segment length is not zero");
+    let second_arc =
+        ArcSegment::from_center_radius_start_sweep_angle([3.5, 0.0], 1.5, FRAC_PI_2, -FRAC_PI_2)
+            .expect("radius is positive and sweep angle is not zero");
 
     // Connect those three segments to a polysegment
     let mut polysegment = Polysegment::new();
@@ -33,8 +24,8 @@ fn main() {
     polysegment.push_back(line.into());
     polysegment.push_back(second_arc.into());
 
-    // Create a contour out of the polysegment. If start and end of the polysegment are not
-    // identical, a line segment is automatically added
+    // Create a contour out of the polysegment. If start and end of the polysegment
+    // are not identical, a line segment is automatically added
     let outer_contour = Contour::new(polysegment);
 
     // Create a second contour via a simplified constructor

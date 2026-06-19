@@ -14,7 +14,7 @@ itself; see its documentation for details on construction, invariants, and
 usage.
 */
 
-use approx::{ulps_eq, ulps_ne};
+use approx::{relative_eq, relative_ne};
 use compare_variables::compare_variables;
 
 #[cfg(feature = "serde")]
@@ -55,16 +55,16 @@ circle), but the radius must be positive.
 Of particular interest are the various constructors available for an
 [`ArcSegment`]. These always start with `from_` and can construct an
 [`ArcSegment`] from various inputs. Some examples:
-- From its center, radius, start angle and offset angle: [`ArcSegment::from_center_radius_start_offset_angle`].
+- From its center, radius, start angle and sweep angle: [`ArcSegment::from_center_radius_start_sweep_angle`].
 - From its center, radius, start angle and stop angle: [`ArcSegment::from_center_radius_start_stop_angle`].
 - From three points on the arc: [`ArcSegment::from_start_middle_stop`].
-- From its start, center and offset angle: [`ArcSegment::from_start_center_angle`].
+- From its start, center and sweep angle: [`ArcSegment::from_start_center_angle`].
 - From its radius, start and stop points: [`ArcSegment::from_start_stop_radius`].
 
 These constructors can fail if either the radius becomes non-positive or
 infinite (which degenerates the arc segment to a line segment) or if the
-offset angle becomes zero. The latter is checked using [`approx::ulps_eq`],
-which is why all constructors take an `epsilon` and a `max_ulps` argument. See
+sweep angle becomes zero. The latter is checked using [`approx::relative_eq`],
+which is why all constructors take an `epsilon` and a `max_relative` argument. See
 the documentation of [approx] for more.
 
 See the [module documentation](crate::segment::arc_segment) for more.
@@ -81,19 +81,19 @@ pub struct ArcSegment {
     center: [f64; 2],
     radius: f64,
     start_angle: f64,
-    offset_angle: f64,
+    sweep_angle: f64,
 }
 
 impl ArcSegment {
     /**
     Creates an [`ArcSegment`] from its `center`, `radius`, `start_angle` and
-    `offset_angle`. This fails in the following cases:
+    `sweep_angle`. This fails in the following cases:
     - `radius` is not positive.
-    - `offset_angle` is approximately zero (checked with [`approx::ulps_eq`] and
-    the provided `epsilon` and `max_ulps`).
+    - `sweep_angle` is approximately zero (checked with [`approx::relative_eq`] and
+    the provided `epsilon` and `max_relative`).
 
     This function is an alias for
-    [`ArcSegment::from_center_radius_start_offset_angle`].
+    [`ArcSegment::from_center_radius_start_sweep_angle`].
 
     # Examples
 
@@ -102,37 +102,33 @@ impl ArcSegment {
     use planar_geo::segment::ArcSegment;
 
     // Successful creation
-    let arc = ArcSegment::new([1.0, 1.0], 2.0, 0.0, -FRAC_PI_2, 0.0, 0).unwrap();
+    let arc = ArcSegment::new([1.0, 1.0], 2.0, 0.0, -FRAC_PI_2).expect("valid_arc");
     approx::assert_abs_diff_eq!(arc.start(), [3.0, 1.0], epsilon = 1e-15);
     approx::assert_abs_diff_eq!(arc.stop(), [1.0, -1.0], epsilon = 1e-15);
 
     // Example forming a full circle
-    let arc = ArcSegment::new([1.0, 1.0], 2.0, 0.0, TAU, 0.0, 0).unwrap();
+    let arc = ArcSegment::new([1.0, 1.0], 2.0, 0.0, TAU).expect("valid_arc");
     approx::assert_abs_diff_eq!(arc.start(), [3.0, 1.0], epsilon = 1e-15);
     approx::assert_abs_diff_eq!(arc.stop(), [3.0, 1.0], epsilon = 1e-15);
 
     // Radius is not positive
-    assert!(ArcSegment::new([1.0, 1.0], -2.0, 0.0, -FRAC_PI_2, 0.0, 0).is_err());
+    assert!(ArcSegment::new([1.0, 1.0], -2.0, 0.0, -FRAC_PI_2).is_err());
 
-    // Offset angle is zero
-    assert!(ArcSegment::new([1.0, 1.0], 2.0, 0.0, 0.0, 0.0, 0).is_err());
+    // sweep angle is zero
+    assert!(ArcSegment::new([1.0, 1.0], 2.0, 0.0, 0.0).is_err());
     ```
      */
     pub fn new(
         center: [f64; 2],
         radius: f64,
         start_angle: f64,
-        offset_angle: f64,
-        epsilon: f64,
-        max_ulps: u32,
+        sweep_angle: f64,
     ) -> crate::error::Result<Self> {
-        return Self::from_center_radius_start_offset_angle(
+        return Self::from_center_radius_start_sweep_angle(
             center,
             radius,
             start_angle,
-            offset_angle,
-            epsilon,
-            max_ulps,
+            sweep_angle,
         );
     }
 
@@ -158,28 +154,28 @@ impl ArcSegment {
     }
 
     /**
-    Returns the offset angle of `self` in rad. This is the angle covered by the
+    Returns the sweep angle of `self` in rad. This is the angle covered by the
     arc segment. Add this value to the start angle to get the stop angle.
      */
-    pub fn offset_angle(&self) -> f64 {
-        return self.offset_angle;
+    pub fn sweep_angle(&self) -> f64 {
+        return self.sweep_angle;
     }
 
     /**
     Returns the stop angle of `self` in read. This is the sum of
-    [`ArcSegment::start_angle`] and [`ArcSegment::offset_angle`].
+    [`ArcSegment::start_angle`] and [`ArcSegment::sweep_angle`].
 
     # Examples
 
     ```
     use planar_geo::segment::ArcSegment;
 
-    let arc = ArcSegment::from_center_radius_start_offset_angle([0.0, 0.0], 2.0, 1.0, -1.0, 0.0, 0).unwrap();
+    let arc = ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 2.0, 1.0, -1.0).expect("valid_arc");
     assert_eq!(arc.stop_angle(), 0.0);
     ```
      */
     pub fn stop_angle(&self) -> f64 {
-        return self.start_angle() + self.offset_angle();
+        return self.start_angle() + self.sweep_angle();
     }
 
     /**
@@ -188,12 +184,12 @@ impl ArcSegment {
     [`ArcSegment::start`] to [`ArcSegment::stop`].
      */
     pub fn is_positive(&self) -> bool {
-        return self.offset_angle().is_sign_positive();
+        return self.sweep_angle().is_sign_positive();
     }
 
     /**
     Creates an [`ArcSegment`] representing a full circle, i.e. where
-    [`ArcSegment::start_angle`] is 0 and [`ArcSegment::offset_angle`] is 2 times
+    [`ArcSegment::start_angle`] is 0 and [`ArcSegment::sweep_angle`] is 2 times
     the circle number pi. Fails if radius is not positive.
 
     # Examples
@@ -211,15 +207,15 @@ impl ArcSegment {
     ```
      */
     pub fn circle(center: [f64; 2], radius: f64) -> crate::error::Result<Self> {
-        return Self::from_center_radius_start_offset_angle(center, radius, 0.0, TAU, 0.0, 0);
+        return Self::from_center_radius_start_sweep_angle(center, radius, 0.0, TAU);
     }
 
     /**
     Creates an [`ArcSegment`] from its `center`, `radius`, `start_angle` and
-    `offset_angle`. This fails in the following cases:
+    `sweep_angle`. This fails in the following cases:
     - `radius` is not positive.
-    - `offset_angle` is approximately zero (checked with [`approx::ulps_eq`] and
-    the provided `epsilon` and `max_ulps`).
+    - `sweep_angle` is approximately zero (checked with [`approx::relative_eq`] and
+    the provided `epsilon` and `max_relative`).
 
     # Examples
 
@@ -228,49 +224,45 @@ impl ArcSegment {
     use planar_geo::segment::ArcSegment;
 
     // Successful creation
-    let arc = ArcSegment::from_center_radius_start_offset_angle([1.0, 1.0], 2.0, 0.0, -FRAC_PI_2, 0.0, 0).unwrap();
+    let arc = ArcSegment::from_center_radius_start_sweep_angle([1.0, 1.0], 2.0, 0.0, -FRAC_PI_2).expect("valid_arc");
     approx::assert_abs_diff_eq!(arc.start(), [3.0, 1.0], epsilon = 1e-15);
     approx::assert_abs_diff_eq!(arc.stop(), [1.0, -1.0], epsilon = 1e-15);
 
     // Example forming a full circle
-    let arc = ArcSegment::from_center_radius_start_offset_angle([1.0, 1.0], 2.0, 0.0, TAU, 0.0, 0).unwrap();
+    let arc = ArcSegment::from_center_radius_start_sweep_angle([1.0, 1.0], 2.0, 0.0, TAU).expect("valid_arc");
     approx::assert_abs_diff_eq!(arc.start(), [3.0, 1.0], epsilon = 1e-15);
     approx::assert_abs_diff_eq!(arc.stop(), [3.0, 1.0], epsilon = 1e-15);
 
     // Radius is not positive
-    assert!(ArcSegment::from_center_radius_start_offset_angle([1.0, 1.0], -2.0, 0.0, -FRAC_PI_2, 0.0, 0).is_err());
+    assert!(ArcSegment::from_center_radius_start_sweep_angle([1.0, 1.0], -2.0, 0.0, -FRAC_PI_2).is_err());
 
-    // Offset angle is zero
-    assert!(ArcSegment::from_center_radius_start_offset_angle([1.0, 1.0], 2.0, 0.0, 0.0, 0.0, 0).is_err());
+    // sweep angle is zero
+    assert!(ArcSegment::from_center_radius_start_sweep_angle([1.0, 1.0], 2.0, 0.0, 0.0).is_err());
     ```
      */
-    pub fn from_center_radius_start_offset_angle(
+    pub fn from_center_radius_start_sweep_angle(
         center: [f64; 2],
         radius: f64,
         start_angle: f64,
-        offset_angle: f64,
-        epsilon: f64,
-        max_ulps: u32,
+        sweep_angle: f64,
     ) -> crate::error::Result<Self> {
         compare_variables!(0.0 < radius)?;
-        if approx::ulps_eq!(offset_angle, 0.0, epsilon = epsilon, max_ulps = max_ulps) {
-            let mut c = center;
-            c.translate([radius * start_angle.cos(), radius * start_angle.sin()]);
-            return Err(crate::error::ErrorType::PointsIdentical { start: c, stop: c }.into());
+        if sweep_angle == 0.0 {
+            return Err(crate::error::ErrorType::ZeroArcSweep.into());
         }
 
         let start_angle = start_angle.rem_euclid(TAU);
-        let offset_angle = if offset_angle.abs() == TAU {
-            TAU * offset_angle.signum()
+        let sweep_angle = if sweep_angle.abs() == TAU {
+            TAU * sweep_angle.signum()
         } else {
-            offset_angle % TAU
+            sweep_angle % TAU
         };
 
         return Ok(ArcSegment {
             center,
             radius,
             start_angle,
-            offset_angle,
+            sweep_angle,
         });
     }
 
@@ -279,7 +271,7 @@ impl ArcSegment {
     `stop_angle`. This fails in the following cases:
     - `radius` is not positive.
     - `start_angle` is approximately equal to `stop_angle` (checked with
-    [`approx::ulps_eq`] and the provided `epsilon` and `max_ulps`).
+    [`approx::relative_eq`] and the provided `epsilon` and `max_relative`).
 
     # Examples
 
@@ -288,20 +280,20 @@ impl ArcSegment {
     use planar_geo::segment::ArcSegment;
 
     // Successful creation
-    let arc = ArcSegment::from_center_radius_start_stop_angle([1.0, 1.0], 2.0, 0.0, FRAC_PI_2, 0.0, 0).unwrap();
+    let arc = ArcSegment::from_center_radius_start_stop_angle([1.0, 1.0], 2.0, 0.0, FRAC_PI_2).expect("valid_arc");
     approx::assert_abs_diff_eq!(arc.start(), [3.0, 1.0], epsilon = 1e-15);
     approx::assert_abs_diff_eq!(arc.stop(), [1.0, 3.0], epsilon = 1e-15);
 
     // Example forming a full circle
-    let arc = ArcSegment::from_center_radius_start_stop_angle([1.0, 1.0], 2.0, 0.0, TAU, 0.0, 0).unwrap();
+    let arc = ArcSegment::from_center_radius_start_stop_angle([1.0, 1.0], 2.0, 0.0, TAU).expect("valid_arc");
     approx::assert_abs_diff_eq!(arc.start(), [3.0, 1.0], epsilon = 1e-15);
     approx::assert_abs_diff_eq!(arc.stop(), [3.0, 1.0], epsilon = 1e-15);
 
     // Radius is not positive
-    assert!(ArcSegment::from_center_radius_start_stop_angle([1.0, 1.0], -2.0, 0.0, -FRAC_PI_2, 0.0, 0).is_err());
+    assert!(ArcSegment::from_center_radius_start_stop_angle([1.0, 1.0], -2.0, 0.0, -FRAC_PI_2).is_err());
 
-    // Offset angle is zero
-    assert!(ArcSegment::from_center_radius_start_stop_angle([1.0, 1.0], 2.0, 1.0, 1.0, 0.0, 0).is_err());
+    // sweep angle is zero
+    assert!(ArcSegment::from_center_radius_start_stop_angle([1.0, 1.0], 2.0, 1.0, 1.0).is_err());
     ```
      */
     pub fn from_center_radius_start_stop_angle(
@@ -309,17 +301,13 @@ impl ArcSegment {
         radius: f64,
         start_angle: f64,
         stop_angle: f64,
-        epsilon: f64,
-        max_ulps: u32,
     ) -> crate::error::Result<Self> {
-        let offset_angle = stop_angle - start_angle;
-        return Self::from_center_radius_start_offset_angle(
+        let sweep_angle = stop_angle - start_angle;
+        return Self::from_center_radius_start_sweep_angle(
             center,
             radius,
             start_angle,
-            offset_angle,
-            epsilon,
-            max_ulps,
+            sweep_angle,
         );
     }
 
@@ -334,90 +322,82 @@ impl ArcSegment {
     ```
     use planar_geo::prelude::*;
 
-    // Clockwise arc => the offset angle is negative
+    // Clockwise arc => the sweep angle is negative
     let start = [3.0, 1.0];
     let middle = [2.0 + 1.0/2.0_f64.sqrt(), 1.0 - 1.0/2.0_f64.sqrt()];
     let stop = [2.0, 0.0];
 
-    let arc = ArcSegment::from_start_middle_stop(start, middle, stop, DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap();
+    let arc = ArcSegment::from_start_middle_stop(start, middle, stop).expect("valid_arc");
     approx::assert_abs_diff_eq!(arc.center(), [2.0, 1.0], epsilon = DEFAULT_EPSILON);
     approx::assert_abs_diff_eq!(arc.radius(), 1.0, epsilon = DEFAULT_EPSILON);
     approx::assert_abs_diff_eq!(arc.start_angle(), 2.0*std::f64::consts::PI, epsilon = DEFAULT_EPSILON);
-    approx::assert_abs_diff_eq!(arc.offset_angle(), -0.5*std::f64::consts::PI, epsilon = DEFAULT_EPSILON);
+    approx::assert_abs_diff_eq!(arc.sweep_angle(), -0.5*std::f64::consts::PI, epsilon = DEFAULT_EPSILON);
 
     // Middle is identical to start or stop
-    assert!(ArcSegment::from_start_middle_stop(start, start, stop, 0.0, 0).is_err());
-    assert!(ArcSegment::from_start_middle_stop(start, stop, stop, 0.0, 0).is_err());
+    assert!(ArcSegment::from_start_middle_stop(start, start, stop).is_err());
+    assert!(ArcSegment::from_start_middle_stop(start, stop, stop).is_err());
 
     // All three points are collinear
-    assert!(ArcSegment::from_start_middle_stop([0.0, 0.0], [1.0, 0.0], [2.0, 0.0], 0.0, 0).is_err());
+    assert!(ArcSegment::from_start_middle_stop([0.0, 0.0], [1.0, 0.0], [2.0, 0.0]).is_err());
     ```
     */
     pub fn from_start_middle_stop(
         start: [f64; 2],
         middle: [f64; 2],
         stop: [f64; 2],
-        epsilon: f64,
-        max_ulps: u32,
     ) -> crate::error::Result<Self> {
         let center = three_point_arc_center(start, middle, stop)?;
         let is_positive = three_point_arc_is_positive(start, middle, stop);
 
         let start_angle = ((start[1] - center[1]).atan2(start[0] - center[0])).rem_euclid(TAU);
         let stop_angle = ((stop[1] - center[1]).atan2(stop[0] - center[0])).rem_euclid(TAU);
-        let offset_angle = calculate_offset_angle(start_angle, stop_angle, is_positive);
+        let sweep_angle = calculate_sweep_angle(start_angle, stop_angle, is_positive);
 
         let radius = ((start[0] - center[0]).powi(2) + (start[1] - center[1]).powi(2)).sqrt();
-        return ArcSegment::from_center_radius_start_offset_angle(
+        return ArcSegment::from_center_radius_start_sweep_angle(
             center,
             radius,
             start_angle,
-            offset_angle,
-            epsilon,
-            max_ulps,
+            sweep_angle,
         );
     }
 
     /**
-    Creates an [`ArcSegment`] from its `start`, its `offset_angle` and its
+    Creates an [`ArcSegment`] from its `start`, its `sweep_angle` and its
     `center`. This fails in the following cases:
     - `start` is identical to `center`.
-    - `offset_angle` is apprixmately zero.
+    - `sweep_angle` is apprixmately zero.
 
     ```
     use planar_geo::segment::ArcSegment;
 
-    // Clockwise arc => the offset angle is negative
+    // Clockwise arc => the sweep angle is negative
     let start = [0.0, 2.0];
     let center = [0.0, 0.0];
     let angle = 1.5*std::f64::consts::PI;
 
-    let arc = ArcSegment::from_start_center_angle(start, center, angle, 0.0, 0).unwrap();
+    let arc = ArcSegment::from_start_center_angle(start, center, angle).expect("valid_arc");
     approx::assert_abs_diff_eq!(arc.radius(), 2.0);
 
     // start and center are identical
-    assert!(ArcSegment::from_start_center_angle(start, start, angle, 0.0, 0).is_err());
+    assert!(ArcSegment::from_start_center_angle(start, start, angle).is_err());
 
-    // Offset angle is not zero
-    assert!(ArcSegment::from_start_center_angle(start, center, 0.0, 0.0, 0).is_err());
+    // sweep angle is zero
+    assert!(ArcSegment::from_start_center_angle(start, center, 0.0).is_err());
     ```
      */
     pub fn from_start_center_angle(
         start: [f64; 2],
         center: [f64; 2],
-        offset_angle: f64,
-        epsilon: f64,
-        max_ulps: u32,
+        sweep_angle: f64,
     ) -> crate::error::Result<Self> {
         let start_angle = (start[1] - center[1]).atan2(start[0] - center[0]);
         let radius = ((start[0] - center[0]).powi(2) + (start[1] - center[1]).powi(2)).sqrt();
-        return ArcSegment::from_center_radius_start_offset_angle(
+        return ArcSegment::from_center_radius_start_sweep_angle(
             center,
             radius,
             start_angle,
-            offset_angle,
-            epsilon,
-            max_ulps,
+            sweep_angle,
         );
     }
 
@@ -443,21 +423,21 @@ impl ArcSegment {
     /// let stop = [2.0, 0.0];
     /// let radius: f64 = 2.0;
     ///
-    /// let red_arc = ArcSegment::from_start_stop_radius(start, stop, radius, true, false, 0.0, 0).unwrap();
+    /// let red_arc = ArcSegment::from_start_stop_radius(start, stop, radius, true, false).expect("valid_arc");
     /// approx::assert_abs_diff_eq!(red_arc.center(), [2.0, 2.0]);
-    /// approx::assert_abs_diff_eq!(red_arc.offset_angle(), 0.5 * PI, epsilon = 1e-3);
+    /// approx::assert_abs_diff_eq!(red_arc.sweep_angle(), 0.5 * PI, epsilon = 1e-3);
     ///
-    /// let blue_arc = ArcSegment::from_start_stop_radius(start, stop, radius, true, true, 0.0, 0).unwrap();
+    /// let blue_arc = ArcSegment::from_start_stop_radius(start, stop, radius, true, true).expect("valid_arc");
     /// approx::assert_abs_diff_eq!(blue_arc.center(), [0.0, 0.0]);
-    /// approx::assert_abs_diff_eq!(blue_arc.offset_angle(), 1.5 * PI, epsilon = 1e-3);
+    /// approx::assert_abs_diff_eq!(blue_arc.sweep_angle(), 1.5 * PI, epsilon = 1e-3);
     ///
-    /// let green_arc = ArcSegment::from_start_stop_radius(start, stop, radius, false, false, 0.0, 0).unwrap();
+    /// let green_arc = ArcSegment::from_start_stop_radius(start, stop, radius, false, false).expect("valid_arc");
     /// approx::assert_abs_diff_eq!(green_arc.center(), [0.0, 0.0]);
-    /// approx::assert_abs_diff_eq!(green_arc.offset_angle(), -0.5 * PI, epsilon = 1e-3);
+    /// approx::assert_abs_diff_eq!(green_arc.sweep_angle(), -0.5 * PI, epsilon = 1e-3);
     ///
-    /// let yellow_arc = ArcSegment::from_start_stop_radius(start, stop, radius, false, true, 0.0, 0).unwrap();
+    /// let yellow_arc = ArcSegment::from_start_stop_radius(start, stop, radius, false, true).expect("valid_arc");
     /// approx::assert_abs_diff_eq!(yellow_arc.center(), [2.0, 2.0]);
-    /// approx::assert_abs_diff_eq!(yellow_arc.offset_angle(), -1.5 * PI, epsilon = 1e-3);
+    /// approx::assert_abs_diff_eq!(yellow_arc.sweep_angle(), -1.5 * PI, epsilon = 1e-3);
     /// ```
     #[doc = ""]
     #[cfg_attr(feature = "doc-images", doc = "![Four possible arcs][four_arcs]")]
@@ -475,10 +455,8 @@ impl ArcSegment {
         radius: f64,
         positive: bool,
         large_arc: bool,
-        epsilon: f64,
-        max_ulps: u32,
     ) -> crate::error::Result<Self> {
-        fn compute_offset_angle(
+        fn compute_sweep_angle(
             start: [f64; 2],
             stop: [f64; 2],
             center: [f64; 2],
@@ -510,13 +488,8 @@ impl ArcSegment {
         let distance_start_stop = (dx * dx + dy * dy).sqrt();
 
         // If the distance is zero, start and stop are identical
-        if approx::ulps_eq!(
-            distance_start_stop,
-            0.0,
-            epsilon = epsilon,
-            max_ulps = max_ulps
-        ) {
-            return Err(crate::error::ErrorType::PointsIdentical { start, stop }.into());
+        if distance_start_stop == 0.0 {
+            return Err(crate::error::ErrorType::PointsIdentical.into());
         }
 
         //
@@ -543,19 +516,19 @@ impl ArcSegment {
         let c2 = [mx - px * h, my - py * h];
 
         // Choose correct center based on orientation
-        let (start_angle_1, offset_angle_1) = compute_offset_angle(start, stop, c1, positive);
-        let (start_angle_2, offset_angle_2) = compute_offset_angle(start, stop, c2, positive);
+        let (start_angle_1, sweep_angle_1) = compute_sweep_angle(start, stop, c1, positive);
+        let (start_angle_2, sweep_angle_2) = compute_sweep_angle(start, stop, c2, positive);
 
-        let is_large1 = offset_angle_1.abs() > std::f64::consts::PI;
-        let is_large2 = offset_angle_2.abs() > std::f64::consts::PI;
+        let is_large1 = sweep_angle_1.abs() > std::f64::consts::PI;
+        let is_large2 = sweep_angle_2.abs() > std::f64::consts::PI;
 
-        let (center, start_angle, offset_angle) =
+        let (center, start_angle, sweep_angle) =
             match (is_large1 == large_arc, is_large2 == large_arc) {
-                (true, false) => (c1, start_angle_1, offset_angle_1),
-                (false, true) => (c2, start_angle_2, offset_angle_2),
+                (true, false) => (c1, start_angle_1, sweep_angle_1),
+                (false, true) => (c2, start_angle_2, sweep_angle_2),
                 (true, true) => {
                     // This can happen numerically near PI — pick one consistently
-                    (c1, start_angle_1, offset_angle_1)
+                    (c1, start_angle_1, sweep_angle_1)
                 }
                 (false, false) => {
                     // Numerical issue near π — pick the closer one
@@ -566,29 +539,24 @@ impl ArcSegment {
                     };
 
                     // Calculate the deviation from the "target" arc
-                    let err1 = (offset_angle_1.abs() - target).abs();
-                    let err2 = (offset_angle_2.abs() - target).abs();
+                    let err1 = (sweep_angle_1.abs() - target).abs();
+                    let err2 = (sweep_angle_2.abs() - target).abs();
 
                     if err1 < err2 {
-                        (c1, start_angle_1, offset_angle_1)
+                        (c1, start_angle_1, sweep_angle_1)
                     } else {
-                        (c2, start_angle_2, offset_angle_2)
+                        (c2, start_angle_2, sweep_angle_2)
                     }
                 }
             };
 
-        Self::from_center_radius_start_offset_angle(
-            center,
-            radius,
-            start_angle,
-            offset_angle,
-            epsilon,
-            max_ulps,
-        )
+        Self::from_center_radius_start_sweep_angle(center, radius, start_angle, sweep_angle)
     }
 
     /**
     Creates an [`ArcSegment`] from its `start`, `stop` and `center`.
+
+    TODO: Explain that this constructor is corrective!
 
     With those three input parameters, the `radius` of the arc is overdefined,
     since it can be calculated both from the distance `start` - `center` and
@@ -608,12 +576,12 @@ impl ArcSegment {
     let stop = [2.0, 0.0];
     let radius: f64 = 2.0;
 
-    let arc = ArcSegment::from_start_stop_center([0.0, 2.0], [2.0, 0.0], [0.0, 0.0], true, false, 0.0, 0).unwrap();
+    let arc = ArcSegment::from_start_stop_center([0.0, 2.0], [2.0, 0.0], [0.0, 0.0], true, false).expect("valid_arc");
     approx::assert_abs_diff_eq!(arc.radius(), 2.0);
-    approx::assert_abs_diff_eq!(arc.offset_angle(), 0.5 * PI, epsilon = 1e-3);
+    approx::assert_abs_diff_eq!(arc.sweep_angle(), 0.5 * PI, epsilon = 1e-3);
 
     // Radii start-center and stop-center are not equal
-    assert!(ArcSegment::from_start_stop_center([0.0, 2.0], [3.0, 0.0], [0.0, 0.0], true, false, 0.0, 0).is_err());
+    assert!(ArcSegment::from_start_stop_center([0.0, 2.0], [3.0, 0.0], [0.0, 0.0], true, false).is_err());
     ```
      */
     pub fn from_start_stop_center(
@@ -622,20 +590,20 @@ impl ArcSegment {
         center: [f64; 2],
         positive: bool,
         large_arc: bool,
-        epsilon: f64,
-        max_ulps: u32,
     ) -> crate::error::Result<Self> {
         let radius_start_center =
             ((start[0] - center[0]).powi(2) + (start[1] - center[1]).powi(2)).sqrt();
         let radius_stop_center =
             ((stop[0] - center[0]).powi(2) + (stop[1] - center[1]).powi(2)).sqrt();
 
-        if approx::ulps_ne!(
+        if relative_ne!(
             radius_start_center,
             radius_stop_center,
-            epsilon = epsilon,
-            max_ulps = max_ulps
+            epsilon = crate::DEFAULT_EPSILON,
+            max_relative = crate::DEFAULT_MAX_RELATIVE
         ) {
+            // We already know this will fail, we are just interested in the
+            // produced error message.
             compare_variables!(radius_start_center == radius_stop_center)?;
         }
 
@@ -645,8 +613,6 @@ impl ArcSegment {
             radius_start_center,
             positive,
             large_arc,
-            epsilon,
-            max_ulps,
         );
     }
 
@@ -664,7 +630,7 @@ impl ArcSegment {
     ```
     use planar_geo::prelude::ArcSegment;
 
-    let arc = ArcSegment::fillet([0.0, 1.0], [1.0, 1.0], [1.0, 0.0], 0.5, 0.0, 0).unwrap();
+    let arc = ArcSegment::fillet([0.0, 1.0], [1.0, 1.0], [1.0, 0.0], 0.5).expect("valid_arc");
     approx::assert_abs_diff_eq!(arc.radius(), 0.5, epsilon = 1e-6);
     approx::assert_abs_diff_eq!(arc.start(), [0.5, 1.0], epsilon = 1e-6);
     approx::assert_abs_diff_eq!(arc.stop(), [1.0, 0.5], epsilon = 1e-6);
@@ -675,17 +641,13 @@ impl ArcSegment {
         corner: [f64; 2],
         stop: [f64; 2],
         radius: f64,
-        epsilon: f64,
-        max_ulps: u32,
     ) -> crate::error::Result<Self> {
         // The code within this function is based on:
         // https://stackoverflow.com/questions/24771828/algorithm-for-creating-rounded-corners-in-a-polygon
 
         // Check if two neighboring points are identical. In that case,
         // the points are also collinear
-        if ulps_eq!(start, corner, epsilon = epsilon, max_ulps = max_ulps)
-            || ulps_eq!(corner, stop, epsilon = epsilon, max_ulps = max_ulps)
-        {
+        if start == corner || corner == stop {
             return Err(crate::error::ErrorType::Collinear([start, corner, stop]).into());
         }
 
@@ -695,37 +657,37 @@ impl ArcSegment {
         let start_angle = (corner[1] - start[1]).atan2(corner[0] - start[0]);
         let stop_angle = (corner[1] - stop[1]).atan2(corner[0] - stop[0]);
 
-        let pos_offset_angle: f64;
-        let neg_offset_angle: f64;
+        let pos_sweep_angle: f64;
+        let neg_sweep_angle: f64;
 
         // Values for a counter-clockwise arc
         if stop_angle < start_angle {
-            pos_offset_angle = stop_angle + TAU - start_angle;
+            pos_sweep_angle = stop_angle + TAU - start_angle;
         } else {
-            pos_offset_angle = stop_angle - start_angle;
+            pos_sweep_angle = stop_angle - start_angle;
         }
 
         // Values for a clockwise arc
         if stop_angle > start_angle {
-            neg_offset_angle = start_angle + TAU - stop_angle;
+            neg_sweep_angle = start_angle + TAU - stop_angle;
         } else {
-            neg_offset_angle = start_angle - stop_angle;
+            neg_sweep_angle = start_angle - stop_angle;
         }
 
         // Angle between the sides (absolute value must be smaller than 180 degree)
-        let mut offset_angle: f64;
+        let mut sweep_angle: f64;
         let dir: f64;
-        if pos_offset_angle.abs() < PI {
-            offset_angle = pos_offset_angle;
+        if pos_sweep_angle.abs() < PI {
+            sweep_angle = pos_sweep_angle;
             dir = 0.5;
         } else {
-            offset_angle = neg_offset_angle;
+            sweep_angle = neg_sweep_angle;
             dir = -0.5;
         }
-        offset_angle = offset_angle % TAU;
+        sweep_angle = sweep_angle % TAU;
 
         // Segment length between fillet start point and cornerent point
-        let mut segment_len = radius / (offset_angle / 2.0).tan().abs();
+        let mut segment_len = radius / (sweep_angle / 2.0).tan().abs();
 
         // Distance of cornerent point to startious and stop point
         let delta_pc = ((corner[0] - start[0]).powi(2) + (corner[1] - start[1]).powi(2)).sqrt();
@@ -740,7 +702,7 @@ impl ArcSegment {
         }
         let radius = if segment_len > min_dist {
             segment_len = min_dist;
-            segment_len * (offset_angle / 2.0).tan()
+            segment_len * (sweep_angle / 2.0).tan()
         } else {
             radius
         };
@@ -768,25 +730,19 @@ impl ArcSegment {
         let yc = corner[1] - delta_y * delta_ci / delta_cc;
 
         // Calculate the middle point of the fillet with center and angle
-        let xm = (start_angle + offset_angle * dir).cos() * radius + xc;
-        let ym = (start_angle + offset_angle * dir).sin() * radius + yc;
+        let xm = (start_angle + sweep_angle * dir).cos() * radius + xc;
+        let ym = (start_angle + sweep_angle * dir).sin() * radius + yc;
         let middle_fillet = [xm, ym];
 
-        return ArcSegment::from_start_middle_stop(
-            start_fillet,
-            middle_fillet,
-            stop_fillet,
-            epsilon,
-            max_ulps,
-        );
+        return ArcSegment::from_start_middle_stop(start_fillet, middle_fillet, stop_fillet);
     }
 
     /**
-    Returns whether `self` is a full circle (its `offset_angle` covers a full
+    Returns whether `self` is a full circle (its `sweep_angle` covers a full
     2*pi rad)
      */
     pub fn is_circle(&self) -> bool {
-        return self.offset_angle().abs() >= TAU;
+        return self.sweep_angle().abs() >= TAU;
     }
 
     /**
@@ -797,16 +753,16 @@ impl ArcSegment {
     let center = [0.0, 1.0];
     let radius = 1.0;
     let start_angle = -4.0*std::f64::consts::PI; // This is mathematically identical to 0.0
-    let offset_angle = -2.5*std::f64::consts::PI; // This is mathematically identical to -pi/2
-    let arc = ArcSegment::from_center_radius_start_offset_angle(center, radius, start_angle, offset_angle, DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap();
+    let sweep_angle = -2.5*std::f64::consts::PI; // This is mathematically identical to -pi/2
+    let arc = ArcSegment::from_center_radius_start_sweep_angle(center, radius, start_angle, sweep_angle).expect("valid_arc");
 
     assert!(arc.covers_angle(-2.25*std::f64::consts::PI));
     assert!(!arc.covers_angle(-2.75*std::f64::consts::PI));
 
     // A circle contains all angles
     let start_angle = -4.0*std::f64::consts::PI; // This is mathematically identical to 0.0
-    let offset_angle = -2.0*std::f64::consts::PI; // This is mathematically identical to -pi/2
-    let arc = ArcSegment::from_center_radius_start_offset_angle(center, radius, start_angle, offset_angle, DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap();
+    let sweep_angle = -2.0*std::f64::consts::PI; // This is mathematically identical to -pi/2
+    let arc = ArcSegment::from_center_radius_start_sweep_angle(center, radius, start_angle, sweep_angle).expect("valid_arc");
 
     assert!(arc.covers_angle(0.0));
     assert!(arc.covers_angle(12.0));
@@ -815,11 +771,11 @@ impl ArcSegment {
     pub fn covers_angle(&self, angle: f64) -> bool {
         let angle = angle % TAU;
         let start_angle = self.start_angle();
-        let offset_angle = self.offset_angle();
-        let stop_angle = start_angle + offset_angle;
+        let sweep_angle = self.sweep_angle();
+        let stop_angle = start_angle + sweep_angle;
 
         // Arc is counter-clockwise
-        if offset_angle > 0.0 {
+        if sweep_angle > 0.0 {
             return (angle >= start_angle && angle <= stop_angle)
                 || (angle + TAU >= start_angle && angle + TAU <= stop_angle)
                 || (angle - TAU >= start_angle && angle - TAU <= stop_angle);
@@ -838,12 +794,12 @@ impl ArcSegment {
     ```
     use planar_geo::prelude::*;
 
-    // Clockwise arc => the offset angle is negative
+    // Clockwise arc => the sweep angle is negative
     let start = [3.0, 1.0];
     let middle = [2.0 + 1.0/2.0_f64.sqrt(), 1.0 - 1.0/2.0_f64.sqrt()];
     let stop = [2.0, 0.0];
 
-    let arc = ArcSegment::from_start_middle_stop(start, middle, stop, DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap();
+    let arc = ArcSegment::from_start_middle_stop(start, middle, stop).expect("valid_arc");
     approx::assert_abs_diff_eq!(arc.start(), start);
     ```
      */
@@ -864,12 +820,12 @@ impl ArcSegment {
     ```
     use planar_geo::prelude::*;
 
-    // Clockwise arc => the offset angle is negative
+    // Clockwise arc => the sweep angle is negative
     let start = [3.0, 1.0];
     let middle = [2.0 + 1.0/2.0_f64.sqrt(), 1.0 - 1.0/2.0_f64.sqrt()];
     let stop = [2.0, 0.0];
 
-    let arc = ArcSegment::from_start_middle_stop(start, middle, stop, 0.0, 0).unwrap();
+    let arc = ArcSegment::from_start_middle_stop(start, middle, stop).expect("valid_arc");
     approx::assert_abs_diff_eq!(arc.stop(), stop, epsilon = 1e-14);
     ```
      */
@@ -891,12 +847,12 @@ impl ArcSegment {
     ```
     use planar_geo::prelude::*;
 
-    // Clockwise arc => the offset angle is negative
+    // Clockwise arc => the sweep angle is negative
     let start = [3.0, 1.0];
     let middle = [2.0 + 1.0/2.0_f64.sqrt(), 1.0 - 1.0/2.0_f64.sqrt()];
     let stop = [2.0, 0.0];
 
-    let arc = ArcSegment::from_start_middle_stop(start, middle, stop, 0.0, 0).unwrap();
+    let arc = ArcSegment::from_start_middle_stop(start, middle, stop).expect("valid_arc");
     assert_eq!(arc.number_points(), 3);
     ```
      */
@@ -906,7 +862,7 @@ impl ArcSegment {
 
     /**
     Returns the length of `self`. This is the (absolute) product of
-    [`ArcSegment::radius`] and [`ArcSegment::offset_angle`] and represents the
+    [`ArcSegment::radius`] and [`ArcSegment::sweep_angle`] and represents the
     part of the circumference covered by `self`.
 
     # Examples
@@ -914,17 +870,17 @@ impl ArcSegment {
     ```
     use planar_geo::prelude::*;
 
-    // Clockwise arc => the offset angle is negative
+    // Clockwise arc => the sweep angle is negative
     let start = [3.0, 1.0];
     let middle = [2.0 + 1.0/2.0_f64.sqrt(), 1.0 - 1.0/2.0_f64.sqrt()];
     let stop = [2.0, 0.0];
 
-    let arc = ArcSegment::from_start_middle_stop(start, middle, stop, 0.0, 0).unwrap();
-    approx::assert_abs_diff_eq!((arc.radius() * arc.offset_angle()).abs(), arc.length());
+    let arc = ArcSegment::from_start_middle_stop(start, middle, stop).expect("valid_arc");
+    approx::assert_abs_diff_eq!((arc.radius() * arc.sweep_angle()).abs(), arc.length());
     ```
      */
     pub fn length(&self) -> f64 {
-        return (self.radius() * self.offset_angle()).abs();
+        return (self.radius() * self.sweep_angle()).abs();
     }
 
     /**
@@ -955,7 +911,7 @@ impl ArcSegment {
     let middle = [2.0 + 1.0/2.0_f64.sqrt(), 1.0 - 1.0/2.0_f64.sqrt()];
     let stop = [2.0, 0.0];
 
-    let mut arc = ArcSegment::from_start_middle_stop(start, middle, stop, 0.0, 0).unwrap();
+    let mut arc = ArcSegment::from_start_middle_stop(start, middle, stop).expect("valid_arc");
     let start = arc.start();
     let stop = arc.stop();
     arc.reverse();
@@ -965,7 +921,7 @@ impl ArcSegment {
      */
     pub fn reverse(&mut self) {
         self.start_angle = self.stop_angle();
-        self.offset_angle = -self.offset_angle;
+        self.sweep_angle = -self.sweep_angle;
     }
 
     /**
@@ -992,7 +948,7 @@ impl ArcSegment {
      */
     pub fn segment_point(&self, normalized: f64) -> [f64; 2] {
         let normalized = normalized.clamp(0.0, 1.0);
-        let angle = self.start_angle() + normalized * self.offset_angle;
+        let angle = self.start_angle() + normalized * self.sweep_angle;
         return [
             self.center[0] + self.radius * angle.cos(),
             self.center[1] + self.radius * angle.sin(),
@@ -1037,14 +993,14 @@ impl ArcSegment {
                     0
                 } else {
                     let max_angle = 2.0 * (0.5 * max_len / radius).clamp(-1.0, 1.0).asin();
-                    (self.offset_angle().abs() / max_angle).ceil() as usize
+                    (self.sweep_angle().abs() / max_angle).ceil() as usize
                 }
             }
             super::SegmentPolygonizer::MaximumAngle(max_angle) => {
                 if max_angle <= 0.0 {
                     0
                 } else {
-                    (self.offset_angle().abs() / max_angle).ceil() as usize
+                    (self.sweep_angle().abs() / max_angle).ceil() as usize
                 }
             }
         };
@@ -1066,7 +1022,7 @@ impl ArcSegment {
     ```
     use planar_geo::segment::ArcSegment;
 
-    let arc = ArcSegment::from_center_radius_start_offset_angle([0.0, 0.0], 2.0, 1.0, -1.0, 0.0, 0).unwrap();
+    let arc = ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 2.0, 1.0, -1.0).expect("valid_arc");
 
     let mut iter = arc.points();
 
@@ -1089,7 +1045,7 @@ impl ArcSegment {
     use approx;
     use planar_geo::prelude::*;
 
-    let mut arc = ArcSegment::from_center_radius_start_offset_angle([0.0, 0.0], 2.0, 0.0, PI, 0.0, 0).unwrap();
+    let mut arc = ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 2.0, 0.0, PI).expect("valid_arc");
     approx::assert_abs_diff_eq!(arc.start(), [2.0, 0.0], epsilon = 1e-3);
     approx::assert_abs_diff_eq!(arc.stop(), [-2.0, 0.0], epsilon = 1e-3);
 
@@ -1104,7 +1060,7 @@ impl ArcSegment {
      */
     pub fn invert(&mut self) {
         self.start_angle = self.stop_angle();
-        self.offset_angle = -self.offset_angle;
+        self.sweep_angle = -self.sweep_angle;
     }
 
     /**
@@ -1117,26 +1073,26 @@ impl ArcSegment {
     use std::f64::consts::PI;
     use planar_geo::prelude::*;
 
-    let a1 = ArcSegment::from_center_radius_start_offset_angle([0.0, 0.0], 2.0, -1.0, 1.0, 0.0, 0).unwrap();
-    let a2 = ArcSegment::from_center_radius_start_offset_angle([0.0, 0.0], 2.0, 0.0, 1.0, 0.0, 0).unwrap();
-    let a3 = ArcSegment::from_center_radius_start_offset_angle([1.0, 0.0], 2.0, 0.0, 1.5 * PI, 0.0, 0).unwrap();
+    let a1 = ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 2.0, -1.0, 1.0).expect("valid_arc");
+    let a2 = ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 2.0, 0.0, 1.0).expect("valid_arc");
+    let a3 = ArcSegment::from_center_radius_start_sweep_angle([1.0, 0.0], 2.0, 0.0, 1.5 * PI).expect("valid_arc");
 
-    assert!(a1.same_circle(&a2, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
-    assert!(!a1.same_circle(&a3, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
-    assert!(!a2.same_circle(&a3, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    assert!(a1.same_circle(&a2, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(!a1.same_circle(&a3, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(!a2.same_circle(&a3, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
     ```
      */
-    pub fn same_circle(&self, other: &ArcSegment, epsilon: f64, max_ulps: u32) -> bool {
-        ulps_eq!(
+    pub fn same_circle(&self, other: &ArcSegment, epsilon: f64, max_relative: f64) -> bool {
+        relative_eq!(
             self.center,
             other.center,
             epsilon = epsilon,
-            max_ulps = max_ulps
-        ) && ulps_eq!(
+            max_relative = max_relative
+        ) && relative_eq!(
             self.radius,
             other.radius,
             epsilon = epsilon,
-            max_ulps = max_ulps
+            max_relative = max_relative
         )
     }
 
@@ -1153,36 +1109,36 @@ impl ArcSegment {
     use std::f64::consts::PI;
     use planar_geo::prelude::*;
 
-    let arc = ArcSegment::from_center_radius_start_offset_angle([0.0, 0.0], 2.0, 0.0, PI, 0.0, 0).unwrap();
+    let arc = ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 2.0, 0.0, PI).expect("valid_arc");
 
     // Horizontal line segment which touches the arc at [0.0, 2.0]
-    let ls = LineSegment::new([-2.0, 2.0], [2.0, 2.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap();
-    assert!(arc.is_tangent(&ls, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    let ls = LineSegment::new([-2.0, 2.0], [2.0, 2.0]).expect("valid_arc");
+    assert!(arc.is_tangent(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
 
     // The underlying line is a tangent, but point [0.0, 2.0] is not part of the line segment
-    let ls = LineSegment::new([-2.0, 2.0], [-4.0, 2.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap();
-    assert!(!arc.is_tangent(&ls, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    let ls = LineSegment::new([-2.0, 2.0], [-4.0, 2.0]).expect("valid_arc");
+    assert!(!arc.is_tangent(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
 
     // Line segment intersects the arc twice
-    let ls = LineSegment::new([-2.0, 1.9], [2.0, 1.9], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap();
-    assert!(!arc.is_tangent(&ls, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    let ls = LineSegment::new([-2.0, 1.9], [2.0, 1.9]).expect("valid_arc");
+    assert!(!arc.is_tangent(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
 
     // Vertical line segment which touches the arc at [2.0, 0.0]
-    let ls = LineSegment::new([2.0, 0.0], [2.0, 1.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap();
-    assert!(arc.is_tangent(&ls, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    let ls = LineSegment::new([2.0, 0.0], [2.0, 1.0]).expect("valid_arc");
+    assert!(arc.is_tangent(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
 
     // Line segment touches the arc at [2.0, 0.0], but is not perpendicular to [0.0, 0.0] - [2.0, 0.0]
-    let ls = LineSegment::new([2.0, 0.0], [3.0, 1.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap();
-    assert!(!arc.is_tangent(&ls, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    let ls = LineSegment::new([2.0, 0.0], [3.0, 1.0]).expect("valid_arc");
+    assert!(!arc.is_tangent(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
     ```
      */
     pub fn is_tangent(
         &self,
         line_segment: &super::LineSegment,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> bool {
-        return line_segment.is_tangent(self, epsilon, max_ulps);
+        return line_segment.is_tangent(self, epsilon, max_relative);
     }
 
     /// Returns whether `self` and `other` are touching.
@@ -1214,7 +1170,7 @@ impl ArcSegment {
     /// let c1 = ArcSegment::circle([0.0, 0.0], 2.0).unwrap();
     ///
     /// // Arc segment around [0, 0] with radius 2
-    /// let a1 = ArcSegment::from_center_radius_start_offset_angle([0.0, 0.0], 2.0, 0.0, 1.0, 0.0, 0).unwrap();
+    /// let a1 = ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 2.0, 0.0, 1.0).expect("valid_arc");
     ///
     /// // Circle around [0, 4] with radius 2
     /// let c2 = ArcSegment::circle([0.0, 4.0], 2.0).unwrap();
@@ -1223,28 +1179,28 @@ impl ArcSegment {
     /// let c3 = ArcSegment::circle([0.0, 3.0], 2.0).unwrap();
     ///
     /// // Line segment from [-2, -2] to [2, -2]
-    /// let ls = LineSegment::new([-2.0, -2.0], [2.0, -2.0], 0.0, 0).unwrap();
+    /// let ls = LineSegment::new([-2.0, -2.0], [2.0, -2.0]).expect("valid_arc");
     ///
     /// // c1 and a1 lay on the same circle -> Touching
-    /// assert!(c1.touches_segment(&a1, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    /// assert!(c1.touches_segment(&a1, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
     ///
     /// // c1 and c2 touch in a single point
-    /// assert!(c1.touches_segment(&c2, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    /// assert!(c1.touches_segment(&c2, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
     ///
     /// // c1 and c3 overlap (two intersections)
-    /// assert!(!c1.touches_segment(&c3, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    /// assert!(!c1.touches_segment(&c3, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
     ///
     /// // ls is a tangent of c1
-    /// assert!(c1.touches_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    /// assert!(c1.touches_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
     /// ```
     pub fn touches_segment<'a, T: Into<super::SegmentRef<'a>>>(
         &self,
         other: T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> bool {
         return self
-            .touches_and_intersections(other.into(), epsilon, max_ulps)
+            .touches_and_intersections(other.into(), epsilon, max_relative)
             .0;
     }
 
@@ -1252,28 +1208,33 @@ impl ArcSegment {
         &self,
         other: super::SegmentRef<'_>,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> (bool, PrimitiveIntersections) {
-        fn ep_as(s: &super::ArcSegment, pt: [f64; 2], epsilon: f64, max_ulps: u32) -> bool {
-            return ulps_eq!(pt, s.start(), epsilon = epsilon, max_ulps = max_ulps)
-                || ulps_eq!(pt, s.stop(), epsilon = epsilon, max_ulps = max_ulps);
+        fn ep_as(s: &super::ArcSegment, pt: [f64; 2], epsilon: f64, max_relative: f64) -> bool {
+            return relative_eq!(
+                pt,
+                s.start(),
+                epsilon = epsilon,
+                max_relative = max_relative
+            ) || relative_eq!(pt, s.stop(), epsilon = epsilon, max_relative = max_relative);
         }
 
         match other {
             super::SegmentRef::LineSegment(line_segment) => {
-                return line_segment.touches_and_intersections(self.into(), epsilon, max_ulps);
+                return line_segment.touches_and_intersections(self.into(), epsilon, max_relative);
             }
             super::SegmentRef::ArcSegment(arc_segment) => {
                 if std::ptr::eq(self, arc_segment) {
                     return (true, PrimitiveIntersections::Zero);
                 }
 
-                let intersections = self.intersections_arc_segment(arc_segment, epsilon, max_ulps);
+                let intersections =
+                    self.intersections_arc_segment(arc_segment, epsilon, max_relative);
                 let touches = match intersections {
                     PrimitiveIntersections::Zero => false,
                     PrimitiveIntersections::One(i) => {
-                        if ep_as(self, i, epsilon, max_ulps)
-                            || ep_as(arc_segment, i, epsilon, max_ulps)
+                        if ep_as(self, i, epsilon, max_relative)
+                            || ep_as(arc_segment, i, epsilon, max_relative)
                         {
                             true
                         } else {
@@ -1283,20 +1244,20 @@ impl ArcSegment {
                             let a = [i[0] - self.center[0], i[1] - self.center[1]];
                             let b = [i[0] - arc_segment.center[0], i[1] - arc_segment.center[1]];
                             let cross = a[0] * b[1] - a[1] * b[0];
-                            ulps_eq!(cross, 0.0, epsilon = epsilon, max_ulps = max_ulps)
+                            relative_eq!(cross, 0.0, epsilon = epsilon, max_relative = max_relative)
                         }
                     }
                     PrimitiveIntersections::Two([i1, i2]) => {
                         // If center and radius are identical, the arc segments are part
                         // of the same circle and therefore touch
-                        if self.same_circle(&arc_segment, epsilon, max_ulps) {
+                        if self.same_circle(&arc_segment, epsilon, max_relative) {
                             true
                         } else {
                             // Are the intersections end points?
-                            (ep_as(self, i1, epsilon, max_ulps)
-                                || ep_as(arc_segment, i1, epsilon, max_ulps))
-                                && (ep_as(self, i2, epsilon, max_ulps)
-                                    || ep_as(arc_segment, i2, epsilon, max_ulps))
+                            (ep_as(self, i1, epsilon, max_relative)
+                                || ep_as(arc_segment, i1, epsilon, max_relative))
+                                && (ep_as(self, i2, epsilon, max_relative)
+                                    || ep_as(arc_segment, i2, epsilon, max_relative))
                         }
                     }
                 };
@@ -1360,7 +1321,7 @@ impl ArcSegment {
         b: f64,
         c: f64,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> PrimitiveIntersections {
         let [ox, oy] = self.center();
         let r = self.radius();
@@ -1383,14 +1344,14 @@ impl ArcSegment {
         let mut intersections = PrimitiveIntersections::Zero;
 
         // Tangent case (1 intersection)
-        if ulps_eq!(
+        if relative_eq!(
             radial_discriminant,
             0.0,
             epsilon = epsilon,
-            max_ulps = max_ulps
+            max_relative = max_relative
         ) {
             let pt = [x0 + ox, y0 + oy];
-            if self.covers_point(pt, epsilon, max_ulps) {
+            if self.covers_point(pt, epsilon, max_relative) {
                 intersections.push(pt);
             }
         } else if radial_discriminant > 0.0 {
@@ -1424,7 +1385,7 @@ impl ArcSegment {
 
     /// Split arc in y-monotonic segments (where each y-value appears at most
     /// once)
-    pub(crate) fn split_y_monotonic(&self, epsilon: f64, max_ulps: u32) -> [Option<ArcSegment>; 3] {
+    pub(crate) fn split_y_monotonic(&self) -> [Option<ArcSegment>; 3] {
         // Cover special case of a circle
         let start_angle = if self.is_circle() {
             -FRAC_PI_2
@@ -1475,12 +1436,7 @@ impl ArcSegment {
                 }
             }
         }
-        if ulps_ne!(
-            self.start_angle().rem_euclid(TAU),
-            self.stop_angle().rem_euclid(TAU),
-            epsilon = epsilon,
-            max_ulps = max_ulps
-        ) {
+        if self.start_angle().rem_euclid(TAU) != self.stop_angle().rem_euclid(TAU) {
             angles[free_slot] = Some(self.stop_angle().rem_euclid(TAU));
         }
 
@@ -1492,7 +1448,7 @@ impl ArcSegment {
                 Some(a) => a,
                 None => break,
             };
-            let mut offset_angle = match w[1] {
+            let mut sweep_angle = match w[1] {
                 Some(a) => {
                     let delta = (a - start_angle).rem_euclid(TAU);
                     if delta > PI {
@@ -1504,16 +1460,14 @@ impl ArcSegment {
                 None => break,
             };
             if !self.is_positive() {
-                offset_angle = -offset_angle;
+                sweep_angle = -sweep_angle;
             }
 
-            if let Ok(arc) = ArcSegment::from_center_radius_start_offset_angle(
+            if let Ok(arc) = ArcSegment::from_center_radius_start_sweep_angle(
                 self.center(),
                 self.radius(),
                 start_angle,
-                offset_angle,
-                epsilon,
-                max_ulps,
+                sweep_angle,
             ) {
                 arcs[free_slot] = Some(arc);
                 free_slot += 1;
@@ -1527,27 +1481,37 @@ impl ArcSegment {
 impl crate::primitive::private::Sealed for ArcSegment {}
 
 impl Primitive for ArcSegment {
-    fn covers_point(&self, point: [f64; 2], epsilon: f64, max_ulps: u32) -> bool {
-        if ulps_eq!(self.start(), point, epsilon = epsilon, max_ulps = max_ulps) {
+    fn covers_point(&self, point: [f64; 2], epsilon: f64, max_relative: f64) -> bool {
+        if relative_eq!(
+            self.start(),
+            point,
+            epsilon = epsilon,
+            max_relative = max_relative
+        ) {
             return true;
         }
-        if ulps_eq!(self.stop(), point, epsilon = epsilon, max_ulps = max_ulps) {
+        if relative_eq!(
+            self.stop(),
+            point,
+            epsilon = epsilon,
+            max_relative = max_relative
+        ) {
             return true;
         }
 
         // Quick first check: If point p is outside the segment bounding box, it can't
         // be part of the arc segment.
-        if !BoundingBox::from(self).approx_covers_point(point, epsilon, max_ulps) {
+        if !BoundingBox::from(self).approx_covers_point(point, epsilon) {
             return false;
         }
 
         let shifted_pt = [point[0] - self.center()[0], point[1] - self.center()[1]];
 
-        if ulps_eq!(
+        if relative_eq!(
             self.radius().powi(2),
             shifted_pt[0].powi(2) + shifted_pt[1].powi(2),
             epsilon = epsilon,
-            max_ulps = max_ulps
+            max_relative = max_relative
         ) {
             let angle = shifted_pt[1].atan2(shifted_pt[0]);
             return self.covers_angle(angle);
@@ -1556,7 +1520,7 @@ impl Primitive for ArcSegment {
         }
     }
 
-    fn covers_arc_segment(&self, arc_segment: &Self, epsilon: f64, max_ulps: u32) -> bool {
+    fn covers_arc_segment(&self, arc_segment: &Self, epsilon: f64, max_relative: f64) -> bool {
         if std::ptr::eq(self, arc_segment) {
             return true;
         }
@@ -1564,20 +1528,20 @@ impl Primitive for ArcSegment {
         // Special treatment of a full circle: other is contained if center and
         // radius are identical to that of self.
         if self.is_circle() {
-            return ulps_eq!(
+            return relative_eq!(
                 self.center(),
                 arc_segment.center(),
                 epsilon = epsilon,
-                max_ulps = max_ulps
-            ) && ulps_eq!(
+                max_relative = max_relative
+            ) && relative_eq!(
                 self.radius(),
                 arc_segment.radius(),
                 epsilon = epsilon,
-                max_ulps = max_ulps
+                max_relative = max_relative
             );
         }
 
-        match self.intersections_primitive(arc_segment, epsilon, max_ulps) {
+        match self.intersections_primitive(arc_segment, epsilon, max_relative) {
             // Deal with special case where self and other are identical
             PrimitiveIntersections::Zero => false,
             PrimitiveIntersections::One(_) => false,
@@ -1585,17 +1549,17 @@ impl Primitive for ArcSegment {
                 let start = arc_segment.start();
                 let stop = arc_segment.stop();
 
-                if ulps_ne!(start, pt1, epsilon = epsilon, max_ulps = max_ulps)
-                    && ulps_ne!(stop, pt1, epsilon = epsilon, max_ulps = max_ulps)
+                if relative_ne!(start, pt1, epsilon = epsilon, max_relative = max_relative)
+                    && relative_ne!(stop, pt1, epsilon = epsilon, max_relative = max_relative)
                 {
                     false
-                } else if ulps_ne!(start, pt2, epsilon = epsilon, max_ulps = max_ulps)
-                    && ulps_ne!(stop, pt2, epsilon = epsilon, max_ulps = max_ulps)
+                } else if relative_ne!(start, pt2, epsilon = epsilon, max_relative = max_relative)
+                    && relative_ne!(stop, pt2, epsilon = epsilon, max_relative = max_relative)
                 {
                     false
                 } else {
                     // Middle angle of other must be on self
-                    self.covers_angle(arc_segment.start_angle() + 0.5 * arc_segment.offset_angle())
+                    self.covers_angle(arc_segment.start_angle() + 0.5 * arc_segment.sweep_angle())
                 }
             }
         }
@@ -1605,12 +1569,12 @@ impl Primitive for ArcSegment {
         &self,
         _line_segment: &crate::segment::LineSegment,
         _epsilon: f64,
-        _max_ulps: u32,
+        _max_relative: f64,
     ) -> bool {
         return false;
     }
 
-    fn covers_line(&self, _line: &crate::line::Line, _epsilon: f64, _max_ulps: u32) -> bool {
+    fn covers_line(&self, _line: &crate::line::Line, _epsilon: f64, _max_relative: f64) -> bool {
         return false;
     }
 
@@ -1618,18 +1582,18 @@ impl Primitive for ArcSegment {
         &self,
         line: &crate::line::Line,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> PrimitiveIntersections {
-        line.intersections_arc_segment(self, epsilon, max_ulps)
+        line.intersections_arc_segment(self, epsilon, max_relative)
     }
 
     fn intersections_line_segment(
         &self,
         line_segment: &crate::segment::LineSegment,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> PrimitiveIntersections {
-        line_segment.intersections_arc_segment(self, epsilon, max_ulps)
+        line_segment.intersections_arc_segment(self, epsilon, max_relative)
     }
 
     /// This function uses a modified version of the circle-circle intersection
@@ -1639,7 +1603,7 @@ impl Primitive for ArcSegment {
         &self,
         arc_segment: &ArcSegment,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> PrimitiveIntersections {
         // If the segments are identical, they do not intersect by definition
         if std::ptr::eq(self, arc_segment) {
@@ -1671,16 +1635,16 @@ impl Primitive for ArcSegment {
         let center_arc2 = arc_segment.center();
 
         // Circles are identical
-        if ulps_eq!(
+        if relative_eq!(
             radius_arc1,
             radius_arc2,
             epsilon = epsilon,
-            max_ulps = max_ulps
-        ) && ulps_eq!(
+            max_relative = max_relative
+        ) && relative_eq!(
             center_arc1,
             center_arc2,
             epsilon = epsilon,
-            max_ulps = max_ulps
+            max_relative = max_relative
         ) {
             let mut intersections = PrimitiveIntersections::Zero;
             if self.covers_angle(arc_segment.start_angle()) {
@@ -1721,8 +1685,8 @@ impl Primitive for ArcSegment {
         3. Filter by whether points lie inside arc_segment
         */
         let mut intersections = PrimitiveIntersections::Zero;
-        for i in self.intersections_line_circle(a, b, c, epsilon, max_ulps) {
-            if arc_segment.covers_point(i, epsilon, max_ulps) {
+        for i in self.intersections_line_circle(a, b, c, epsilon, max_relative) {
+            if arc_segment.covers_point(i, epsilon, max_relative) {
                 intersections.push(i);
             }
         }
@@ -1733,9 +1697,9 @@ impl Primitive for ArcSegment {
         &self,
         other: &T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> PrimitiveIntersections {
-        other.intersections_arc_segment(self, epsilon, max_ulps)
+        other.intersections_arc_segment(self, epsilon, max_relative)
     }
 }
 
@@ -1780,8 +1744,8 @@ impl Transformation for ArcSegment {
             ];
         };
 
-        // Offset angle is simply inverted
-        self.offset_angle = -self.offset_angle;
+        // sweep angle is simply inverted
+        self.sweep_angle = -self.sweep_angle;
 
         // Calculate the angle between start and stop
         let line_angle = (stop[1] - start[1]).atan2(stop[0] - start[0]);
@@ -1912,7 +1876,7 @@ impl From<&ArcSegment> for CentroidData {
         let inv_3 = 1.0 / 3.0;
 
         let center = value.center();
-        let angle = value.offset_angle();
+        let angle = value.sweep_angle();
         let radius = value.radius();
 
         // centroid and area for shape 1
@@ -1930,7 +1894,7 @@ impl From<&ArcSegment> for CentroidData {
         let area = half_angle * radius.powi(2);
         let centroid_transformed = [2.0 / 3.0 * radius * half_angle.sin() / half_angle, 0.0];
 
-        let middle_angle = value.start_angle() + 0.5 * value.offset_angle();
+        let middle_angle = value.start_angle() + 0.5 * value.sweep_angle();
         let t = Rotation2::new(middle_angle);
         let mut centroid_movec_back = t * centroid_transformed;
         centroid_movec_back.translate([center[0], center[1]]);
@@ -2044,24 +2008,24 @@ pub fn three_point_arc_is_positive(start: [f64; 2], middle: [f64; 2], stop: [f64
 }
 
 /**
-Calculates the offset angle from a `start_angle` and a `stop_angle`. The arc
+Calculates the sweep angle from a `start_angle` and a `stop_angle`. The arc
 between a start and a stop angle can either be mathematically `positive`
 (i.e. counter-clockwise) or negative (not `positive`, i.e. clockwise).
  */
-pub fn calculate_offset_angle(start_angle: f64, stop_angle: f64, positive: bool) -> f64 {
-    let offset_angle: f64;
+pub fn calculate_sweep_angle(start_angle: f64, stop_angle: f64, positive: bool) -> f64 {
+    let sweep_angle: f64;
     if positive {
         if start_angle < stop_angle {
-            offset_angle = stop_angle - start_angle;
+            sweep_angle = stop_angle - start_angle;
         } else {
-            offset_angle = TAU - (start_angle - stop_angle);
+            sweep_angle = TAU - (start_angle - stop_angle);
         }
     } else {
         if start_angle > stop_angle {
-            offset_angle = stop_angle - start_angle;
+            sweep_angle = stop_angle - start_angle;
         } else {
-            offset_angle = (stop_angle - start_angle) - TAU;
+            sweep_angle = (stop_angle - start_angle) - TAU;
         }
     }
-    return offset_angle;
+    return sweep_angle;
 }

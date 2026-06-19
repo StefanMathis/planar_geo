@@ -613,8 +613,6 @@ use planar_geo::prelude::*;
 use cairo;
 
 fn create_fn(cr: &cairo::Context) -> Result<(), cairo::Error> {
-    let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_ULPS;
 
     // Set the background to white
     cr.set_source_rgb(1.0, 1.0, 1.0);
@@ -634,25 +632,25 @@ fn create_fn(cr: &cairo::Context) -> Result<(), cairo::Error> {
     style.line_width = 2.0;
     style.line_cap = cairo::LineCap::Butt;
 
-    let segment = LineSegment::new([0.1, 0.5], [0.7, 0.5], e, m).unwrap();
+    let segment = LineSegment::new([0.1, 0.5], [0.7, 0.5]).unwrap();
     txt.text = "Solid".into();
     style.line_style = LineStyle::Solid;
     style.text = Some(Box::new(txt.clone()));
     segment.draw(&style, cr)?;
 
-    let segment = LineSegment::new([0.8, 0.5], [1.4, 0.5], e, m).unwrap();
+    let segment = LineSegment::new([0.8, 0.5], [1.4, 0.5]).unwrap();
     txt.text = "Dotted".into();
     style.line_style = LineStyle::Dotted;
     style.text = Some(Box::new(txt.clone()));
     segment.draw(&style, cr)?;
 
-    let segment = LineSegment::new([1.5, 0.5], [2.1, 0.5], e, m).unwrap();
+    let segment = LineSegment::new([1.5, 0.5], [2.1, 0.5]).unwrap();
     txt.text = "Dashed".into();
     style.line_style = LineStyle::default_dashed();
     style.text = Some(Box::new(txt.clone()));
     segment.draw(&style, cr)?;
 
-    let segment = LineSegment::new([2.2, 0.5], [2.8, 0.5], e, m).unwrap();
+    let segment = LineSegment::new([2.2, 0.5], [2.8, 0.5]).unwrap();
     txt.text = "None".into();
     style.line_style = LineStyle::None;
     style.text = Some(Box::new(txt.clone()));
@@ -768,7 +766,7 @@ use planar_geo::prelude::*;
 
 fn draw_fn() -> Box<dyn FnOnce(&cairo::Context) -> Result<(), cairo::Error>> {
     let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_ULPS;
+    let m = DEFAULT_MAX_RELATIVE;
 
     let mut style = Style::default();
     style.line_color = Color::new(1.0, 0.5, 0.5, 1.0);
@@ -1082,9 +1080,6 @@ This image was created with the following code:
 use cairo_viewport::{SideLength, Viewport};
 use planar_geo::prelude::*;
 
-let e = DEFAULT_EPSILON;
-let m = DEFAULT_MAX_ULPS;
-
 let mut style = Style::default();
 style.line_color = Color::new(1.0, 0.5, 0.5, 1.0);
 style.line_width = 2.0;
@@ -1104,9 +1099,9 @@ let contour = Contour::new(Polysegment::from_points(&[[0.1, 0.1], [1.9, 0.1], [1
 
 // A cross on the right of the contour which shows placement of standalone texts
 let cc = [2.5, 0.5];
-let hori = LineSegment::new([cc[0] - 0.2, cc[1]], [cc[0] + 0.2, cc[1]], e, m)
+let hori = LineSegment::new([cc[0] - 0.2, cc[1]], [cc[0] + 0.2, cc[1]])
     .expect("points not identical");
-let vert = LineSegment::new([cc[0], cc[1] - 0.2], [cc[0], cc[1] + 0.2], e, m)
+let vert = LineSegment::new([cc[0], cc[1] - 0.2], [cc[0], cc[1] + 0.2])
     .expect("points not identical");
 
 let view =

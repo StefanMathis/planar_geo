@@ -1,14 +1,11 @@
 use std::f64::consts::{FRAC_PI_2, PI};
 
-use planar_geo::{DEFAULT_EPSILON, DEFAULT_MAX_ULPS, prelude::*};
+use planar_geo::prelude::*;
 
 #[test]
 fn test_bounding_line_segment() {
     {
-        let polysegment: Polysegment =
-            LineSegment::new([0.0, 0.0], [1.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS)
-                .unwrap()
-                .into();
+        let polysegment: Polysegment = LineSegment::new([0.0, 0.0], [1.0, 0.0]).unwrap().into();
 
         let bb = BoundingBox::from(&polysegment);
         assert_eq!(bb.xmin(), 0.0);
@@ -21,16 +18,10 @@ fn test_bounding_line_segment() {
 #[test]
 fn test_bounding_box_arc() {
     {
-        let polysegment: Polysegment = ArcSegment::from_center_radius_start_offset_angle(
-            [0.0, 0.0],
-            0.5,
-            0.0,
-            FRAC_PI_2,
-            0.0,
-            0,
-        )
-        .unwrap()
-        .into();
+        let polysegment: Polysegment =
+            ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 0.5, 0.0, FRAC_PI_2)
+                .unwrap()
+                .into();
 
         let bb = BoundingBox::from(&polysegment);
         approx::assert_abs_diff_eq!(bb.xmin(), 0.0);
@@ -39,13 +30,11 @@ fn test_bounding_box_arc() {
         approx::assert_abs_diff_eq!(bb.ymax(), 0.5);
     }
     {
-        let polysegment: Polysegment = ArcSegment::from_center_radius_start_offset_angle(
+        let polysegment: Polysegment = ArcSegment::from_center_radius_start_sweep_angle(
             [0.0, 0.0],
             0.5,
             -FRAC_PI_2,
             -FRAC_PI_2,
-            0.0,
-            0,
         )
         .unwrap()
         .into();
@@ -57,16 +46,10 @@ fn test_bounding_box_arc() {
         approx::assert_abs_diff_eq!(bb.ymax(), 0.0);
     }
     {
-        let polysegment: Polysegment = ArcSegment::from_center_radius_start_offset_angle(
-            [0.0, 0.0],
-            2.0,
-            0.25 * PI,
-            0.5 * PI,
-            0.0,
-            0,
-        )
-        .unwrap()
-        .into();
+        let polysegment: Polysegment =
+            ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 2.0, 0.25 * PI, 0.5 * PI)
+                .unwrap()
+                .into();
 
         let bb = BoundingBox::from(&polysegment);
         approx::assert_abs_diff_eq!(bb.xmin(), -2.0f64.sqrt(),);
@@ -75,16 +58,10 @@ fn test_bounding_box_arc() {
         approx::assert_abs_diff_eq!(bb.ymax(), 2.0);
     }
     {
-        let polysegment: Polysegment = ArcSegment::from_center_radius_start_offset_angle(
-            [0.0, 0.0],
-            2.0,
-            0.25 * PI,
-            0.1 * PI,
-            0.0,
-            0,
-        )
-        .unwrap()
-        .into();
+        let polysegment: Polysegment =
+            ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 2.0, 0.25 * PI, 0.1 * PI)
+                .unwrap()
+                .into();
 
         let bb = BoundingBox::from(&polysegment);
         approx::assert_abs_diff_eq!(bb.xmin(), 0.90798, epsilon = 1e-4);
@@ -148,12 +125,12 @@ fn test_intersects() {
 fn test_covers() {
     let bb1 = BoundingBox::new(0.0, 1.0, 0.0, 1.0);
     let bb2 = BoundingBox::new(-0.5, 1.5, -0.5, 1.5);
-    assert!(bb2.approx_covers(&bb1, 0.0, 0));
-    assert!(!bb1.approx_covers(&bb2, 0.0, 0));
+    assert!(bb2.approx_covers(&bb1, 0.0));
+    assert!(!bb1.approx_covers(&bb2, 0.0));
 
     let bb1 = BoundingBox::new(0.0, 1.0, 0.0, 1.0);
     let bb2 = BoundingBox::new(0.2, 1.0, 0.2, 0.8);
-    assert!(bb1.approx_covers(&bb2, 0.0, 0));
+    assert!(bb1.approx_covers(&bb2, 0.0));
 }
 
 #[test]
@@ -175,7 +152,7 @@ fn test_touches() {
 fn intersection() {
     let bb1 = BoundingBox::new(0.0, 1.0, 0.0, 1.0);
     let bb2 = BoundingBox::new(0.5, 1.5, 0.5, 1.5);
-    let intersections = GeometryRef::from(&bb1).intersections(&bb2, 0.0, 0);
+    let intersections = GeometryRef::from(&bb1).intersections(&bb2, 0.0, 0.0);
     assert_eq!(intersections.len(), 2);
     approx::assert_abs_diff_eq!(intersections[0].point, [1.0, 0.5], epsilon = 1e-3);
     approx::assert_abs_diff_eq!(intersections[1].point, [0.5, 1.0], epsilon = 1e-3);

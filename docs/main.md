@@ -74,9 +74,9 @@ Since the "point" type is defined using the floating-point type `f64`, a lot of
 operations (i.e. intersection calculation) are prone to rounding-errors. These
 operations therefore require specifying an absolute tolerance `epsilon` and a
 maximum units in last place tolerance `max_ulps`, which are used as inputs
-for [`ulps_eq`] (from the [approxim] crate) to e.g. determine whether two points
+for [`relative_eq`] (from the [approxim] crate) to e.g. determine whether two points
 are approximately equal. It is recommended to use the "default" tolerances
-[`DEFAULT_EPSILON`] and [`DEFAULT_MAX_ULPS`] unless there is a good reason to
+[`DEFAULT_EPSILON`] and [`DEFAULT_MAX_RELATIVE`] unless there is a good reason to
 use other values.
 
 The following paragraphs will provide some examples for the aforementioned
@@ -95,19 +95,15 @@ use planar_geo::prelude::*;
 use std::f64::consts::{PI, FRAC_PI_2};
 use approx;
 
-// For brevity
-let e = DEFAULT_EPSILON;
-let m = DEFAULT_MAX_ULPS;
-
 // Construct an arc, a line and another arc using various constructors. These
 // constructors can fail for invalid input data, see the expect() strings.
 let first_arc =
-    ArcSegment::from_center_radius_start_offset_angle([1.5, 0.0], 1.5, PI, -FRAC_PI_2, e, m)
-        .expect("radius is positive and offset angle is not zero");
-let line = LineSegment::new([1.5, 1.5], [3.5, 1.5], e, m)
+    ArcSegment::from_center_radius_start_sweep_angle([1.5, 0.0], 1.5, PI, -FRAC_PI_2)
+        .expect("radius is positive and sweep angle is not zero");
+let line = LineSegment::new([1.5, 1.5], [3.5, 1.5])
     .expect("segment length is not zero");
-let second_arc = ArcSegment::from_start_center_angle([3.5, 1.5], [3.5, 0.0], -FRAC_PI_2, e, m)
-    .expect("radius is positive and offset angle is not zero");
+let second_arc = ArcSegment::from_start_center_angle([3.5, 1.5], [3.5, 0.0], -FRAC_PI_2)
+    .expect("radius is positive and sweep angle is not zero");
 
 // Build a polysegment from these three segments
 let mut polysegment = Polysegment::new();
@@ -164,10 +160,6 @@ of all [`Primitive`] and [`Composite`] types:
 use planar_geo::prelude::*;
 use std::f64::consts::PI;
 
-// For brevity
-let e = DEFAULT_EPSILON;
-let m = DEFAULT_MAX_ULPS;
-
 // Translate a point
 let mut pt = [2.0, 2.0];
 pt.translate([1.0, 2.0]);
@@ -175,7 +167,7 @@ pt.translate([1.0, 2.0]);
 assert_eq!(pt, [3.0, 4.0]);
 
 // Rotate a line segment
-let mut ls = LineSegment::new([1.0, 0.0], [2.0, 0.0], e, m).expect("points are not equal");
+let mut ls = LineSegment::new([1.0, 0.0], [2.0, 0.0]).expect("points are not equal");
 ls.rotate([1.0, 1.0], PI);
 
 approx::assert_abs_diff_eq!(ls.start(), [1.0, 2.0], epsilon = 1e-15);
@@ -217,27 +209,25 @@ _This image was created with examples/intersection_segments.rs_
 use planar_geo::prelude::*;
 use std::f64::consts::PI;
 
-// Abbreviated to make examples more concise
-let e = DEFAULT_EPSILON;
-let m = DEFAULT_MAX_ULPS;
-
-let line_1: Segment = LineSegment::new([0.0, 0.0], [3.0, 0.0], e, m)
+let line_1: Segment = LineSegment::new([0.0, 0.0], [3.0, 0.0])
     .expect("segment length is not zero").into();
-let line_2: Segment = LineSegment::new([2.0, -0.5], [2.0, 0.5], e, m)
+let line_2: Segment = LineSegment::new([2.0, -0.5], [2.0, 0.5])
     .expect("segment length is not zero").into();
-let arc: Segment = ArcSegment::from_center_radius_start_offset_angle(
+let arc: Segment = ArcSegment::from_center_radius_start_sweep_angle(
     [1.0, 0.0],
     0.5,
     -0.25*PI,
-    1.5*PI,
-    e,
-    m,
+    1.5*PI
 ).expect("offet angle is not zero").into();
 
 // Are the following points part of the respective segment?
 let pt1 = [2.3, 0.0];
 let pt2 = [2.0, 0.1];
 let pt3 = [1.0, 0.5];
+
+// Abbreviated to make examples more concise
+let e = DEFAULT_EPSILON;
+let m = DEFAULT_MAX_RELATIVE;
 
 assert!(line_1.covers_point(pt1, e, m));
 assert!(!line_1.covers_point(pt2, e, m));
@@ -271,7 +261,7 @@ crate:
 use planar_geo::prelude::*;
 
 let e = DEFAULT_EPSILON;
-let m = DEFAULT_MAX_ULPS;
+let m = DEFAULT_MAX_RELATIVE;
 
 let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
 let contour = Contour::new(Polysegment::from_points(vertices));

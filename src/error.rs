@@ -172,15 +172,10 @@ pub enum ErrorType {
     /// An arc can only be constructed from three points if these points are not
     /// collinear, i.e. are not on a single straight line.
     Collinear([[f64; 2]; 3]),
-    /// Tried to construct a segment from (almost) equal start and end points.
-    /// The equality is defined by approximate comparison using
-    /// [`approx::ulps_eq`], which is why both points are given.
-    PointsIdentical {
-        /// Start point of the failed segment construction attempt.
-        start: [f64; 2],
-        /// Stop / end point of the failed segment construction attempt.
-        stop: [f64; 2],
-    },
+    /// Tried to construct a segment from equal start and end points.
+    PointsIdentical,
+    /// Tried to construct a degenerate arc where the sweep angle would be zero.
+    ZeroArcSweep,
     /// Creating a new shape failed because of the contained
     /// [`ShapeConstructorError].
     NewShape(ShapeConstructorError<Vec<Contour>>),
@@ -196,11 +191,13 @@ impl std::fmt::Display for ErrorType {
             ErrorType::Collinear(pts) => {
                 write!(f, "given points {:?} are collinear.", pts)
             }
-            ErrorType::PointsIdentical { start, stop } => {
+            ErrorType::PointsIdentical => {
+                write!(f, "start and end points of the segment would be identical.",)
+            }
+            ErrorType::ZeroArcSweep => {
                 write!(
                     f,
-                    "start point {:?} and end point {:?} are identical",
-                    start, stop
+                    "sweep angle of zero would result in a degenerate arc segment.",
                 )
             }
             ErrorType::NewShape(err) => {

@@ -6,9 +6,7 @@ use planar_geo::prelude::*;
 
 #[test]
 fn test_segment_line() {
-    let line: Segment = LineSegment::new([0.0, 0.0], [1.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS)
-        .unwrap()
-        .into();
+    let line: Segment = LineSegment::new([0.0, 0.0], [1.0, 0.0]).unwrap().into();
     let mut style = Style::default();
     style.line_color = Color::new(0.0, 0.0, 0.0, 1.0);
     style.line_width = 3.0;
@@ -37,16 +35,10 @@ fn test_segment_line() {
 
 #[test]
 fn test_segment_arc() {
-    let line: Segment = ArcSegment::from_center_radius_start_offset_angle(
-        [0.0, 0.0],
-        1.0,
-        0.0,
-        FRAC_PI_2,
-        DEFAULT_EPSILON,
-        DEFAULT_MAX_ULPS,
-    )
-    .unwrap()
-    .into();
+    let line: Segment =
+        ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 1.0, 0.0, FRAC_PI_2)
+            .unwrap()
+            .into();
 
     let mut style = Style::default();
     style.line_color = Color::new(0.0, 0.0, 0.0, 1.0);
@@ -216,18 +208,15 @@ app
 */
 #[test]
 fn test_shape_and_text_separated() {
-    let e = planar_geo::DEFAULT_EPSILON;
-    let m = planar_geo::DEFAULT_MAX_ULPS;
-
     let mut polysegment = Polysegment::new();
     polysegment.push_back(
-        ArcSegment::fillet([0.0, 100.0], [0.0, 0.0], [100.0, 0.0], 50.0, e, m)
+        ArcSegment::fillet([0.0, 100.0], [0.0, 0.0], [100.0, 0.0], 50.0)
             .unwrap()
             .into(),
     );
     polysegment.extend_back([100.0, 0.0]);
     polysegment.push_back(
-        ArcSegment::fillet([100.0, 0.0], [0.0, 100.0], [0.0, 0.0], 10.0, e, m)
+        ArcSegment::fillet([100.0, 0.0], [0.0, 100.0], [0.0, 0.0], 10.0)
             .unwrap()
             .into(),
     );
@@ -274,18 +263,15 @@ fn test_shape_and_text_separated() {
 
 #[test]
 fn test_shape_scaled_text() {
-    let e = planar_geo::DEFAULT_EPSILON;
-    let m = planar_geo::DEFAULT_MAX_ULPS;
-
     let mut polysegment = Polysegment::new();
     polysegment.push_back(
-        ArcSegment::fillet([0.0, 100.0], [0.0, 0.0], [100.0, 0.0], 50.0, e, m)
+        ArcSegment::fillet([0.0, 100.0], [0.0, 0.0], [100.0, 0.0], 50.0)
             .unwrap()
             .into(),
     );
     polysegment.extend_back([100.0, 0.0]);
     polysegment.push_back(
-        ArcSegment::fillet([100.0, 0.0], [0.0, 100.0], [0.0, 0.0], 10.0, e, m)
+        ArcSegment::fillet([100.0, 0.0], [0.0, 100.0], [0.0, 0.0], 10.0)
             .unwrap()
             .into(),
     );
@@ -508,12 +494,9 @@ fn test_shape_scaled_text() {
 }
 
 fn setup_rotated_text() -> (Shape, Style, Viewport) {
-    let e = planar_geo::DEFAULT_EPSILON;
-    let m = planar_geo::DEFAULT_MAX_ULPS;
-
     let mut polysegment = Polysegment::new();
     polysegment.push_back(
-        ArcSegment::fillet([0.0, 100.0], [0.0, 0.0], [100.0, 0.0], 50.0, e, m)
+        ArcSegment::fillet([0.0, 100.0], [0.0, 0.0], [100.0, 0.0], 50.0)
             .unwrap()
             .into(),
     );
@@ -798,7 +781,7 @@ fn test_rotated_text_right() {
 //     let radii = vec![50.0, 0.0, 10.0];
 //     let contour = Contour::new(
 //         Polysegment::from_fillets(vertices, radii, true, DEFAULT_EPSILON,
-// DEFAULT_MAX_ULPS)             .unwrap(),
+// DEFAULT_MAX_RELATIVE)             .unwrap(),
 //     );
 //     let mut style = Style::new(
 //         Color::new(0.0, 0.0, 1.0, 1.0),
@@ -873,16 +856,10 @@ fn test_circle_in_square() {
     let verts = vec![[1.0, 1.0], [1.0, -1.0], [-1.0, -1.0], [-1.0, 1.0]];
     let contour = Contour::new(Polysegment::from_points(&verts));
 
-    let segment: Segment = ArcSegment::from_center_radius_start_offset_angle(
-        [0.0, 0.0],
-        0.5,
-        0.0,
-        TAU,
-        DEFAULT_EPSILON,
-        DEFAULT_MAX_ULPS,
-    )
-    .unwrap()
-    .into();
+    let segment: Segment =
+        ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 0.5, 0.0, TAU)
+            .unwrap()
+            .into();
     let hole = Contour::new(Polysegment::from_iter(vec![segment]));
     let shape = Shape::new(vec![contour, hole]).unwrap();
 
@@ -917,16 +894,10 @@ fn test_two_shapes() {
     let mut style_inner = Style::default();
     style_inner.background_color = Color::new(0.0, 0.0, 1.0, 1.0);
 
-    let segment: Segment = ArcSegment::from_center_radius_start_offset_angle(
-        [0.0, 0.0],
-        0.5,
-        0.0,
-        TAU,
-        DEFAULT_EPSILON,
-        DEFAULT_MAX_ULPS,
-    )
-    .unwrap()
-    .into();
+    let segment: Segment =
+        ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 0.5, 0.0, TAU)
+            .unwrap()
+            .into();
     let contour = Contour::new(Polysegment::from_iter(vec![segment]));
     let shape_inner = Shape::new(vec![contour]).unwrap();
 
@@ -964,16 +935,10 @@ fn test_two_shapes() {
 #[test]
 fn test_quarter_arc() {
     // Positive circle
-    let segment: Segment = ArcSegment::from_center_radius_start_offset_angle(
-        [0.0, 0.0],
-        0.5,
-        FRAC_PI_2,
-        FRAC_PI_2,
-        DEFAULT_EPSILON,
-        DEFAULT_MAX_ULPS,
-    )
-    .unwrap()
-    .into();
+    let segment: Segment =
+        ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 0.5, FRAC_PI_2, FRAC_PI_2)
+            .unwrap()
+            .into();
     let polysegment = Polysegment::from_iter(vec![segment]);
 
     let mut style = Style::default();
@@ -997,16 +962,10 @@ fn test_quarter_arc() {
     );
 
     // Negative circle
-    let segment: Segment = ArcSegment::from_center_radius_start_offset_angle(
-        [0.0, 0.0],
-        0.5,
-        -FRAC_PI_2,
-        -FRAC_PI_2,
-        DEFAULT_EPSILON,
-        DEFAULT_MAX_ULPS,
-    )
-    .unwrap()
-    .into();
+    let segment: Segment =
+        ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 0.5, -FRAC_PI_2, -FRAC_PI_2)
+            .unwrap()
+            .into();
     let contour = Contour::new(Polysegment::from_iter(vec![segment]));
     let shape = Shape::new(vec![contour]).unwrap();
     style.line_width = 3.0;
@@ -1031,27 +990,24 @@ fn test_quarter_arc() {
 
 #[test]
 fn test_block_with_fillets() {
-    let e = planar_geo::DEFAULT_EPSILON;
-    let m = planar_geo::DEFAULT_MAX_ULPS;
-
     let mut polysegment = Polysegment::new();
     polysegment.push_back(
-        ArcSegment::fillet([-10f64, 0.0], [10f64, 0.0], [10f64, 10f64], 1.0, e, m)
+        ArcSegment::fillet([-10f64, 0.0], [10f64, 0.0], [10f64, 10f64], 1.0)
             .unwrap()
             .into(),
     );
     polysegment.push_back(
-        ArcSegment::fillet([10f64, 0.0], [10f64, 10f64], [-10f64, 10f64], 1.0, e, m)
+        ArcSegment::fillet([10f64, 0.0], [10f64, 10f64], [-10f64, 10f64], 1.0)
             .unwrap()
             .into(),
     );
     polysegment.push_back(
-        ArcSegment::fillet([10f64, 10f64], [-10f64, 10f64], [-10f64, 0.0], 1.0, e, m)
+        ArcSegment::fillet([10f64, 10f64], [-10f64, 10f64], [-10f64, 0.0], 1.0)
             .unwrap()
             .into(),
     );
     polysegment.push_back(
-        ArcSegment::fillet([-10f64, 10f64], [-10f64, 0.0], [10f64, 0.0], 1.0, e, m)
+        ArcSegment::fillet([-10f64, 10f64], [-10f64, 0.0], [10f64, 0.0], 1.0)
             .unwrap()
             .into(),
     );
@@ -1136,9 +1092,6 @@ fn test_block_with_fillets() {
 #[test]
 fn test_line_style() {
     fn create_fn(cr: &cairo::Context) -> Result<(), cairo::Error> {
-        let e = DEFAULT_EPSILON;
-        let m = DEFAULT_MAX_ULPS;
-
         // Set the background to white
         cr.set_source_rgb(1.0, 1.0, 1.0);
         cr.paint()?;
@@ -1157,25 +1110,25 @@ fn test_line_style() {
         style.line_width = 2.0;
         style.line_cap = cairo::LineCap::Butt;
 
-        let segment = LineSegment::new([0.1, 0.5], [0.7, 0.5], e, m).unwrap();
+        let segment = LineSegment::new([0.1, 0.5], [0.7, 0.5]).unwrap();
         txt.text = "Solid".into();
         style.line_style = LineStyle::Solid;
         style.text = Some(Box::new(txt.clone()));
         segment.draw(&style, cr)?;
 
-        let segment = LineSegment::new([0.8, 0.5], [1.4, 0.5], e, m).unwrap();
+        let segment = LineSegment::new([0.8, 0.5], [1.4, 0.5]).unwrap();
         txt.text = "Dotted".into();
         style.line_style = LineStyle::Dotted;
         style.text = Some(Box::new(txt.clone()));
         segment.draw(&style, cr)?;
 
-        let segment = LineSegment::new([1.5, 0.5], [2.1, 0.5], e, m).unwrap();
+        let segment = LineSegment::new([1.5, 0.5], [2.1, 0.5]).unwrap();
         txt.text = "Dashed".into();
         style.line_style = LineStyle::default_dashed();
         style.text = Some(Box::new(txt.clone()));
         segment.draw(&style, cr)?;
 
-        let segment = LineSegment::new([2.2, 0.5], [2.8, 0.5], e, m).unwrap();
+        let segment = LineSegment::new([2.2, 0.5], [2.8, 0.5]).unwrap();
         txt.text = "None".into();
         style.line_style = LineStyle::None;
         style.text = Some(Box::new(txt.clone()));

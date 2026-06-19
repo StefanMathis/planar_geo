@@ -7,31 +7,26 @@ fn file_path(filename: &str) -> PathBuf {
 }
 
 fn main() {
-    let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_ULPS;
-
     let start = [0.0, 2.0];
     let stop = [2.0, 0.0];
     let radius: f64 = 2.0;
 
     // Counter-clockwise small arc (positive)
-    let mut red_arc =
-        ArcSegment::from_start_stop_radius(start, stop, radius, true, false, e, m).unwrap();
+    let mut red_arc = ArcSegment::from_start_stop_radius(start, stop, radius, true, false).unwrap();
     red_arc.line_reflection([0.0, 0.0], [1.0, 0.0]);
     let mut red_style = Style::default();
     red_style.line_color = Color::new(1.0, 0.0, 0.0, 1.0);
     red_style.line_width = 2.0;
 
     // Counter-clockwise large arc (positive)
-    let mut blue_arc =
-        ArcSegment::from_start_stop_radius(start, stop, radius, true, true, e, m).unwrap();
+    let mut blue_arc = ArcSegment::from_start_stop_radius(start, stop, radius, true, true).unwrap();
     blue_arc.line_reflection([0.0, 0.0], [1.0, 0.0]);
     let mut blue_style = Style::default();
     blue_style.line_color = Color::new(0.0, 0.0, 1.0, 1.0);
     blue_style.line_width = 2.0;
 
     let mut green_arc =
-        ArcSegment::from_start_stop_radius(start, stop, radius, false, false, e, m).unwrap();
+        ArcSegment::from_start_stop_radius(start, stop, radius, false, false).unwrap();
     green_arc.line_reflection([0.0, 0.0], [1.0, 0.0]);
     let mut green_style = Style::default();
     green_style.line_color = Color::new(0.0, 1.0, 0.0, 1.0);
@@ -39,7 +34,7 @@ fn main() {
 
     // Clockwise small arc (negative)
     let mut yellow_arc =
-        ArcSegment::from_start_stop_radius(start, stop, radius, false, true, e, m).unwrap();
+        ArcSegment::from_start_stop_radius(start, stop, radius, false, true).unwrap();
     yellow_arc.line_reflection([0.0, 0.0], [1.0, 0.0]);
     let mut yellow_style = Style::default();
     yellow_style.line_color = Color::new(1.0, 1.0, 0.0, 1.0);

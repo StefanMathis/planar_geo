@@ -5,18 +5,15 @@ use std::f64::consts::{FRAC_PI_2, PI, SQRT_2};
 fn test_new() {
     // Shape with fillets
     {
-        let e = planar_geo::DEFAULT_EPSILON;
-        let m = planar_geo::DEFAULT_MAX_ULPS;
-
         let mut polysegment = Polysegment::new();
         polysegment.push_back(
-            ArcSegment::fillet([0.0, 100.0], [0.0, 0.0], [100.0, 0.0], 50.0, e, m)
+            ArcSegment::fillet([0.0, 100.0], [0.0, 0.0], [100.0, 0.0], 50.0)
                 .unwrap()
                 .into(),
         );
         polysegment.extend_back([100.0, 0.0]);
         polysegment.push_back(
-            ArcSegment::fillet([100.0, 0.0], [0.0, 100.0], [0.0, 0.0], 10.0, e, m)
+            ArcSegment::fillet([100.0, 0.0], [0.0, 100.0], [0.0, 0.0], 10.0)
                 .unwrap()
                 .into(),
         );
@@ -191,9 +188,6 @@ fn test_add_hole_line_segments() {
 
 #[test]
 fn test_add_hole_arc_segments() {
-    let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_ULPS;
-
     {
         let pts = &[
             [0.5, 0.0],
@@ -223,13 +217,9 @@ fn test_add_hole_arc_segments() {
     }
     {
         let mut ps = Polysegment::new();
+        ps.push_back(LineSegment::new([0.0, 0.0], [0.0, 0.3]).unwrap().into());
         ps.push_back(
-            LineSegment::new([0.0, 0.0], [0.0, 0.3], e, m)
-                .unwrap()
-                .into(),
-        );
-        ps.push_back(
-            ArcSegment::from_center_radius_start_offset_angle([0.0, 0.5], 0.2, 1.5 * PI, PI, e, m)
+            ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.5], 0.2, 1.5 * PI, PI)
                 .unwrap()
                 .into(),
         );
@@ -318,14 +308,14 @@ fn test_rectangle_with_hole() {
 
     let shape = Shape::new(vec![c1, c2]).unwrap();
 
-    assert!(shape.covers_point([0.0, 0.0], DEFAULT_EPSILON, 0));
-    assert!(shape.covers_point([0.1, 0.1], DEFAULT_EPSILON, 0));
-    assert!(!shape.covers_point([0.11, 0.11], DEFAULT_EPSILON, 0));
-    assert!(shape.covers_point([0.11, 0.11], 0.2, 0));
-    assert!(!shape.covers_point([0.5, 0.5], DEFAULT_EPSILON, 0));
-    assert!(!shape.covers_point([0.0, -0.05], DEFAULT_EPSILON, 0));
-    assert!(shape.covers_point([0.0, -0.05], 0.05, 0));
-    assert!(!shape.covers_point([0.0, -0.05], 0.02, 0));
+    assert!(shape.covers_point([0.0, 0.0], DEFAULT_EPSILON, 0.0));
+    assert!(shape.covers_point([0.1, 0.1], DEFAULT_EPSILON, 0.0));
+    assert!(!shape.covers_point([0.11, 0.11], DEFAULT_EPSILON, 0.0));
+    assert!(shape.covers_point([0.11, 0.11], 0.2, 0.0));
+    assert!(!shape.covers_point([0.5, 0.5], DEFAULT_EPSILON, 0.0));
+    assert!(!shape.covers_point([0.0, -0.05], DEFAULT_EPSILON, 0.0));
+    assert!(shape.covers_point([0.0, -0.05], 0.05, 0.0));
+    assert!(!shape.covers_point([0.0, -0.05], 0.02, 0.0));
 }
 
 #[test]
@@ -347,15 +337,16 @@ fn test_intersection_with_polysegment() {
         [0.0, 2.0],
     ]);
 
-    let intersections_sc = shape.intersections(&polysegment, DEFAULT_EPSILON, DEFAULT_MAX_ULPS);
-    let mut intersections_cs = polysegment.intersections(&shape, DEFAULT_EPSILON, DEFAULT_MAX_ULPS);
+    let intersections_sc = shape.intersections(&polysegment, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE);
+    let mut intersections_cs =
+        polysegment.intersections(&shape, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE);
     intersections_cs
         .iter_mut()
         .for_each(|i| *i = Intersection::switch(*i));
 
     fn slice_approx_contains(slice: &[Intersection], check: &Intersection) -> bool {
         for elem in slice {
-            if approx::ulps_eq!(elem, check) {
+            if approx::relative_eq!(elem, check) {
                 return true;
             }
         }
@@ -461,7 +452,7 @@ fn test_intersection_with_polysegment() {
         let vertices = &[[2.0, 1.0], [2.0, 0.5], [0.0, 0.5]];
         let polysegment = Polysegment::from_points(vertices);
 
-        let intersections = polysegment.intersections(&shape, 0.0, 0);
+        let intersections = polysegment.intersections(&shape, 0.0, 0.0);
         assert_eq!(intersections.len(), 4);
 
         approx::assert_abs_diff_eq!(
@@ -517,7 +508,7 @@ fn test_centroid() {
 #[test]
 fn test_covers_shape() {
     let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_ULPS;
+    let m = DEFAULT_MAX_RELATIVE;
     {
         let c = Contour::new(Polysegment::from_points(&[
             [0.0, 0.0],
@@ -615,7 +606,7 @@ fn test_covers_shape() {
 #[test]
 fn test_covers_point() {
     let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_ULPS;
+    let m = DEFAULT_MAX_RELATIVE;
 
     {
         let c = Contour::new(Polysegment::from_points(&[
@@ -640,7 +631,7 @@ fn test_covers_point() {
 #[test]
 fn test_contains_point() {
     let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_ULPS;
+    let m = DEFAULT_MAX_RELATIVE;
 
     {
         let c = Contour::new(Polysegment::from_points(&[
@@ -665,7 +656,7 @@ fn test_contains_point() {
 #[test]
 fn test_contains_shape() {
     let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_ULPS;
+    let m = DEFAULT_MAX_RELATIVE;
     {
         let c = Contour::new(Polysegment::from_points(&[
             [0.0, 0.0],
@@ -747,7 +738,7 @@ fn test_contains_shape() {
 #[test]
 fn test_overlaps_segment() {
     let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_ULPS;
+    let m = DEFAULT_MAX_RELATIVE;
     {
         let outer = Contour::new(Polysegment::from_points(&[
             [0.0, 0.0],
@@ -763,50 +754,25 @@ fn test_overlaps_segment() {
         ]));
         let shape = Shape::new(vec![outer, hole]).unwrap();
 
-        assert!(shape.overlaps_segment(
-            &LineSegment::new([0.0, 0.0], [1.0, 1.0], e, m).unwrap(),
-            e,
-            m
-        ));
-        assert!(shape.overlaps_segment(
-            &LineSegment::new([-1.0, -1.0], [2.0, 2.0], e, m).unwrap(),
-            e,
-            m
-        ));
-        assert!(!shape.overlaps_segment(
-            &LineSegment::new([0.2, 0.2], [0.8, 0.8], e, m).unwrap(),
-            e,
-            m
-        ));
-        assert!(!shape.overlaps_segment(
-            &LineSegment::new([0.1, 0.1], [0.9, 0.9], e, m).unwrap(),
-            e,
-            m
-        ));
+        assert!(shape.overlaps_segment(&LineSegment::new([0.0, 0.0], [1.0, 1.0]).unwrap(), e, m));
+        assert!(shape.overlaps_segment(&LineSegment::new([-1.0, -1.0], [2.0, 2.0]).unwrap(), e, m));
+        assert!(!shape.overlaps_segment(&LineSegment::new([0.2, 0.2], [0.8, 0.8]).unwrap(), e, m));
+        assert!(!shape.overlaps_segment(&LineSegment::new([0.1, 0.1], [0.9, 0.9]).unwrap(), e, m));
         assert!(
             shape.overlaps_segment(
-                &ArcSegment::from_center_radius_start_offset_angle(
-                    [0.1, 0.1],
-                    0.9,
-                    0.0,
-                    FRAC_PI_2,
-                    e,
-                    m
-                )
-                .unwrap(),
+                &ArcSegment::from_center_radius_start_sweep_angle([0.1, 0.1], 0.9, 0.0, FRAC_PI_2,)
+                    .unwrap(),
                 e,
                 m
             )
         );
         assert!(
             !shape.overlaps_segment(
-                &ArcSegment::from_center_radius_start_offset_angle(
+                &ArcSegment::from_center_radius_start_sweep_angle(
                     [0.1, 0.1],
                     SQRT_2,
                     0.0,
                     FRAC_PI_2,
-                    e,
-                    m
                 )
                 .unwrap(),
                 e,
@@ -815,28 +781,19 @@ fn test_overlaps_segment() {
         );
         assert!(
             !shape.overlaps_segment(
-                &ArcSegment::from_center_radius_start_offset_angle(
-                    [0.1, 0.1],
-                    0.8,
-                    0.0,
-                    FRAC_PI_2,
-                    e,
-                    m
-                )
-                .unwrap(),
+                &ArcSegment::from_center_radius_start_sweep_angle([0.1, 0.1], 0.8, 0.0, FRAC_PI_2,)
+                    .unwrap(),
                 e,
                 m
             )
         );
         assert!(
             shape.overlaps_segment(
-                &ArcSegment::from_center_radius_start_offset_angle(
+                &ArcSegment::from_center_radius_start_sweep_angle(
                     [0.1, 0.1],
                     0.8,
                     -0.1,
                     FRAC_PI_2,
-                    e,
-                    m
                 )
                 .unwrap(),
                 e,
@@ -845,13 +802,11 @@ fn test_overlaps_segment() {
         );
         assert!(
             shape.overlaps_segment(
-                &ArcSegment::from_center_radius_start_offset_angle(
+                &ArcSegment::from_center_radius_start_sweep_angle(
                     [0.1, 0.1],
                     0.8,
                     -0.1,
                     FRAC_PI_2 + 0.2,
-                    e,
-                    m
                 )
                 .unwrap(),
                 e,
@@ -864,7 +819,7 @@ fn test_overlaps_segment() {
 #[test]
 fn test_overlaps_contour() {
     let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_ULPS;
+    let m = DEFAULT_MAX_RELATIVE;
     {
         let outer = Contour::new(Polysegment::from_points(&[
             [0.0, 0.0],
@@ -946,7 +901,7 @@ fn test_overlaps_contour() {
 #[test]
 fn test_overlaps_shape() {
     let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_ULPS;
+    let m = DEFAULT_MAX_RELATIVE;
     {
         let outer = Contour::new(Polysegment::from_points(&[
             [0.0, 0.0],

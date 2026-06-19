@@ -17,14 +17,14 @@ modify the components. -->
 [`Geometry`]: https://docs.rs/planar_geo/{{VERSION}}/planar_geo/geometry/enum.Geometry.html
 [`intersections`]: https://docs.rs/planar_geo/{{VERSION}}/planar_geo/geometry/enum.GeometryRef.html#method.intersections
 [`DEFAULT_EPSILON`]: https://docs.rs/planar_geo/{{VERSION}}/planar_geo/constant.DEFAULT_EPSILON.html
-[`DEFAULT_MAX_ULPS`]: https://docs.rs/planar_geo/{{VERSION}}/planar_geo/constant.DEFAULT_MAX_ULPS.html
+[`DEFAULT_MAX_RELATIVE`]: https://docs.rs/planar_geo/{{VERSION}}/planar_geo/constant.DEFAULT_MAX_RELATIVE.html
 [crate_index]: https://docs.rs/planar_geo/{{VERSION}}/planar_geo/.
 [draw]: https://docs.rs/planar_geo/{{VERSION}}/planar_geo/draw/index.html.
 [`Context`]: https://gtk-rs.org/gtk-rs-core/stable/latest/docs/cairo/struct.Context.html
 [gtk-rs]: https://gtk-rs.org/gtk-rs-core/stable/latest/docs/cairo
 [approxim]: https://docs.rs/approxim/latest/approxim/
 [serde]: https://serde.rs/
-[`ulps_eq`]: https://docs.rs/approxim/latest/approxim/macro.ulps_eq.html
+[`relative_eq`]: https://docs.rs/approxim/latest/approxim/macro.relative_eq.html
 [intersection_composites.svg]: https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/docs/img/intersection_composites.svg
 [intersection_segments.svg]: https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/docs/img/intersection_segments.svg
 [shape.svg]: https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/docs/img/shape.svg

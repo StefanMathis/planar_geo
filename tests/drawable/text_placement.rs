@@ -4,9 +4,6 @@ use planar_geo::prelude::*;
 #[test]
 fn test_text_placement() {
     fn create_fn() -> Box<dyn FnOnce(&cairo::Context) -> Result<(), cairo::Error>> {
-        let e = DEFAULT_EPSILON;
-        let m = DEFAULT_MAX_ULPS;
-
         let mut style = Style::default();
         style.line_color = Color::new(1.0, 0.5, 0.5, 1.0);
         style.background_color = Color::new(0.0, 0.0, 0.0, 0.0);
@@ -26,9 +23,9 @@ fn test_text_placement() {
 
         // A cross on the right of the contour which shows placement of standalone texts
         let cc = [2.5, 0.5];
-        let hori = LineSegment::new([cc[0] - 0.2, cc[1]], [cc[0] + 0.2, cc[1]], e, m)
+        let hori = LineSegment::new([cc[0] - 0.2, cc[1]], [cc[0] + 0.2, cc[1]])
             .expect("points not identical");
-        let vert = LineSegment::new([cc[0], cc[1] - 0.2], [cc[0], cc[1] + 0.2], e, m)
+        let vert = LineSegment::new([cc[0], cc[1] - 0.2], [cc[0], cc[1] + 0.2])
             .expect("points not identical");
 
         let drawing_fn = move |cr: &cairo::Context| {

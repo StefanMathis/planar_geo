@@ -16,7 +16,7 @@ use crate::composite::{Composite, Intersection, SegmentKey};
 use crate::error::ShapeConstructorError;
 use crate::polysegment::Polysegment;
 use crate::segment::SegmentRef;
-use crate::{DEFAULT_EPSILON, DEFAULT_MAX_ULPS};
+use crate::{DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE};
 use crate::{Transformation, contour::Contour};
 use bounding_box::{BoundingBox, ToBoundingBox};
 use rayon::prelude::*;
@@ -147,7 +147,7 @@ impl Shape {
 
         let outer = this.contour();
         for (first_hole_idx, first_hole) in this.holes().iter().enumerate() {
-            if !outer.contains_contour(&first_hole, DEFAULT_EPSILON, DEFAULT_MAX_ULPS) {
+            if !outer.contains_contour(&first_hole, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE) {
                 return Err(ShapeConstructorError::HoleOutsideContour {
                     input: this.0,
                     idx: first_hole_idx + 1, // First element of this.0 is the outer contour.
@@ -157,14 +157,14 @@ impl Shape {
             for (second_hole_idx, second_hole) in
                 this.holes()[(first_hole_idx + 1)..].iter().enumerate()
             {
-                if first_hole.contains_contour(second_hole, DEFAULT_EPSILON, DEFAULT_MAX_ULPS) {
+                if first_hole.contains_contour(second_hole, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE) {
                     return Err(ShapeConstructorError::HoleInsideHole {
                         input: this.0,
                         outer_hole_idx: first_hole_idx,
                         inner_hole_idx: second_hole_idx,
                     });
                 }
-                if second_hole.contains_contour(first_hole, DEFAULT_EPSILON, DEFAULT_MAX_ULPS) {
+                if second_hole.contains_contour(first_hole, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE) {
                     return Err(ShapeConstructorError::HoleInsideHole {
                         input: this.0,
                         outer_hole_idx: second_hole_idx,
@@ -176,7 +176,7 @@ impl Shape {
 
         // Check if the shape intersects itself
         if let Some(intersection) = this
-            .intersections_shape_par(&this, DEFAULT_EPSILON, DEFAULT_MAX_ULPS)
+            .intersections_shape_par(&this, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
             .find_map_any(|v| Some(v))
         {
             return Err(ShapeConstructorError::Intersection {
@@ -221,7 +221,7 @@ impl Shape {
             });
         }
         if let Some(i) = outer
-            .intersections_contour_par(&outer, DEFAULT_EPSILON, DEFAULT_MAX_ULPS)
+            .intersections_contour_par(&outer, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
             .find_map_any(|v| Some(v))
         {
             return Err(ShapeConstructorError::Intersection {
@@ -361,7 +361,7 @@ impl Shape {
         }
 
         let outer = self.contour();
-        if !outer.contains_contour(&hole, DEFAULT_EPSILON, DEFAULT_MAX_ULPS) {
+        if !outer.contains_contour(&hole, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE) {
             return Err(ShapeConstructorError::HoleOutsideContour {
                 input: hole,
                 idx: 0, // Dummy value
@@ -369,14 +369,14 @@ impl Shape {
         }
 
         for (shape_hole_idx, shape_hole) in self.holes().iter().enumerate() {
-            if hole.contains_contour(shape_hole, DEFAULT_EPSILON, DEFAULT_MAX_ULPS) {
+            if hole.contains_contour(shape_hole, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE) {
                 return Err(ShapeConstructorError::HoleInsideHole {
                     input: hole,
                     outer_hole_idx: shape_hole_idx,
                     inner_hole_idx: 0,
                 });
             }
-            if shape_hole.contains_contour(&hole, DEFAULT_EPSILON, DEFAULT_MAX_ULPS) {
+            if shape_hole.contains_contour(&hole, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE) {
                 return Err(ShapeConstructorError::HoleInsideHole {
                     input: hole,
                     outer_hole_idx: 0,
@@ -386,7 +386,7 @@ impl Shape {
         }
 
         if let Some(intersection) = self
-            .intersections_contour_par(&hole, DEFAULT_EPSILON, DEFAULT_MAX_ULPS)
+            .intersections_contour_par(&hole, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
             .find_map_any(|v| Some(v))
         {
             return Err(ShapeConstructorError::Intersection {
@@ -486,7 +486,7 @@ impl Composite for Shape {
         &'a self,
         polysegment: &'a crate::prelude::Polysegment,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> impl Iterator<Item = Intersection> + 'a {
         self.contours()
             .iter()
@@ -494,7 +494,7 @@ impl Composite for Shape {
             .flat_map(move |(c1, contour_1)| {
                 contour_1
                     .polysegment()
-                    .intersections_polysegment(polysegment, epsilon, max_ulps)
+                    .intersections_polysegment(polysegment, epsilon, max_relative)
                     .map(move |i| Intersection {
                         point: i.point,
                         left: SegmentKey {
@@ -510,7 +510,7 @@ impl Composite for Shape {
         &'a self,
         polysegment: &'a crate::prelude::Polysegment,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> impl ParallelIterator<Item = Intersection> + 'a {
         self.contours()
             .par_iter()
@@ -518,7 +518,7 @@ impl Composite for Shape {
             .flat_map(move |(c1, contour_1)| {
                 contour_1
                     .polysegment()
-                    .intersections_polysegment_par(polysegment, epsilon, max_ulps)
+                    .intersections_polysegment_par(polysegment, epsilon, max_relative)
                     .map(move |i| Intersection {
                         point: i.point,
                         left: SegmentKey {
@@ -534,7 +534,7 @@ impl Composite for Shape {
         &'a self,
         shape: &'a Shape,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> impl Iterator<Item = Intersection> + 'a {
         self.contours()
             .iter()
@@ -546,7 +546,7 @@ impl Composite for Shape {
                     .enumerate()
                     .map(move |(idx_2, contour_2)| {
                         contour_1
-                            .intersections_contour(contour_2, epsilon, max_ulps)
+                            .intersections_contour(contour_2, epsilon, max_relative)
                             .map(move |i| Intersection {
                                 point: i.point,
                                 left: SegmentKey {
@@ -567,7 +567,7 @@ impl Composite for Shape {
         &'a self,
         shape: &'a Shape,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> impl ParallelIterator<Item = Intersection> + 'a {
         self.contours()
             .par_iter()
@@ -579,7 +579,7 @@ impl Composite for Shape {
                     .enumerate()
                     .map(move |(idx_2, contour_2)| {
                         contour_1
-                            .intersections_contour_par(contour_2, epsilon, max_ulps)
+                            .intersections_contour_par(contour_2, epsilon, max_relative)
                             .map(move |i| Intersection {
                                 point: i.point,
                                 left: SegmentKey {
@@ -600,13 +600,13 @@ impl Composite for Shape {
         &'a self,
         other: &'a T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> impl Iterator<Item = Intersection> + 'a
     where
         Self: Sized,
     {
         return other
-            .intersections_shape(self, epsilon, max_ulps)
+            .intersections_shape(self, epsilon, max_relative)
             .map(Intersection::switch);
     }
 
@@ -614,23 +614,23 @@ impl Composite for Shape {
         &'a self,
         other: &'a T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> impl ParallelIterator<Item = Intersection> + 'a
     where
         Self: Sized,
     {
         return other
-            .intersections_shape_par(self, epsilon, max_ulps)
+            .intersections_shape_par(self, epsilon, max_relative)
             .map(Intersection::switch);
     }
 
-    fn covers_point(&self, point: [f64; 2], epsilon: f64, max_ulps: u32) -> bool {
+    fn covers_point(&self, point: [f64; 2], epsilon: f64, max_relative: f64) -> bool {
         self.contours().par_iter().enumerate().all(|(i, c)| {
             if i == 0 {
                 // Special handling of outer contour
-                c.covers_point(point, epsilon, max_ulps)
+                c.covers_point(point, epsilon, max_relative)
             } else {
-                !c.contains_point(point, epsilon, max_ulps)
+                !c.contains_point(point, epsilon, max_relative)
             }
         })
     }
@@ -639,26 +639,26 @@ impl Composite for Shape {
         &self,
         segment: T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> bool {
         let segment: SegmentRef = segment.into();
         self.contours().par_iter().enumerate().all(|(i, c)| {
             if i == 0 {
                 // Special handling of outer contour
-                c.covers_segment(segment.clone(), epsilon, max_ulps)
+                c.covers_segment(segment.clone(), epsilon, max_relative)
             } else {
-                !c.contains_segment(segment.clone(), epsilon, max_ulps)
+                !c.contains_segment(segment.clone(), epsilon, max_relative)
             }
         })
     }
 
-    fn contains_point(&self, point: [f64; 2], epsilon: f64, max_ulps: u32) -> bool {
+    fn contains_point(&self, point: [f64; 2], epsilon: f64, max_relative: f64) -> bool {
         self.contours().par_iter().enumerate().all(|(i, c)| {
             if i == 0 {
                 // Special handling of outer contour
-                c.contains_point(point, epsilon, max_ulps)
+                c.contains_point(point, epsilon, max_relative)
             } else {
-                !c.covers_point(point, epsilon, max_ulps)
+                !c.covers_point(point, epsilon, max_relative)
             }
         })
     }
@@ -667,15 +667,15 @@ impl Composite for Shape {
         &self,
         segment: T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> bool {
         let segment: SegmentRef = segment.into();
         self.contours().par_iter().enumerate().all(|(i, c)| {
             if i == 0 {
                 // Special handling of outer contour
-                c.contains_segment(segment.clone(), epsilon, max_ulps)
+                c.contains_segment(segment.clone(), epsilon, max_relative)
             } else {
-                !c.covers_segment(segment.clone(), epsilon, max_ulps)
+                !c.covers_segment(segment.clone(), epsilon, max_relative)
             }
         })
     }
@@ -684,31 +684,31 @@ impl Composite for Shape {
         &'a self,
         other: &'a T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> bool
     where
         Self: Sized,
     {
-        return other.covers_shape(self, epsilon, max_ulps);
+        return other.covers_shape(self, epsilon, max_relative);
     }
 
     fn contains_composite<'a, T: Composite>(
         &'a self,
         other: &'a T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> bool
     where
         Self: Sized,
     {
-        return other.contains_shape(self, epsilon, max_ulps);
+        return other.contains_shape(self, epsilon, max_relative);
     }
 
     fn overlaps_segment<'a, T: Into<SegmentRef<'a>>>(
         &self,
         segment: T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> bool {
         let segment: SegmentRef = segment.into();
         /*
@@ -717,47 +717,50 @@ impl Composite for Shape {
          */
         if !self
             .contour()
-            .overlaps_segment(segment.clone(), epsilon, max_ulps)
+            .overlaps_segment(segment.clone(), epsilon, max_relative)
         {
             return false;
         }
         for hole in self.holes() {
-            if hole.covers_segment(segment.clone(), epsilon, max_ulps) {
+            if hole.covers_segment(segment.clone(), epsilon, max_relative) {
                 return false;
             }
         }
         return true;
     }
 
-    fn overlaps_contour(&self, contour: &Contour, epsilon: f64, max_ulps: u32) -> bool {
+    fn overlaps_contour(&self, contour: &Contour, epsilon: f64, max_relative: f64) -> bool {
         // If other either not overlaps the outer contour of the shape or if it
         // is completely covered by one of the holes, then there is no overlap
 
-        if !(self.contour().overlaps_contour(contour, epsilon, max_ulps)) {
+        if !(self
+            .contour()
+            .overlaps_contour(contour, epsilon, max_relative))
+        {
             return false;
         }
 
         for hole in self.holes() {
-            if hole.covers_contour(contour, epsilon, max_ulps) {
+            if hole.covers_contour(contour, epsilon, max_relative) {
                 return false;
             }
         }
         return true;
     }
 
-    fn overlaps_shape(&self, other: &Self, epsilon: f64, max_ulps: u32) -> bool {
+    fn overlaps_shape(&self, other: &Self, epsilon: f64, max_relative: f64) -> bool {
         return std::ptr::eq(self, other)
-            || (self.overlaps_contour(other.contour(), epsilon, max_ulps)
-                && other.overlaps_contour(self.contour(), epsilon, max_ulps));
+            || (self.overlaps_contour(other.contour(), epsilon, max_relative)
+                && other.overlaps_contour(self.contour(), epsilon, max_relative));
     }
 
     fn overlaps_composite<'a, T: Composite>(
         &'a self,
         other: &'a T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> bool {
-        return other.overlaps_shape(self, epsilon, max_ulps);
+        return other.overlaps_shape(self, epsilon, max_relative);
     }
 }
 

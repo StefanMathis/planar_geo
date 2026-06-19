@@ -16,9 +16,8 @@ use std::collections::VecDeque;
 
 use crate::primitive::Primitive;
 use crate::segment::{ArcSegment, LineSegment, Segment, SegmentRef};
-use crate::{DEFAULT_EPSILON, DEFAULT_MAX_ULPS};
 use crate::{Transformation, composite::*};
-use approx::ulps_eq;
+use approx::relative_eq;
 use bounding_box::{BoundingBox, ToBoundingBox};
 use rayon::prelude::*;
 
@@ -27,8 +26,7 @@ use serde::{Deserialize, Serialize};
 
 /**
 A sequence of [`Segment`]s where each segment is "connected" to its successor
-(end / stop point of a segment is approximately equal to the start point of the
-successor).
+(end / stop point of a segment is equal to the start point of the successor).
 
 */
 #[doc = ""]
@@ -46,13 +44,6 @@ successor).
 )]
 /**
 
-The approximate equality of start and end point is defined by
-[`DEFAULT_EPSILON`] and [`DEFAULT_MAX_ULPS`]:
-
-```ignore
-approx::ulps_eq!(polysegment[i].stop(), polysegment[i+1].start(), epsilon = DEFAULT_EPSILON, max_ulps = DEFAULT_MAX_ULPS)
-```
-
 A polysegment can intersect itself (i.e. at least two of its segments
 intersect each other). This can be tested using its [`Composite`] trait
 implementation:
@@ -61,7 +52,7 @@ implementation:
 use planar_geo::prelude::*;
 
 let polysegment = Polysegment::from_points(&[[0.0, 0.0], [2.0, 2.0], [0.0, 2.0], [2.0, 0.0]]);
-assert_eq!(polysegment.intersections_polysegment(&polysegment, 0.0, 0).count(), 1);
+assert_eq!(polysegment.intersections_polysegment(&polysegment, 0.0, 0.0).count(), 1);
 ```
 
 # Constructing a polysegment
@@ -112,7 +103,7 @@ representation as a [`VecDeque`].
  */
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct Polysegment(VecDeque<Segment>);
+pub struct Polysegment(pub(crate) VecDeque<Segment>);
 
 impl Polysegment {
     /**
@@ -148,9 +139,7 @@ impl Polysegment {
 
     /**
     Creates an [`Polysegment`] of [`LineSegment`]s from the given points.
-    If two consecutive points are equal (within the tolerances defined by
-    [`DEFAULT_EPSILON`] and [`DEFAULT_MAX_ULPS`]), they are treated as a single
-    vertex.
+    If two consecutive points are equal, they are treated as a single point.
 
     # Examples
 
@@ -180,7 +169,7 @@ impl Polysegment {
                 None => (),
             }
 
-            if let Ok(ls) = LineSegment::new(start, stop, DEFAULT_EPSILON, DEFAULT_MAX_ULPS) {
+            if let Ok(ls) = LineSegment::new(start, stop) {
                 segments.push_back(ls.into());
             }
         }
@@ -213,8 +202,6 @@ impl Polysegment {
     /// use planar_geo::prelude::*;
     /// use approx;
     ///
-    /// let e = DEFAULT_EPSILON;
-    /// let m = DEFAULT_MAX_ULPS;
     /// let polysegment = Polysegment::from_fillet_chain(
     ///    &[
     ///         [0.0, 0.0],
@@ -228,17 +215,13 @@ impl Polysegment {
     /// );
     /// approx::assert_abs_diff_eq!(
     ///     polysegment.get(0),
-    ///     Some(
-    ///         &(LineSegment::new([0.0, 0.0], [0.5, 0.0], e, m)
-    ///             .unwrap()
-    ///              .into())
-    ///     ),
+    ///     Some(&(LineSegment::new([0.0, 0.0], [0.5, 0.0]).unwrap().into())),
     ///     epsilon = 1e-8
     /// );
     /// approx::assert_abs_diff_eq!(
     ///     polysegment.get(1),
     ///     Some(
-    ///         &(ArcSegment::from_start_center_angle([0.5, 0.0], [0.5, 0.5], FRAC_PI_2, e, m)
+    ///         &(ArcSegment::from_start_center_angle([0.5, 0.0], [0.5, 0.5], FRAC_PI_2)
     ///             .unwrap()
     ///             .into())
     ///     ),
@@ -246,41 +229,39 @@ impl Polysegment {
     /// );
     /// approx::assert_abs_diff_eq!(
     ///     polysegment.get(2),
-    ///     Some(
-    ///         &(LineSegment::new([1.0, 0.5], [0.75, 0.5], e, m)
-    ///             .unwrap()
-    ///              .into())
-    ///     ),
+    ///     Some(&LineSegment::new([1.0, 0.5], [0.75, 0.5]).unwrap().into()),
     ///     epsilon = 1e-8
     /// );
     /// approx::assert_abs_diff_eq!(
     ///     polysegment.get(3),
     ///     Some(
-    ///         &(ArcSegment::from_start_center_angle([0.75, 0.5], [0.75, 0.75], -FRAC_PI_2, e, m)
+    ///         &(ArcSegment::from_start_center_angle([0.75, 0.5], [0.75, 0.75], -FRAC_PI_2)
     ///             .unwrap()
     ///             .into())
     ///     ),
     ///     epsilon = 1e-8
     /// );
+    /// // "Glue segment" between two adjacent arcs
     /// approx::assert_abs_diff_eq!(
     ///     polysegment.get(4),
-    ///     Some(
-    ///         &(ArcSegment::from_start_center_angle([0.5, 0.75], [0.25, 0.75], FRAC_PI_2, e, m)
-    ///             .unwrap()
-    ///             .into())
-    ///     ),
+    ///     Some(&LineSegment::new([0.5000000000000006, 0.75], [0.5000000000000006, 0.7499999999999999]).unwrap().into()),
     ///     epsilon = 1e-8
     /// );
     /// approx::assert_abs_diff_eq!(
     ///     polysegment.get(5),
     ///     Some(
-    ///         &(LineSegment::new([0.25, 1.0], [0.0, 1.0], e, m)
+    ///         &(ArcSegment::from_start_center_angle([0.5, 0.75], [0.25, 0.75], FRAC_PI_2)
     ///             .unwrap()
-    ///              .into())
+    ///             .into())
     ///     ),
     ///     epsilon = 1e-8
     /// );
-    /// assert_eq!(polysegment.len(), 6);
+    /// approx::assert_abs_diff_eq!(
+    ///     polysegment.get(6),
+    ///     Some(&(LineSegment::new([0.25, 1.0], [0.0, 1.0]).unwrap().into())),
+    ///     epsilon = 1e-8
+    /// );
+    /// assert_eq!(polysegment.len(), 7);
     /// ```
     pub fn from_fillet_chain(points: &[[f64; 2]], radii: &[f64]) -> Self {
         return Self::from_iter(Segment::fillet_chain(points, radii));
@@ -308,12 +289,7 @@ impl Polysegment {
     pub fn close(&mut self) -> () {
         if let Some(start) = self.0.front() {
             if let Some(stop) = self.0.back() {
-                if let Ok(ls) = LineSegment::new(
-                    stop.stop(),
-                    start.start(),
-                    DEFAULT_EPSILON,
-                    DEFAULT_MAX_ULPS,
-                ) {
+                if let Ok(ls) = LineSegment::new(stop.stop(), start.start()) {
                     self.0.push_back(ls.into())
                 }
             }
@@ -351,9 +327,8 @@ impl Polysegment {
 
     If the polysegment already has a "back" segment ([`Polysegment::back`] returns
     [`Some`]), the start point of `segment` is compared to the stop point of
-    the back segment. If they aren't equal within the tolerances defined by
-    [`DEFAULT_EPSILON`] and [`DEFAULT_MAX_ULPS`], a filler line segment is
-    inserted between the two.
+    the back segment. If they aren't equal, a filler line segment is inserted
+    between the two.
 
     # Examples
 
@@ -363,24 +338,22 @@ impl Polysegment {
     let mut polysegment = Polysegment::new();
     assert_eq!(polysegment.len(), 0);
 
-    polysegment.push_back(LineSegment::new([0.0, 0.0], [1.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap().into());
+    polysegment.push_back(LineSegment::new([0.0, 0.0], [1.0, 0.0]).unwrap().into());
     assert_eq!(polysegment.len(), 1);
 
     // The start point of this segment matches the stop point of the already
     // inserted segment
-    polysegment.push_back(LineSegment::new([1.0, 0.0], [1.0, 1.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap().into());
+    polysegment.push_back(LineSegment::new([1.0, 0.0], [1.0, 1.0]).unwrap().into());
     assert_eq!(polysegment.len(), 2);
 
     // Start and stop point don't match -> A filler segment is introduced
-    polysegment.push_back(LineSegment::new([2.0, 1.0], [2.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap().into());
+    polysegment.push_back(LineSegment::new([2.0, 1.0], [2.0, 0.0]).unwrap().into());
     assert_eq!(polysegment.len(), 4);
     ```
      */
     pub fn push_back(&mut self, segment: Segment) {
         if let Some(stop) = self.back().map(Segment::stop) {
-            if let Ok(ls) =
-                LineSegment::new(stop, segment.start(), DEFAULT_EPSILON, DEFAULT_MAX_ULPS)
-            {
+            if let Ok(ls) = LineSegment::new(stop, segment.start()) {
                 self.0.push_back(ls.into());
             }
         }
@@ -392,9 +365,8 @@ impl Polysegment {
 
     If the polysegment already has a "front" segment ([`Polysegment::front`] returns
     [`Some`]), the stop point of `segment` is compared to the start point of
-    the front segment. If they aren't equal within the tolerances defined by
-    [`DEFAULT_EPSILON`] and [`DEFAULT_MAX_ULPS`], a filler line segment is
-    inserted between the two.
+    the front segment. If they aren't equal a filler line segment is inserted
+    between the two.
 
     # Examples
 
@@ -404,25 +376,23 @@ impl Polysegment {
     let mut polysegment = Polysegment::new();
     assert_eq!(polysegment.len(), 0);
 
-    polysegment.push_front(LineSegment::new([0.0, 0.0], [1.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap().into());
+    polysegment.push_front(LineSegment::new([0.0, 0.0], [1.0, 0.0]).unwrap().into());
     assert_eq!(polysegment.len(), 1);
 
     // The stop point of this segment matches the start point of the already
     // inserted segment
-    polysegment.push_front(LineSegment::new([0.0, 1.0], [0.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap().into());
+    polysegment.push_front(LineSegment::new([0.0, 1.0], [0.0, 0.0]).unwrap().into());
     assert_eq!(polysegment.len(), 2);
 
     // Start and stop point don't match -> A filler segment is introduced
-    polysegment.push_front(LineSegment::new([2.0, 1.0], [2.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap().into());
+    polysegment.push_front(LineSegment::new([2.0, 1.0], [2.0, 0.0]).unwrap().into());
     assert_eq!(polysegment.len(), 4);
     ```
      */
     pub fn push_front(&mut self, segment: Segment) {
         let opt_start = self.front().map(Segment::start);
         if let Some(start) = opt_start {
-            if let Ok(ls) =
-                LineSegment::new(segment.stop(), start, DEFAULT_EPSILON, DEFAULT_MAX_ULPS)
-            {
+            if let Ok(ls) = LineSegment::new(segment.stop(), start) {
                 self.0.push_front(ls.into());
             }
         }
@@ -440,7 +410,7 @@ impl Polysegment {
 
     let mut polysegment = Polysegment::new();
 
-    let ls: Segment = LineSegment::new([0.0, 0.0], [1.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap().into();
+    let ls: Segment = LineSegment::new([0.0, 0.0], [1.0, 0.0]).unwrap().into();
 
     polysegment.push_back(ls.clone());
     assert_eq!(polysegment.len(), 1);
@@ -463,7 +433,7 @@ impl Polysegment {
 
     let mut polysegment = Polysegment::new();
 
-    let ls: Segment = LineSegment::new([0.0, 0.0], [1.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap().into();
+    let ls: Segment = LineSegment::new([0.0, 0.0], [1.0, 0.0]).unwrap().into();
 
     polysegment.push_front(ls.clone());
     assert_eq!(polysegment.len(), 1);
@@ -484,7 +454,7 @@ impl Polysegment {
     use planar_geo::prelude::*;
 
     let polysegment = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]);
-    let ls: Segment = LineSegment::new([1.0, 0.0], [0.0, 1.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap().into();
+    let ls: Segment = LineSegment::new([1.0, 0.0], [0.0, 1.0]).unwrap().into();
 
     assert_eq!(polysegment.back(), Some(&ls));
     ```
@@ -502,7 +472,7 @@ impl Polysegment {
     use planar_geo::prelude::*;
 
     let polysegment = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]);
-    let ls: Segment = LineSegment::new([0.0, 0.0], [1.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap().into();
+    let ls: Segment = LineSegment::new([0.0, 0.0], [1.0, 0.0]).unwrap().into();
 
     assert_eq!(polysegment.front(), Some(&ls));
      */
@@ -529,7 +499,7 @@ impl Polysegment {
     assert_eq!(polysegment.len(), 0);
 
     // Now add a line
-    polysegment.push_back(LineSegment::new([1.0, 0.0], [1.0, 1.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap().into());
+    polysegment.push_back(LineSegment::new([1.0, 0.0], [1.0, 1.0]).unwrap().into());
     assert_eq!(polysegment.len(), 1);
 
     // Now adding the point works
@@ -540,7 +510,7 @@ impl Polysegment {
     pub fn extend_back(&mut self, point: [f64; 2]) {
         let endpoint = self.back().map(|s| s.stop());
         if let Some(endpoint) = endpoint {
-            if let Ok(ls) = LineSegment::new(endpoint, point, DEFAULT_EPSILON, DEFAULT_MAX_ULPS) {
+            if let Ok(ls) = LineSegment::new(endpoint, point) {
                 self.push_back(ls.into());
             }
         }
@@ -565,7 +535,7 @@ impl Polysegment {
     assert_eq!(polysegment.len(), 0);
 
     // Now add a line
-    polysegment.push_front(LineSegment::new([1.0, 0.0], [1.0, 1.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap().into());
+    polysegment.push_front(LineSegment::new([1.0, 0.0], [1.0, 1.0]).unwrap().into());
     assert_eq!(polysegment.len(), 1);
 
     // Now adding the point works
@@ -576,7 +546,7 @@ impl Polysegment {
     pub fn extend_front(&mut self, point: [f64; 2]) {
         let endpoint = self.front().map(|s| s.start());
         if let Some(endpoint) = endpoint {
-            if let Ok(ls) = LineSegment::new(point, endpoint, DEFAULT_EPSILON, DEFAULT_MAX_ULPS) {
+            if let Ok(ls) = LineSegment::new(point, endpoint) {
                 self.push_front(ls.into());
             }
         }
@@ -593,7 +563,7 @@ impl Polysegment {
     let mut polysegment = Polysegment::new();
     assert!(polysegment.is_empty());
 
-    polysegment.push_back(LineSegment::new([0.0, 0.0], [1.0, 0.0], 0.0, 0).unwrap().into());
+    polysegment.push_back(LineSegment::new([0.0, 0.0], [1.0, 0.0]).unwrap().into());
     assert!(!polysegment.is_empty());
     ```
      */
@@ -708,7 +678,7 @@ impl Polysegment {
             let start = s.start();
             if let Some(s) = self.0.back() {
                 let stop = s.stop();
-                if let Ok(ls) = LineSegment::new(stop, start, DEFAULT_EPSILON, DEFAULT_MAX_ULPS) {
+                if let Ok(ls) = LineSegment::new(stop, start) {
                     self.0.push_back(ls.into())
                 }
             }
@@ -763,12 +733,12 @@ impl Polysegment {
     assert_eq!(polysegment.length(), 4.0);
 
     // Circle with a radius of 1
-    let segment: Segment = ArcSegment::from_center_radius_start_offset_angle([0.0, 0.0], 1.0, 0.0, TAU, DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap().into();
+    let segment: Segment = ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 1.0, 0.0, TAU).unwrap().into();
     let polysegment = Polysegment::from(segment);
     assert_eq!(polysegment.length(), TAU);
 
     // Half-circle segment
-    let segment: Segment = ArcSegment::from_center_radius_start_offset_angle([0.0, 0.0], 1.0, 0.0, PI, DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap().into();
+    let segment: Segment = ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 1.0, 0.0, PI).unwrap().into();
     let mut polysegment = Polysegment::from(segment);
     polysegment.close();
     assert_eq!(polysegment.length(), PI + 2.0);
@@ -788,7 +758,7 @@ impl Polysegment {
     Cuts `self` into multiple polysegments by intersecting it with `other` and returns
     those them.
 
-    The specified tolerances `epsilon` and `max_ulps` are used to determine
+    The specified tolerances `epsilon` and `max_relative` are used to determine
     intersections, see documentation of
     [`PrimitiveIntersections`](crate::primitive::PrimitiveIntersections).
 
@@ -801,7 +771,7 @@ impl Polysegment {
     let line = Polysegment::from_points(points);
     let cut = Polysegment::from_points(&[[-1.0, 1.0], [3.0, 1.0]]);
 
-    let separated_lines = line.intersection_cut(&cut, DEFAULT_EPSILON, DEFAULT_MAX_ULPS);
+    let separated_lines = line.intersection_cut(&cut, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE);
 
     // This cut results in two separate polysegments
     assert_eq!(separated_lines.len(), 2);
@@ -811,7 +781,7 @@ impl Polysegment {
         &self,
         other: &Polysegment,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> Vec<Polysegment> {
         // Inner helper function
         fn create_cut_segment(
@@ -819,14 +789,11 @@ impl Polysegment {
             start: [f64; 2],
             stop: [f64; 2],
             center: [f64; 2],
-            epsilon: f64,
-            max_ulps: u32,
         ) -> Option<Segment> {
-            // Check to avoid degenerated segments, when start equals stop
-            if !ulps_eq!(start, stop, epsilon = epsilon, max_ulps = max_ulps) {
+            if start != stop {
                 match segment {
                     Segment::LineSegment(_) => {
-                        if let Ok(ls) = LineSegment::new(start, stop, epsilon, max_ulps) {
+                        if let Ok(ls) = LineSegment::new(start, stop) {
                             return Some(ls.into());
                         } else {
                             return None;
@@ -837,21 +804,17 @@ impl Polysegment {
                         let normalized_start = [start[0] - center[0], start[1] - center[1]];
                         let stop_angle = normalized_stop[1].atan2(normalized_stop[0]);
                         let start_angle = normalized_start[1].atan2(normalized_start[0]);
-                        let offset_angle =
+                        let sweep_angle =
                             (stop_angle - start_angle).rem_euclid(std::f64::consts::TAU);
-                        let offset_angle = if a.is_positive() {
-                            offset_angle
+                        let sweep_angle = if a.is_positive() {
+                            sweep_angle
                         } else {
-                            -offset_angle
+                            -sweep_angle
                         };
 
-                        if let Ok(arc) = ArcSegment::from_start_center_angle(
-                            start,
-                            center,
-                            offset_angle,
-                            epsilon,
-                            max_ulps,
-                        ) {
+                        if let Ok(arc) =
+                            ArcSegment::from_start_center_angle(start, center, sweep_angle)
+                        {
                             return Some(arc.into());
                         } else {
                             return None;
@@ -887,7 +850,7 @@ impl Polysegment {
 
             for segment_other in other.0.iter() {
                 let intersections_segment_other =
-                    segment_self.intersections_primitive(segment_other, epsilon, max_ulps);
+                    segment_self.intersections_primitive(segment_other, epsilon, max_relative);
                 intersections.extend(
                     intersections_segment_other
                         .into_iter()
@@ -926,14 +889,9 @@ impl Polysegment {
                         let start = segment_self.start();
                         let stop = *intersection;
 
-                        if let Some(segment) = create_cut_segment(
-                            &segment_self,
-                            start,
-                            stop,
-                            center,
-                            epsilon,
-                            max_ulps,
-                        ) {
+                        if let Some(segment) =
+                            create_cut_segment(&segment_self, start, stop, center)
+                        {
                             if segments_of_current_line.is_empty() {
                                 lines.push(Polysegment::from(segment));
                             } else {
@@ -964,14 +922,9 @@ impl Polysegment {
                         let stop = *intersection;
 
                         // Found some intersections => finish the current line and create a new one
-                        if let Some(segment) = create_cut_segment(
-                            &segment_self,
-                            start,
-                            stop,
-                            center,
-                            epsilon,
-                            max_ulps,
-                        ) {
+                        if let Some(segment) =
+                            create_cut_segment(&segment_self, start, stop, center)
+                        {
                             lines.push(Polysegment::from(segment));
                         }
                     };
@@ -984,8 +937,6 @@ impl Polysegment {
                         start.clone(),
                         segment_self.stop(),
                         center,
-                        epsilon,
-                        max_ulps,
                     ) {
                         segments_of_current_line.push(segment);
                     }
@@ -1131,6 +1082,82 @@ impl Polysegment {
             }
         }
     }
+
+    /**
+    "Repair" small gaps between neighboring segments by adjusting end / start
+    points or by inserting "glue" line segments.
+
+    One fundamental invariant of a [`Polysegment`] is the fact that the stop
+    point of a segment is the start point of its successor. When using a
+    [`Transformation`] on the individual segments of `self`, this invariant
+    might be broken due to limited floating point precision. This functions
+    "repairs" a small gap between a segment "A" and its successor "B" in one of
+    the following ways:
+    - If "A" is a [`LineSegment`], it gets replaced by a new [`LineSegment`]
+    where the start point is that of "A", but the stop point is that of "B".
+    - If "A" is an [`ArcSegment`] and "B" is a [`LineSegment`], "B" gets
+    replaced by a new [`LineSegment`] where the start point is the stop point of
+    "A" and the stop point is that of "B".
+    - If both "A" and "B" are [`ArcSegment`]s, an intermediate "glue" segment
+    gets inserted whose start point is the stop point of "A" and whose end point
+    is the start point of "B".
+
+    This method gets called at the end of every [`Transformation`] method.
+     */
+    fn repair(&mut self) {
+        if self.is_empty() {
+            return;
+        }
+
+        /*
+        Iterate over the indices of the underlying deque, rather than over the
+        elements itself. This is done so we can insert glue segments in the
+        loop, which would not be possible when the deque would be borrowed
+        during the loop. Since the indices shift due to the insertions, we add
+        an offset which gets incremented. Last element gets skipped, since
+        it does not need to be connected (hence self.len() - 1)
+        */
+        let mut offset = 0;
+        for i in 0..(self.len() - 1) {
+            let idx = i + offset;
+            let segment = &self[idx];
+            let next_segment = &self[idx + 1];
+            let start_glue = segment.stop();
+            let stop_glue = next_segment.start();
+
+            match segment {
+                Segment::LineSegment(ls) => {
+                    if let Ok(s) = LineSegment::new(ls.start(), stop_glue) {
+                        self.0[idx] = s.into();
+                    } else {
+                        // self[idx] was likely a glue segment from an earlier
+                        // transformation. Since it degenerated with the new
+                        // stop point, it can just be deleted entirely.
+                        offset = offset.checked_sub(1).unwrap_or(0);
+                        self.0.remove(idx);
+                    }
+                }
+                Segment::ArcSegment(_) => match next_segment {
+                    Segment::LineSegment(ls) => {
+                        if let Ok(s) = LineSegment::new(start_glue, ls.stop()) {
+                            self.0[idx + 1] = s.into();
+                        } else {
+                            // See comment in the else above
+                            offset = offset.checked_sub(1).unwrap_or(0);
+                            self.0.remove(idx + 1);
+                        }
+                    }
+                    Segment::ArcSegment(_) => {
+                        // Insert a glue segment, if neceessary
+                        if let Ok(s) = LineSegment::new(start_glue, stop_glue) {
+                            self.0.insert(idx + 1, s.into());
+                            offset += 1;
+                        }
+                    }
+                },
+            }
+        }
+    }
 }
 
 impl FromIterator<Segment> for Polysegment {
@@ -1178,7 +1205,7 @@ impl Composite for Polysegment {
         &'a self,
         other: &'a Self,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> impl Iterator<Item = Intersection> + 'a {
         let same_polysegment_len = if std::ptr::eq(self, other) {
             Some(self.num_segments())
@@ -1200,7 +1227,7 @@ impl Composite for Polysegment {
                     right_seg,
                     same_polysegment_len,
                     epsilon,
-                    max_ulps,
+                    max_relative,
                 )
             });
     }
@@ -1209,7 +1236,7 @@ impl Composite for Polysegment {
         &'a self,
         other: &'a Self,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> impl ParallelIterator<Item = Intersection> + 'a {
         let same_polysegment_len = if std::ptr::eq(self, other) {
             Some(self.num_segments())
@@ -1232,7 +1259,7 @@ impl Composite for Polysegment {
                     right_seg,
                     same_polysegment_len,
                     epsilon,
-                    max_ulps,
+                    max_relative,
                 )
             });
     }
@@ -1241,10 +1268,10 @@ impl Composite for Polysegment {
         &'a self,
         shape: &'a crate::prelude::Shape,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> impl Iterator<Item = Intersection> {
         shape
-            .intersections_polysegment(self, epsilon, max_ulps)
+            .intersections_polysegment(self, epsilon, max_relative)
             .map(Intersection::switch)
     }
 
@@ -1252,10 +1279,10 @@ impl Composite for Polysegment {
         &'a self,
         shape: &'a crate::prelude::Shape,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> impl ParallelIterator<Item = Intersection> {
         shape
-            .intersections_polysegment_par(self, epsilon, max_ulps)
+            .intersections_polysegment_par(self, epsilon, max_relative)
             .map(Intersection::switch)
     }
 
@@ -1263,13 +1290,13 @@ impl Composite for Polysegment {
         &'a self,
         other: &'a T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> impl Iterator<Item = Intersection> + 'a
     where
         Self: Sized,
     {
         return other
-            .intersections_polysegment(self, epsilon, max_ulps)
+            .intersections_polysegment(self, epsilon, max_relative)
             .map(Intersection::switch);
     }
 
@@ -1277,19 +1304,19 @@ impl Composite for Polysegment {
         &'a self,
         other: &'a T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> impl ParallelIterator<Item = Intersection> + 'a
     where
         Self: Sized,
     {
         return other
-            .intersections_polysegment_par(self, epsilon, max_ulps)
+            .intersections_polysegment_par(self, epsilon, max_relative)
             .map(Intersection::switch);
     }
 
-    fn covers_point(&self, point: [f64; 2], epsilon: f64, max_ulps: u32) -> bool {
+    fn covers_point(&self, point: [f64; 2], epsilon: f64, max_relative: f64) -> bool {
         return self
-            .intersections_primitive(&point, epsilon, max_ulps)
+            .intersections_primitive(&point, epsilon, max_relative)
             .next()
             .is_some();
     }
@@ -1298,18 +1325,18 @@ impl Composite for Polysegment {
         &self,
         segment: T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> bool {
         let segment: SegmentRef = segment.into();
-        return covers_segment(self.0.iter(), segment, epsilon, max_ulps);
+        return covers_segment(self.0.iter(), segment, epsilon, max_relative);
     }
 
-    fn contains_point(&self, _: [f64; 2], _: f64, _: u32) -> bool {
+    fn contains_point(&self, _: [f64; 2], _: f64, _: f64) -> bool {
         // A polysegment has no surface area and therefore cannot contain a point.
         return false;
     }
 
-    fn contains_segment<'a, T: Into<SegmentRef<'a>>>(&self, _: T, _: f64, _: u32) -> bool {
+    fn contains_segment<'a, T: Into<SegmentRef<'a>>>(&self, _: T, _: f64, _: f64) -> bool {
         return false;
     }
 
@@ -1317,25 +1344,25 @@ impl Composite for Polysegment {
         &'a self,
         other: &'a T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> bool {
-        return other.covers_polysegment(self, epsilon, max_ulps);
+        return other.covers_polysegment(self, epsilon, max_relative);
     }
 
     fn contains_composite<'a, T: Composite>(
         &'a self,
         other: &'a T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> bool {
-        return other.contains_polysegment(self, epsilon, max_ulps);
+        return other.contains_polysegment(self, epsilon, max_relative);
     }
 
     fn overlaps_segment<'a, T: Into<SegmentRef<'a>>>(
         &self,
         _segment: T,
         _epsilon: f64,
-        _max_ulps: u32,
+        _max_relative: f64,
     ) -> bool {
         return false;
     }
@@ -1344,7 +1371,7 @@ impl Composite for Polysegment {
         &self,
         _contour: &crate::prelude::Contour,
         _epsilon: f64,
-        _max_ulps: u32,
+        _max_relative: f64,
     ) -> bool {
         return false;
     }
@@ -1353,7 +1380,7 @@ impl Composite for Polysegment {
         &self,
         _shape: &crate::prelude::Shape,
         _epsilon: f64,
-        _max_ulps: u32,
+        _max_relative: f64,
     ) -> bool {
         return false;
     }
@@ -1362,7 +1389,7 @@ impl Composite for Polysegment {
         &'a self,
         _other: &'a T,
         _epsilon: f64,
-        _max_ulps: u32,
+        _max_relative: f64,
     ) -> bool {
         return false;
     }
@@ -1400,25 +1427,29 @@ impl crate::Transformation for Polysegment {
     fn rotate(&mut self, center: [f64; 2], angle: f64) -> () {
         self.0.par_iter_mut().for_each(|segment| {
             segment.rotate(center, angle);
-        })
+        });
+        self.repair();
     }
 
     fn translate(&mut self, shift: [f64; 2]) -> () {
         self.0.par_iter_mut().for_each(|segment| {
             segment.translate(shift);
-        })
+        });
+        self.repair();
     }
 
     fn scale(&mut self, factor: f64) -> () {
         self.0.par_iter_mut().for_each(|segment| {
             segment.scale(factor);
-        })
+        });
+        self.repair();
     }
 
     fn line_reflection(&mut self, start: [f64; 2], stop: [f64; 2]) -> () {
         self.0.par_iter_mut().for_each(|segment| {
             segment.line_reflection(start, stop);
-        })
+        });
+        self.repair();
     }
 }
 
@@ -1545,7 +1576,7 @@ pub(crate) fn covers_segment<'a, 'b, I>(
     iterator: I,
     segment: SegmentRef<'b>,
     epsilon: f64,
-    max_ulps: u32,
+    max_relative: f64,
 ) -> bool
 where
     I: Iterator<Item = &'a Segment>,
@@ -1560,18 +1591,16 @@ where
                 if let Segment::LineSegment(sl) = seg {
                     combined = match combined {
                         Some(c) => {
-                            if ulps_eq!(
+                            if relative_eq!(
                                 c.angle(),
                                 sl.angle(),
                                 epsilon = epsilon,
-                                max_ulps = max_ulps
+                                max_relative = max_relative
                             ) {
                                 // Add the new line segment, if it has the same angle as
                                 // "combined"
-                                if let Ok(new_combined) =
-                                    LineSegment::new(c.start(), sl.stop(), epsilon, max_ulps)
-                                {
-                                    if new_combined.covers(line_segment, epsilon, max_ulps) {
+                                if let Ok(new_combined) = LineSegment::new(c.start(), sl.stop()) {
+                                    if new_combined.covers(line_segment, epsilon, max_relative) {
                                         return true;
                                     }
                                     Some(new_combined)
@@ -1580,14 +1609,14 @@ where
                                 }
                             } else {
                                 // Replace the old combined segment with the new line segment
-                                if sl.covers(line_segment, epsilon, max_ulps) {
+                                if sl.covers(line_segment, epsilon, max_relative) {
                                     return true;
                                 }
                                 Some(sl.clone())
                             }
                         }
                         None => {
-                            if sl.covers(line_segment, epsilon, max_ulps) {
+                            if sl.covers(line_segment, epsilon, max_relative) {
                                 return true;
                             }
                             Some(sl.clone())
@@ -1609,30 +1638,28 @@ where
                 if let Segment::ArcSegment(sa) = seg {
                     combined = match combined {
                         Some(c) => {
-                            if ulps_eq!(
+                            if relative_eq!(
                                 c.center(),
                                 sa.center(),
                                 epsilon = epsilon,
-                                max_ulps = max_ulps
-                            ) && ulps_eq!(
+                                max_relative = max_relative
+                            ) && relative_eq!(
                                 c.radius(),
                                 sa.radius(),
                                 epsilon = epsilon,
-                                max_ulps = max_ulps
+                                max_relative = max_relative
                             ) {
                                 // Add the new line segment, if it has the same angle as
                                 // "combined"
                                 if let Ok(new_combined) =
-                                    ArcSegment::from_center_radius_start_offset_angle(
+                                    ArcSegment::from_center_radius_start_sweep_angle(
                                         c.center(),
                                         c.radius(),
                                         c.start_angle(),
-                                        c.offset_angle() + sa.offset_angle(),
-                                        epsilon,
-                                        max_ulps,
+                                        c.sweep_angle() + sa.sweep_angle(),
                                     )
                                 {
-                                    if new_combined.covers(arc_segment, epsilon, max_ulps) {
+                                    if new_combined.covers(arc_segment, epsilon, max_relative) {
                                         return true;
                                     }
                                     Some(new_combined)
@@ -1641,14 +1668,14 @@ where
                                 }
                             } else {
                                 // Replace the old combined segment with the new line segment
-                                if sa.covers(arc_segment, epsilon, max_ulps) {
+                                if sa.covers(arc_segment, epsilon, max_relative) {
                                     return true;
                                 }
                                 Some(sa.clone())
                             }
                         }
                         None => {
-                            if sa.covers(arc_segment, epsilon, max_ulps) {
+                            if sa.covers(arc_segment, epsilon, max_relative) {
                                 return true;
                             }
                             Some(sa.clone())
@@ -1670,7 +1697,7 @@ fn intersections_between_polysegment_and_segment_priv<'a, L>(
     right_seg: &'a Segment,
     same_polysegment_len: Option<usize>,
     epsilon: f64,
-    max_ulps: u32,
+    max_relative: f64,
 ) -> impl Iterator<Item = Intersection> + 'a
 where
     L: Iterator<Item = &'a Segment> + 'a,
@@ -1684,7 +1711,7 @@ where
                 right_idx,
                 same_polysegment_len,
                 epsilon,
-                max_ulps,
+                max_relative,
             )
         })
         .flatten()
@@ -1696,7 +1723,7 @@ fn intersections_between_polysegment_and_segment_priv_par<'a, L>(
     right_seg: &'a Segment,
     same_polysegment_len: Option<usize>,
     epsilon: f64,
-    max_ulps: u32,
+    max_relative: f64,
 ) -> impl ParallelIterator<Item = Intersection> + 'a
 where
     L: IndexedParallelIterator<Item = &'a Segment> + 'a,
@@ -1710,7 +1737,7 @@ where
                 right_idx,
                 same_polysegment_len,
                 epsilon,
-                max_ulps,
+                max_relative,
             )
             .map(|iter| iter.par_bridge())
         })
@@ -1724,7 +1751,7 @@ fn segment_intersections<'a>(
     right_idx: usize,
     same_polysegment_len: Option<usize>,
     epsilon: f64,
-    max_ulps: u32,
+    max_relative: f64,
 ) -> Option<impl Iterator<Item = Intersection> + 'a> {
     /*
     If the two segments are identical, they have no intersection by definition.
@@ -1748,8 +1775,19 @@ fn segment_intersections<'a>(
         }
     }
 
+    // Delta becomes 1 if two segments are neighbors and 2 if they are connected
+    // by a single glue segment. This is used later to avoid false
+    // self-intersection detection (see inside the loop).
+    let glue_seg_in_between = relative_eq!(
+        left_seg.stop(),
+        right_seg.start(),
+        epsilon = epsilon,
+        max_relative = max_relative
+    ) && right_idx - left_idx == 2;
+    let delta = glue_seg_in_between as usize + 1;
+
     let intersection_iter = left_seg
-        .intersections_primitive(right_seg, epsilon, max_ulps)
+        .intersections_primitive(right_seg, epsilon, max_relative)
         .into_iter()
         .filter_map(move |point| {
             let point: [f64; 2] = point.into();
@@ -1767,12 +1805,12 @@ fn segment_intersections<'a>(
                 "intersections" which are actually just the connection point
                 between the two segments.
                  */
-                if left_idx + 1 == right_idx || (left_idx == 0 && right_idx == len - 1) {
-                    if approx::ulps_eq!(
+                if left_idx + delta == right_idx || (left_idx == 0 && right_idx == len - delta) {
+                    if approx::relative_eq!(
                         point,
                         left_seg.stop(),
                         epsilon = epsilon,
-                        max_ulps = max_ulps
+                        max_relative = max_relative
                     ) {
                         return None;
                     }

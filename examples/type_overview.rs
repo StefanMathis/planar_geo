@@ -7,11 +7,7 @@ fn file_path(filename: &str) -> PathBuf {
 }
 
 fn main() {
-    // Abbreviations for tolerances to keep the subsequent function calls clear.
-    let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_ULPS;
-
-    let line = LineSegment::new([0.0, -5.0], [2.0, -5.0], e, m).unwrap();
+    let line = LineSegment::new([0.0, -5.0], [2.0, -5.0]).unwrap();
 
     let line_text = Text::new(
         "LineSegment".into(),
@@ -23,15 +19,9 @@ fn main() {
         0.0,
     );
 
-    let arc = ArcSegment::from_center_radius_start_offset_angle(
-        [1.0, -2.0],
-        1.4,
-        -0.25 * PI,
-        -0.5 * PI,
-        e,
-        m,
-    )
-    .unwrap();
+    let arc =
+        ArcSegment::from_center_radius_start_sweep_angle([1.0, -2.0], 1.4, -0.25 * PI, -0.5 * PI)
+            .unwrap();
 
     let arc_text = Text::new(
         "ArcSegment".into(),
@@ -46,21 +36,13 @@ fn main() {
     // =========================================================================
 
     let mut polysegment = Polysegment::new();
+    polysegment.push_back(LineSegment::new([0.0, -4.0], [-1.0, -4.0]).unwrap().into());
     polysegment.push_back(
-        LineSegment::new([0.0, -4.0], [-1.0, -4.0], e, m)
+        ArcSegment::from_start_center_angle([-1.0, -4.0], [0.0, -4.0], 0.5 * PI)
             .unwrap()
             .into(),
     );
-    polysegment.push_back(
-        ArcSegment::from_start_center_angle([-1.0, -4.0], [0.0, -4.0], 0.5 * PI, e, m)
-            .unwrap()
-            .into(),
-    );
-    polysegment.push_back(
-        LineSegment::new([1.0, -4.0], [0.0, -3.0], e, m)
-            .unwrap()
-            .into(),
-    );
+    polysegment.push_back(LineSegment::new([1.0, -4.0], [0.0, -3.0]).unwrap().into());
     polysegment.translate([5.0, 0.0]);
 
     let polysegment_text = Text::new(
@@ -74,13 +56,9 @@ fn main() {
     );
 
     let mut c_polysegment = Polysegment::new();
+    c_polysegment.push_back(LineSegment::new([0.0, -4.0], [0.0, -5.2]).unwrap().into());
     c_polysegment.push_back(
-        LineSegment::new([0.0, -4.0], [0.0, -5.2], e, m)
-            .unwrap()
-            .into(),
-    );
-    c_polysegment.push_back(
-        ArcSegment::from_start_middle_stop([0.0, -5.2], [1.3, -4.0], [-1.3, -4.0], e, m)
+        ArcSegment::from_start_middle_stop([0.0, -5.2], [1.3, -4.0], [-1.3, -4.0])
             .unwrap()
             .into(),
     );
@@ -100,7 +78,7 @@ fn main() {
     // Define the shape
     let mut s_polysegment = Polysegment::new();
     s_polysegment.push_back(
-        ArcSegment::from_start_center_angle([1.0, -4.0], [0.0, -4.0], 0.5 * PI, e, m)
+        ArcSegment::from_start_center_angle([1.0, -4.0], [0.0, -4.0], 0.5 * PI)
             .unwrap()
             .into(),
     );

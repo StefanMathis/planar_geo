@@ -19,7 +19,7 @@ documentation for details on invariants, construction, and usage.
 use std::collections::VecDeque;
 use std::f64::consts::TAU;
 
-use approx::ulps_eq;
+use approx::relative_eq;
 use compare_variables::*;
 use rayon::iter::ParallelIterator;
 #[cfg(feature = "serde")]
@@ -30,7 +30,6 @@ use crate::polysegment::Polysegment;
 use crate::primitive::Primitive;
 use crate::segment::{Segment, SegmentRef, arc_segment::ArcSegment, line_segment::LineSegment};
 use crate::{CentroidData, Transformation};
-use crate::{DEFAULT_EPSILON, DEFAULT_MAX_ULPS};
 
 use bounding_box::{BoundingBox, ToBoundingBox};
 
@@ -71,7 +70,7 @@ use planar_geo::prelude::*;
 
 let polysegment = Polysegment::from_points(&[[0.0, 0.0], [2.0, 2.0], [0.0, 2.0], [2.0, 0.0]]);
 let contour = Contour::new(polysegment);
-assert_eq!(contour.intersections_contour(&contour, 0.0, 0).count(), 1);
+assert_eq!(contour.intersections_contour(&contour, 0.0, 0.0).count(), 1);
 ```
 
 One difference to a [`Polysegment`] is that the "touching" of the first and
@@ -83,10 +82,10 @@ use planar_geo::prelude::*;
 let polysegment = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [0.0, 0.0]]);
 
 // Last and first segment are "touching" at 0.0
-assert_eq!(polysegment.intersections_polysegment(&polysegment, 0.0, 0).count(), 1);
+assert_eq!(polysegment.intersections_polysegment(&polysegment, 0.0, 0.0).count(), 1);
 
 let contour = Contour::new(polysegment);
-assert_eq!(contour.intersections_contour(&contour, 0.0, 0).count(), 0);
+assert_eq!(contour.intersections_contour(&contour, 0.0, 0.0).count(), 0);
 ```
 
 # Constructing a contour
@@ -205,7 +204,7 @@ impl Contour {
     use planar_geo::prelude::*;
 
     let contour = Contour::new(Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]));
-    let ls: Segment = LineSegment::new([0.0, 1.0], [0.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap().into();
+    let ls: Segment = LineSegment::new([0.0, 1.0], [0.0, 0.0]).unwrap().into();
 
     assert_eq!(contour.back(), Some(&ls));
     ```
@@ -223,7 +222,7 @@ impl Contour {
     use planar_geo::prelude::*;
 
     let contour = Contour::new(Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]));
-    let ls: Segment = LineSegment::new([0.0, 0.0], [1.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap().into();
+    let ls: Segment = LineSegment::new([0.0, 0.0], [1.0, 0.0]).unwrap().into();
 
     assert_eq!(contour.front(), Some(&ls));
      */
@@ -362,7 +361,7 @@ impl Contour {
     Cuts `self` into multiple polysegments by intersecting it with `other` and returns
     those them.
 
-    The specified tolerances `epsilon` and `max_ulps` are used to determine
+    The specified tolerances `epsilon` and `max_relative` are used to determine
     intersections, see documentation of
     [`PrimitiveIntersections`](crate::primitive::PrimitiveIntersections).
 
@@ -375,7 +374,7 @@ impl Contour {
     let contour: Contour = Polysegment::from_points(points).into();
     let cut = Polysegment::from_points(&[[-1.0, 1.0], [3.0, 1.0]]);
 
-    let separated_lines = contour.intersection_cut(&cut, DEFAULT_EPSILON, DEFAULT_MAX_ULPS);
+    let separated_lines = contour.intersection_cut(&cut, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE);
 
     // This cut results in two separate polysegments
     assert_eq!(separated_lines.len(), 2);
@@ -385,11 +384,11 @@ impl Contour {
         &self,
         other: &Polysegment,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> Vec<Polysegment> {
         let mut lines = self
             .polysegment()
-            .intersection_cut(other, epsilon, max_ulps);
+            .intersection_cut(other, epsilon, max_relative);
         if lines.len() > 1 {
             match lines.pop() {
                 Some(mut last_polyline) => {
@@ -461,7 +460,7 @@ impl Contour {
                         * (center[0] * (arc.stop()[1] - arc.start()[1])
                             - (arc.stop()[0] - arc.start()[0]) * center[1]);
 
-                    let angle = arc.offset_angle();
+                    let angle = arc.sweep_angle();
                     let radius = arc.radius();
                     let area_2 = 0.5 * angle * radius.powi(2);
 
@@ -709,12 +708,12 @@ impl Contour {
         &self,
         point: [f64; 2],
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> bool {
         // First coarse, but fast test: Check if the point is inside the bounding box
         let bb = BoundingBox::from(self);
         if COVERS {
-            if !bb.approx_covers_point(point, epsilon, max_ulps) {
+            if !bb.approx_covers_point(point, epsilon) {
                 return false;
             }
         } else {
@@ -725,7 +724,7 @@ impl Contour {
 
         // Check if the point is located on the edge of the polysegment
         for segment in self.segments() {
-            if segment.covers_point(point, epsilon, max_ulps) {
+            if segment.covers_point(point, epsilon, max_relative) {
                 if COVERS {
                     return true;
                 } else {
@@ -740,128 +739,98 @@ impl Contour {
         TODO: Explain ray cast algorithm
         // TODO: Explain that we only consider segments where at least one of their
         // values is above y
-        We use the start point of the next segment as endpoint to simulate "seamless"
-        connection (which is not guaranteed if we would take the end point due to
-        rounding errors of arcs)
 
          */
 
         let mut inside = false;
-        if let Some(first) = self.segments().next() {
-            let [mut x1, mut y1] = first.start();
-            let shifted_segments = self.segments().skip(1).chain(std::iter::once(first));
 
-            for (seg_idx, (segment, next_segment)) in
-                self.segments().zip(shifted_segments).enumerate()
-            {
-                match segment {
-                    Segment::LineSegment(_) => {
-                        // Substitute the stop point of "segment" with the start
-                        // point of "next_segment" to account for small
-                        // differences between the two due to finite floating
-                        // point precision
-                        let [x2, y2] = next_segment.start();
+        for segment in self.segments() {
+            match segment {
+                Segment::LineSegment(_) => {
+                    let [x1, y1] = segment.start();
+                    let [x2, y2] = segment.stop();
 
-                        // Skip horizontal line segments
-                        if ulps_eq!(y1, y2, epsilon = epsilon, max_ulps = max_ulps) {
-                            x1 = x2;
-                            // y2 is kept at y1 on purpose
-                            continue;
-                        }
-
-                        // Check if the intersection is located on the ray
-                        // (x_intersect > x) and if the intersection is not the
-                        // upper end of the line segment. As discussed at the top,
-                        // the latter check prevents that true intersections at the
-                        // connection between two segments are counted twice.
-                        if (y1 > y) != (y2 > y) {
-                            let x_intersect = x1 + (y - y1) * (x2 - x1) / (y2 - y1);
-                            if x_intersect > x {
-                                inside = !inside;
-                            }
-                        }
-                        x1 = x2;
-                        y1 = y2;
+                    // Skip horizontal line segments
+                    if y1 == y2 {
+                        continue;
                     }
-                    Segment::ArcSegment(a) => {
-                        let partial_arcs = a.split_y_monotonic(epsilon, max_ulps);
-                        let number_partial_segs =
-                            partial_arcs.iter().filter(|a| a.is_some()).count();
 
-                        for (idx_pa, split) in partial_arcs.into_iter().enumerate() {
-                            if let Some(partial_arc) = split {
-                                // If the first argument is a circle, use the start
-                                // point of the first partial arc, since that partial arc
-                                // is the "true" start point of the polysegment
-                                if seg_idx == 0 && idx_pa == 0 {
-                                    [x1, y1] = partial_arc.start();
-                                }
+                    // Check if the intersection is located on the ray
+                    // (x_intersect > x) and if the intersection is not the
+                    // upper end of the line segment. As discussed at the top,
+                    // the latter check prevents that true intersections at the
+                    // connection between two segments are counted twice.
+                    if (y1 > y) != (y2 > y) {
+                        let x_intersect = x1 + (y - y1) * (x2 - x1) / (y2 - y1);
+                        if x_intersect > x {
+                            inside = !inside;
+                        }
+                    }
+                }
+                Segment::ArcSegment(a) => {
+                    for split in a.split_y_monotonic() {
+                        if let Some(partial_arc) = split {
+                            let [_, y1] = partial_arc.start();
+                            let [_, y2] = partial_arc.stop();
 
-                                // If the current partial_arc is the last one, its
-                                // end point is the start of the next segment.
-                                let [x2, y2] = if idx_pa + 1 == number_partial_segs {
-                                    next_segment.start()
-                                } else {
-                                    partial_arc.stop()
-                                };
-
-                                // Find the intersections between the underlying circle of
-                                // partial_arc and the horizontal line at y.
-                                let [cx, cy] = partial_arc.center();
-                                let r = partial_arc.radius();
-                                let dy = y - cy;
-                                let mut disc = r * r - dy * dy;
-                                if disc < 0.0 {
-                                    y1 = y2;
-                                    continue;
-                                }
-                                if ulps_eq!(disc, 0.0, epsilon = epsilon, max_ulps = max_ulps) {
-                                    disc = 0.0;
-                                }
-
-                                // x-values of the intersection candidates (y-value = y).
-                                // Since partial_arc is y-monotonous, only one of them
-                                // can be a true intersection. This is checked in
-                                // the "candidates" loop by checking if the angle
-                                // of the intersection is located on the partial_arc.
-                                let sqrt = disc.sqrt();
-                                let candidates = [cx - sqrt, cx + sqrt];
-
-                                for x_intersect in candidates {
-                                    let theta = (y - cy).atan2(x_intersect - cx);
-                                    if partial_arc.covers_angle(theta)
-                                        || ulps_eq!(
-                                            theta,
-                                            partial_arc.start_angle(),
-                                            epsilon = epsilon,
-                                            max_ulps = max_ulps
-                                        )
-                                        || ulps_eq!(
-                                            theta,
-                                            partial_arc.stop_angle(),
-                                            epsilon = epsilon,
-                                            max_ulps = max_ulps
-                                        )
-                                    {
-                                        // Check if the intersection is located
-                                        // on the ray (x_intersect > x) and if
-                                        // the intersection is not the upper end
-                                        // point of the arc. This is the same check
-                                        // as with the line segments to avoid counting
-                                        // true intersections at the connection between two
-                                        // segments twice.
-                                        if x_intersect > x && (y1 > y) != (y2 > y) {
-                                            inside = !inside;
-                                        }
-                                        break;
-                                    }
-                                }
-                                x1 = x2;
-                                y1 = y2;
-                            } else {
-                                // Once a None is hit, no other arc will follow
-                                break;
+                            // Find the intersections between the underlying circle of
+                            // partial_arc and the horizontal line at y.
+                            let [cx, cy] = partial_arc.center();
+                            let r = partial_arc.radius();
+                            let dy = y - cy;
+                            let mut disc = r * r - dy * dy;
+                            if disc < 0.0 {
+                                continue;
                             }
+                            if relative_eq!(
+                                disc,
+                                0.0,
+                                epsilon = epsilon,
+                                max_relative = max_relative
+                            ) {
+                                disc = 0.0;
+                            }
+
+                            // x-values of the intersection candidates (y-value = y).
+                            // Since partial_arc is y-monotonous, only one of them
+                            // can be a true intersection. This is checked in
+                            // the "candidates" loop by checking if the angle
+                            // of the intersection is located on the partial_arc.
+                            let sqrt = disc.sqrt();
+                            let candidates = [cx - sqrt, cx + sqrt];
+
+                            for x_intersect in candidates {
+                                let theta = (y - cy).atan2(x_intersect - cx);
+                                if partial_arc.covers_angle(theta)
+                                    || relative_eq!(
+                                        theta,
+                                        partial_arc.start_angle(),
+                                        epsilon = epsilon,
+                                        max_relative = max_relative
+                                    )
+                                    || relative_eq!(
+                                        theta,
+                                        partial_arc.stop_angle(),
+                                        epsilon = epsilon,
+                                        max_relative = max_relative
+                                    )
+                                {
+                                    // Check if the intersection is located
+                                    // on the ray (x_intersect > x) and if
+                                    // the intersection is not the upper end
+                                    // point of the arc. This is the same check
+                                    // as with the line segments to avoid counting
+                                    // true intersections at the connection between two
+                                    // segments twice.
+                                    if x_intersect > x && (y1 > y) != (y2 > y) {
+                                        inside = !inside;
+                                    }
+                                    break;
+                                }
+                            }
+                        } else {
+                            // Once a None is hit, no other arc will follow
+                            break;
                         }
                     }
                 }
@@ -869,6 +838,50 @@ impl Contour {
         }
 
         return inside;
+    }
+
+    /**
+    Repairs possible small gaps between the last and the first segments.
+
+    For a general explanation, see [`Polysegment::repair`]. This method just
+    closes any potential gap between the last and the first segment using the
+    same approach.
+     */
+    fn repair(&mut self) {
+        let front = match self.front() {
+            Some(s) => s,
+            None => return,
+        };
+        let back = match self.back() {
+            Some(s) => s,
+            None => return,
+        };
+
+        match back {
+            Segment::LineSegment(_) => {
+                if let Ok(s) = LineSegment::new(back.start(), front.start()) {
+                    self.0.push_back(s.into());
+                } else {
+                    self.0.pop_back();
+                }
+            }
+            Segment::ArcSegment(_) => match front {
+                Segment::LineSegment(_) => {
+                    if let Ok(s) = LineSegment::new(back.stop(), front.stop()) {
+                        self.0.0[0] = s.into();
+                    } else {
+                        self.0.pop_front();
+                        self.0.make_contiguous();
+                    }
+                }
+                Segment::ArcSegment(_) => {
+                    // Insert a glue segment
+                    if let Ok(s) = LineSegment::new(back.stop(), front.start()) {
+                        self.0.push_back(s.into());
+                    }
+                }
+            },
+        }
     }
 }
 
@@ -901,31 +914,31 @@ impl Composite for Contour {
         &'a self,
         polysegment: &'a Polysegment,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> impl Iterator<Item = Intersection> + 'a {
         self.polysegment()
-            .intersections_polysegment(polysegment, epsilon, max_ulps)
+            .intersections_polysegment(polysegment, epsilon, max_relative)
     }
 
     fn intersections_polysegment_par<'a>(
         &'a self,
         polysegment: &'a Polysegment,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> impl ParallelIterator<Item = Intersection> + 'a {
         self.polysegment()
-            .intersections_polysegment_par(polysegment, epsilon, max_ulps)
+            .intersections_polysegment_par(polysegment, epsilon, max_relative)
     }
 
     fn intersections_contour<'a>(
         &'a self,
         contour: &'a Contour,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> impl Iterator<Item = Intersection> + 'a {
         let is_identical = std::ptr::eq(self, contour);
         self.polysegment()
-            .intersections_polysegment(contour.polysegment(), epsilon, max_ulps)
+            .intersections_polysegment(contour.polysegment(), epsilon, max_relative)
             .filter(move |i| {
                 if is_identical
                     && i.left.segment_idx == 0
@@ -933,7 +946,12 @@ impl Composite for Contour {
                 {
                     if let Some(start) = self.polysegment().front() {
                         let pt = start.start();
-                        return !ulps_eq!(pt, i.point, epsilon = epsilon, max_ulps = max_ulps);
+                        return !relative_eq!(
+                            pt,
+                            i.point,
+                            epsilon = epsilon,
+                            max_relative = max_relative
+                        );
                     }
                 };
                 return true;
@@ -944,11 +962,11 @@ impl Composite for Contour {
         &'a self,
         contour: &'a Contour,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> impl ParallelIterator<Item = Intersection> + 'a {
         let is_identical = std::ptr::eq(self, contour);
         self.polysegment()
-            .intersections_polysegment_par(contour.polysegment(), epsilon, max_ulps)
+            .intersections_polysegment_par(contour.polysegment(), epsilon, max_relative)
             .filter(move |i| {
                 if is_identical
                     && i.left.segment_idx == 0
@@ -956,7 +974,12 @@ impl Composite for Contour {
                 {
                     if let Some(start) = self.polysegment().front() {
                         let pt = start.start();
-                        return !ulps_eq!(pt, i.point, epsilon = epsilon, max_ulps = max_ulps);
+                        return !relative_eq!(
+                            pt,
+                            i.point,
+                            epsilon = epsilon,
+                            max_relative = max_relative
+                        );
                     }
                 };
                 return true;
@@ -967,10 +990,10 @@ impl Composite for Contour {
         &'a self,
         shape: &'a crate::prelude::Shape,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> impl Iterator<Item = Intersection> + 'a {
         shape
-            .intersections_contour(self, epsilon, max_ulps)
+            .intersections_contour(self, epsilon, max_relative)
             .map(Intersection::switch)
     }
 
@@ -978,10 +1001,10 @@ impl Composite for Contour {
         &'a self,
         shape: &'a crate::prelude::Shape,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> impl ParallelIterator<Item = Intersection> + 'a {
         shape
-            .intersections_contour_par(self, epsilon, max_ulps)
+            .intersections_contour_par(self, epsilon, max_relative)
             .map(Intersection::switch)
     }
 
@@ -989,13 +1012,13 @@ impl Composite for Contour {
         &'a self,
         other: &'a T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> impl Iterator<Item = Intersection> + 'a
     where
         Self: Sized,
     {
         return other
-            .intersections_contour(self, epsilon, max_ulps)
+            .intersections_contour(self, epsilon, max_relative)
             .map(Intersection::switch);
     }
 
@@ -1003,39 +1026,39 @@ impl Composite for Contour {
         &'a self,
         other: &'a T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> impl ParallelIterator<Item = Intersection> + 'a
     where
         Self: Sized,
     {
         return other
-            .intersections_contour_par(self, epsilon, max_ulps)
+            .intersections_contour_par(self, epsilon, max_relative)
             .map(Intersection::switch);
     }
 
-    fn covers_point(&self, point: [f64; 2], epsilon: f64, max_ulps: u32) -> bool {
-        return self.covers_or_contains_point::<true>(point, epsilon, max_ulps);
+    fn covers_point(&self, point: [f64; 2], epsilon: f64, max_relative: f64) -> bool {
+        return self.covers_or_contains_point::<true>(point, epsilon, max_relative);
     }
 
     fn covers_segment<'a, T: Into<SegmentRef<'a>>>(
         &self,
         segment: T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> bool {
         let segment: SegmentRef = segment.into();
         // If the segment is outside the bounding box of self, then it is surely
         // not covered.
         if !self
             .bounding_box()
-            .approx_covers(&segment.bounding_box(), epsilon, max_ulps)
+            .approx_covers(&segment.bounding_box(), epsilon)
         {
             return false;
         }
 
         // Are the start or stop point outside self?
-        if !self.covers_point(segment.start(), epsilon, max_ulps)
-            || !self.covers_point(segment.stop(), epsilon, max_ulps)
+        if !self.covers_point(segment.start(), epsilon, max_relative)
+            || !self.covers_point(segment.stop(), epsilon, max_relative)
         {
             return false;
         }
@@ -1050,7 +1073,7 @@ impl Composite for Contour {
                 also covered by self.
                  */
                 let mut intersections: Vec<[f64; 2]> = self
-                    .intersections_primitive_par(&segment, epsilon, max_ulps)
+                    .intersections_primitive_par(&segment, epsilon, max_relative)
                     .map(|i| i.point)
                     .collect();
 
@@ -1069,7 +1092,7 @@ impl Composite for Contour {
                         if let Some(stop) = w.get(1) {
                             let mx = 0.5 * (start[0] + stop[0]);
                             let my = 0.5 * (start[1] + stop[1]);
-                            if !self.covers_point([mx, my], epsilon, max_ulps) {
+                            if !self.covers_point([mx, my], epsilon, max_relative) {
                                 return false;
                             }
                         }
@@ -1092,7 +1115,7 @@ impl Composite for Contour {
                 let start_angle = arc_segment.start_angle();
 
                 let mut angles: Vec<f64> = self
-                    .intersections_primitive_par(&segment, epsilon, max_ulps)
+                    .intersections_primitive_par(&segment, epsilon, max_relative)
                     .map(|i| {
                         let mut a = (i.point[1] - c[1]).atan2(i.point[0] - c[0]);
                         let needs_wrap = (dir * (a - start_angle) < -epsilon) as i32 as f64;
@@ -1109,7 +1132,7 @@ impl Composite for Contour {
                             let mid_angle = 0.5 * (stop + start);
                             let mx = c[0] + r * mid_angle.cos();
                             let my = c[1] + r * mid_angle.sin();
-                            if !self.covers_point([mx, my], epsilon, max_ulps) {
+                            if !self.covers_point([mx, my], epsilon, max_relative) {
                                 return false;
                             }
                         }
@@ -1120,15 +1143,15 @@ impl Composite for Contour {
         }
     }
 
-    fn contains_point(&self, point: [f64; 2], epsilon: f64, max_ulps: u32) -> bool {
-        return self.covers_or_contains_point::<false>(point, epsilon, max_ulps);
+    fn contains_point(&self, point: [f64; 2], epsilon: f64, max_relative: f64) -> bool {
+        return self.covers_or_contains_point::<false>(point, epsilon, max_relative);
     }
 
     fn contains_segment<'a, T: Into<crate::prelude::SegmentRef<'a>>>(
         &self,
         segment: T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> bool {
         let segment: SegmentRef = segment.into();
 
@@ -1139,14 +1162,14 @@ impl Composite for Contour {
         }
 
         // Are the start or stop point outside self?
-        if !self.contains_point(segment.start(), epsilon, max_ulps)
-            || !self.contains_point(segment.stop(), epsilon, max_ulps)
+        if !self.contains_point(segment.start(), epsilon, max_relative)
+            || !self.contains_point(segment.stop(), epsilon, max_relative)
         {
             return false;
         }
 
         return self
-            .intersections_primitive(&segment, epsilon, max_ulps)
+            .intersections_primitive(&segment, epsilon, max_relative)
             .map(|i| i.point)
             .count()
             == 0;
@@ -1156,25 +1179,25 @@ impl Composite for Contour {
         &'a self,
         other: &'a T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> bool {
-        return other.covers_contour(self, epsilon, max_ulps);
+        return other.covers_contour(self, epsilon, max_relative);
     }
 
     fn contains_composite<'a, T: Composite>(
         &'a self,
         other: &'a T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> bool {
-        return other.contains_contour(self, epsilon, max_ulps);
+        return other.contains_contour(self, epsilon, max_relative);
     }
 
     fn overlaps_segment<'a, T: Into<SegmentRef<'a>>>(
         &self,
         segment: T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> bool {
         let segment: SegmentRef = segment.into();
 
@@ -1194,7 +1217,7 @@ impl Composite for Contour {
                 also contained in self.
                  */
                 let mut intersections: Vec<[f64; 2]> = self
-                    .intersections_primitive_par(&segment, epsilon, max_ulps)
+                    .intersections_primitive_par(&segment, epsilon, max_relative)
                     .map(|i| i.point)
                     .collect();
                 intersections.push(line_segment.start());
@@ -1215,7 +1238,7 @@ impl Composite for Contour {
                         if let Some(stop) = w.get(1) {
                             let mx = 0.5 * (start[0] + stop[0]);
                             let my = 0.5 * (start[1] + stop[1]);
-                            if self.contains_point([mx, my], epsilon, max_ulps) {
+                            if self.contains_point([mx, my], epsilon, max_relative) {
                                 return true;
                             }
                         }
@@ -1238,7 +1261,7 @@ impl Composite for Contour {
                 let start_angle = arc_segment.start_angle();
 
                 let mut angles: Vec<f64> = self
-                    .intersections_primitive_par(&segment, epsilon, max_ulps)
+                    .intersections_primitive_par(&segment, epsilon, max_relative)
                     .map(|i| {
                         let mut a = (i.point[1] - c[1]).atan2(i.point[0] - c[0]);
                         let needs_wrap = (dir * (a - start_angle) < -epsilon) as i32 as f64;
@@ -1257,7 +1280,7 @@ impl Composite for Contour {
                             let mid_angle = 0.5 * (stop + start);
                             let mx = c[0] + r * mid_angle.cos();
                             let my = c[1] + r * mid_angle.sin();
-                            if self.contains_point([mx, my], epsilon, max_ulps) {
+                            if self.contains_point([mx, my], epsilon, max_relative) {
                                 return true;
                             }
                         }
@@ -1268,7 +1291,7 @@ impl Composite for Contour {
         }
     }
 
-    fn overlaps_contour(&self, other: &Self, epsilon: f64, max_ulps: u32) -> bool {
+    fn overlaps_contour(&self, other: &Self, epsilon: f64, max_relative: f64) -> bool {
         if std::ptr::eq(self, other) {
             return true;
         }
@@ -1285,27 +1308,27 @@ impl Composite for Contour {
         // overlaps other, the inverse is also true (and is therefore not checked)
         if self
             .segments_par()
-            .any(|s| other.overlaps_segment(s, epsilon, max_ulps))
+            .any(|s| other.overlaps_segment(s, epsilon, max_relative))
         {
             return true;
         }
 
         // Does one of the segments cover the other one?
-        return self.covers_contour(other, epsilon, max_ulps)
-            || other.covers_contour(self, epsilon, max_ulps);
+        return self.covers_contour(other, epsilon, max_relative)
+            || other.covers_contour(self, epsilon, max_relative);
     }
 
-    fn overlaps_shape(&self, shape: &crate::shape::Shape, epsilon: f64, max_ulps: u32) -> bool {
-        return shape.overlaps_contour(self, epsilon, max_ulps);
+    fn overlaps_shape(&self, shape: &crate::shape::Shape, epsilon: f64, max_relative: f64) -> bool {
+        return shape.overlaps_contour(self, epsilon, max_relative);
     }
 
     fn overlaps_composite<'a, T: Composite>(
         &'a self,
         other: &'a T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> bool {
-        return other.overlaps_contour(self, epsilon, max_ulps);
+        return other.overlaps_contour(self, epsilon, max_relative);
     }
 }
 
@@ -1319,23 +1342,28 @@ impl std::ops::Index<usize> for Contour {
 
 impl Transformation for Contour {
     fn translate(&mut self, shift: [f64; 2]) -> () {
-        return self.0.translate(shift);
+        self.0.translate(shift);
+        self.repair();
     }
 
     fn rotate(&mut self, center: [f64; 2], angle: f64) -> () {
-        return self.0.rotate(center, angle);
+        self.0.rotate(center, angle);
+        self.repair();
     }
 
     fn line_reflection(&mut self, start: [f64; 2], stop: [f64; 2]) -> () {
-        return self.0.line_reflection(start, stop);
+        self.0.line_reflection(start, stop);
+        self.repair();
     }
 
     fn point_reflection(&mut self, point: [f64; 2]) -> () {
-        return self.0.point_reflection(point);
+        self.0.point_reflection(point);
+        self.repair();
     }
 
     fn scale(&mut self, factor: f64) -> () {
-        return self.0.scale(factor);
+        self.0.scale(factor);
+        self.repair();
     }
 }
 
@@ -1357,12 +1385,7 @@ impl From<Polysegment> for Contour {
             if let Some(last) = polysegment.vec_deque().back() {
                 // If start and stop are identical, the line_segment_from_points
                 // returns None => the polysegment is already closed!
-                if let Ok(ls) = LineSegment::new(
-                    last.stop(),
-                    first.start(),
-                    DEFAULT_EPSILON,
-                    DEFAULT_MAX_ULPS,
-                ) {
+                if let Ok(ls) = LineSegment::new(last.stop(), first.start()) {
                     polysegment.push_back(ls.into());
                 }
             }

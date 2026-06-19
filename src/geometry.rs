@@ -15,7 +15,7 @@ A geometric type such as a [`Segment`] can be wrapped into its container via
 use bounding_box::BoundingBox;
 use planar_geo::prelude::*;
 
-let segment: Segment = LineSegment::new([0.0, 0.0], [2.0, 0.0], 0.0, 0).expect("points not identical").into();
+let segment: Segment = LineSegment::new([0.0, 0.0], [2.0, 0.0]).expect("points not identical").into();
 let contour = Contour::from(BoundingBox::new(0.0, 1.0, 2.0, 3.0));
 let geometries: &[Geometry] = &[segment.into(), contour.into()];
 ```
@@ -26,7 +26,7 @@ shared reference to a [`Geometry`] can be converted into a [`GeometryRef`]:
 ```
 use planar_geo::prelude::*;
 
-let segment: Segment = LineSegment::new([0.0, 0.0], [2.0, 0.0], 0.0, 0).expect("points not identical").into();
+let segment: Segment = LineSegment::new([0.0, 0.0], [2.0, 0.0]).expect("points not identical").into();
 let geo = Geometry::from(segment);
 let geo_ref = GeometryRef::from(&geo);
 ```
@@ -43,7 +43,7 @@ between any two geometric types
 use planar_geo::prelude::*;
 
 let e = DEFAULT_EPSILON;
-let m = DEFAULT_MAX_ULPS;
+let m = DEFAULT_MAX_RELATIVE;
 
 let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
 let contour = Contour::new(Polysegment::from_points(vertices));
@@ -77,7 +77,7 @@ different geometric types (the containers implement
 use bounding_box::BoundingBox;
 use planar_geo::prelude::*;
 
-let segment: Segment = LineSegment::new([0.0, 0.0], [2.0, 0.0], 0.0, 0).expect("points not identical").into();
+let segment: Segment = LineSegment::new([0.0, 0.0], [2.0, 0.0]).expect("points not identical").into();
 let contour = Contour::from(BoundingBox::new(0.0, 1.0, 2.0, 3.0));
 let geometries: &[Geometry] = &[segment.into(), contour.into()];
 
@@ -172,10 +172,10 @@ impl Geometry {
         &self,
         other: T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> Vec<Intersection> {
         let this: GeometryRef = self.into();
-        this.intersections(other, epsilon, max_ulps)
+        this.intersections(other, epsilon, max_relative)
     }
 
     /**
@@ -189,10 +189,10 @@ impl Geometry {
         &self,
         other: T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> Vec<Intersection> {
         let this: GeometryRef = self.into();
-        this.intersections_par(other, epsilon, max_ulps)
+        this.intersections_par(other, epsilon, max_relative)
     }
 }
 
@@ -434,7 +434,7 @@ impl<'a> GeometryRef<'a> {
     use planar_geo::prelude::*;
 
     let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_ULPS;
+    let m = DEFAULT_MAX_RELATIVE;
 
     let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
     let contour = Contour::new(Polysegment::from_points(vertices));
@@ -468,27 +468,39 @@ impl<'a> GeometryRef<'a> {
         &self,
         other: T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> Vec<Intersection> {
         let geo_ref: GeometryRef = other.into();
         match self {
-            GeometryRef::Point(elem) => geo_ref.intersections_primitive(*elem, epsilon, max_ulps),
-            GeometryRef::BoundingBox(bounding_box) => {
-                geo_ref.intersections_composite(&Contour::from(*bounding_box), epsilon, max_ulps)
+            GeometryRef::Point(elem) => {
+                geo_ref.intersections_primitive(*elem, epsilon, max_relative)
             }
+            GeometryRef::BoundingBox(bounding_box) => geo_ref.intersections_composite(
+                &Contour::from(*bounding_box),
+                epsilon,
+                max_relative,
+            ),
             GeometryRef::ArcSegment(elem) => {
-                geo_ref.intersections_primitive(*elem, epsilon, max_ulps)
+                geo_ref.intersections_primitive(*elem, epsilon, max_relative)
             }
             GeometryRef::LineSegment(elem) => {
-                geo_ref.intersections_primitive(*elem, epsilon, max_ulps)
+                geo_ref.intersections_primitive(*elem, epsilon, max_relative)
             }
-            GeometryRef::Line(elem) => geo_ref.intersections_primitive(*elem, epsilon, max_ulps),
-            GeometryRef::Segment(elem) => geo_ref.intersections_primitive(*elem, epsilon, max_ulps),
+            GeometryRef::Line(elem) => {
+                geo_ref.intersections_primitive(*elem, epsilon, max_relative)
+            }
+            GeometryRef::Segment(elem) => {
+                geo_ref.intersections_primitive(*elem, epsilon, max_relative)
+            }
             GeometryRef::Polysegment(elem) => {
-                geo_ref.intersections_composite(*elem, epsilon, max_ulps)
+                geo_ref.intersections_composite(*elem, epsilon, max_relative)
             }
-            GeometryRef::Contour(elem) => geo_ref.intersections_composite(*elem, epsilon, max_ulps),
-            GeometryRef::Shape(elem) => geo_ref.intersections_composite(*elem, epsilon, max_ulps),
+            GeometryRef::Contour(elem) => {
+                geo_ref.intersections_composite(*elem, epsilon, max_relative)
+            }
+            GeometryRef::Shape(elem) => {
+                geo_ref.intersections_composite(*elem, epsilon, max_relative)
+            }
         }
     }
 
@@ -503,32 +515,38 @@ impl<'a> GeometryRef<'a> {
         &self,
         other: T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> Vec<Intersection> {
         let geo_ref: GeometryRef = other.into();
         match self {
-            GeometryRef::Point(elem) => geo_ref.intersections_primitive(*elem, epsilon, max_ulps),
+            GeometryRef::Point(elem) => {
+                geo_ref.intersections_primitive(*elem, epsilon, max_relative)
+            }
             GeometryRef::BoundingBox(bounding_box) => geo_ref.intersections_composite_par(
                 &Contour::from(*bounding_box),
                 epsilon,
-                max_ulps,
+                max_relative,
             ),
             GeometryRef::ArcSegment(elem) => {
-                geo_ref.intersections_primitive(*elem, epsilon, max_ulps)
+                geo_ref.intersections_primitive(*elem, epsilon, max_relative)
             }
             GeometryRef::LineSegment(elem) => {
-                geo_ref.intersections_primitive(*elem, epsilon, max_ulps)
+                geo_ref.intersections_primitive(*elem, epsilon, max_relative)
             }
-            GeometryRef::Line(elem) => geo_ref.intersections_primitive(*elem, epsilon, max_ulps),
-            GeometryRef::Segment(elem) => geo_ref.intersections_primitive(*elem, epsilon, max_ulps),
+            GeometryRef::Line(elem) => {
+                geo_ref.intersections_primitive(*elem, epsilon, max_relative)
+            }
+            GeometryRef::Segment(elem) => {
+                geo_ref.intersections_primitive(*elem, epsilon, max_relative)
+            }
             GeometryRef::Polysegment(elem) => {
-                geo_ref.intersections_composite_par(*elem, epsilon, max_ulps)
+                geo_ref.intersections_composite_par(*elem, epsilon, max_relative)
             }
             GeometryRef::Contour(elem) => {
-                geo_ref.intersections_composite_par(*elem, epsilon, max_ulps)
+                geo_ref.intersections_composite_par(*elem, epsilon, max_relative)
             }
             GeometryRef::Shape(elem) => {
-                geo_ref.intersections_composite_par(*elem, epsilon, max_ulps)
+                geo_ref.intersections_composite_par(*elem, epsilon, max_relative)
             }
         }
     }
@@ -537,11 +555,11 @@ impl<'a> GeometryRef<'a> {
         &self,
         other: &T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> Vec<Intersection> {
         match self {
             GeometryRef::Point(point) => {
-                if other.covers_point((*point).clone(), epsilon, max_ulps) {
+                if other.covers_point((*point).clone(), epsilon, max_relative) {
                     return vec![(**point).into()];
                 } else {
                     return Vec::new();
@@ -550,37 +568,37 @@ impl<'a> GeometryRef<'a> {
             GeometryRef::BoundingBox(bounding_box) => {
                 let contour = Contour::from(*bounding_box);
                 contour
-                    .intersections_primitive(other, epsilon, max_ulps)
+                    .intersections_primitive(other, epsilon, max_relative)
                     .collect()
             }
             GeometryRef::ArcSegment(elem) => other
-                .intersections_primitive(*elem, epsilon, max_ulps)
+                .intersections_primitive(*elem, epsilon, max_relative)
                 .into_iter()
                 .map(From::from)
                 .collect(),
             GeometryRef::LineSegment(elem) => other
-                .intersections_primitive(*elem, epsilon, max_ulps)
+                .intersections_primitive(*elem, epsilon, max_relative)
                 .into_iter()
                 .map(From::from)
                 .collect(),
             GeometryRef::Line(elem) => other
-                .intersections_primitive(*elem, epsilon, max_ulps)
+                .intersections_primitive(*elem, epsilon, max_relative)
                 .into_iter()
                 .map(From::from)
                 .collect(),
             GeometryRef::Segment(elem) => other
-                .intersections_primitive(*elem, epsilon, max_ulps)
+                .intersections_primitive(*elem, epsilon, max_relative)
                 .into_iter()
                 .map(From::from)
                 .collect(),
             GeometryRef::Polysegment(elem) => elem
-                .intersections_primitive(other, epsilon, max_ulps)
+                .intersections_primitive(other, epsilon, max_relative)
                 .collect(),
             GeometryRef::Contour(elem) => elem
-                .intersections_primitive(other, epsilon, max_ulps)
+                .intersections_primitive(other, epsilon, max_relative)
                 .collect(),
             GeometryRef::Shape(elem) => elem
-                .intersections_primitive(other, epsilon, max_ulps)
+                .intersections_primitive(other, epsilon, max_relative)
                 .collect(),
         }
     }
@@ -589,11 +607,11 @@ impl<'a> GeometryRef<'a> {
         &self,
         other: &T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> Vec<Intersection> {
         match self {
             GeometryRef::Point(point) => {
-                if other.covers_point((*point).clone(), epsilon, max_ulps) {
+                if other.covers_point((*point).clone(), epsilon, max_relative) {
                     return vec![(**point).into()];
                 } else {
                     return Vec::new();
@@ -602,29 +620,29 @@ impl<'a> GeometryRef<'a> {
             GeometryRef::BoundingBox(bounding_box) => {
                 let contour = Contour::from(*bounding_box);
                 contour
-                    .intersections_composite(other, epsilon, max_ulps)
+                    .intersections_composite(other, epsilon, max_relative)
                     .collect()
             }
             GeometryRef::ArcSegment(elem) => other
-                .intersections_primitive(*elem, epsilon, max_ulps)
+                .intersections_primitive(*elem, epsilon, max_relative)
                 .collect(),
             GeometryRef::LineSegment(elem) => other
-                .intersections_primitive(*elem, epsilon, max_ulps)
+                .intersections_primitive(*elem, epsilon, max_relative)
                 .collect(),
             GeometryRef::Line(elem) => other
-                .intersections_primitive(*elem, epsilon, max_ulps)
+                .intersections_primitive(*elem, epsilon, max_relative)
                 .collect(),
             GeometryRef::Segment(elem) => other
-                .intersections_primitive(*elem, epsilon, max_ulps)
+                .intersections_primitive(*elem, epsilon, max_relative)
                 .collect(),
             GeometryRef::Polysegment(elem) => other
-                .intersections_composite(*elem, epsilon, max_ulps)
+                .intersections_composite(*elem, epsilon, max_relative)
                 .collect(),
             GeometryRef::Contour(elem) => other
-                .intersections_composite(*elem, epsilon, max_ulps)
+                .intersections_composite(*elem, epsilon, max_relative)
                 .collect(),
             GeometryRef::Shape(elem) => other
-                .intersections_composite(*elem, epsilon, max_ulps)
+                .intersections_composite(*elem, epsilon, max_relative)
                 .collect(),
         }
     }
@@ -633,11 +651,11 @@ impl<'a> GeometryRef<'a> {
         &self,
         other: &T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> Vec<Intersection> {
         match self {
             GeometryRef::Point(point) => {
-                if other.covers_point((*point).clone(), epsilon, max_ulps) {
+                if other.covers_point((*point).clone(), epsilon, max_relative) {
                     return vec![(**point).into()];
                 } else {
                     return Vec::new();
@@ -646,29 +664,29 @@ impl<'a> GeometryRef<'a> {
             GeometryRef::BoundingBox(bounding_box) => {
                 let contour = Contour::from(*bounding_box);
                 contour
-                    .intersections_composite_par(other, epsilon, max_ulps)
+                    .intersections_composite_par(other, epsilon, max_relative)
                     .collect()
             }
             GeometryRef::ArcSegment(elem) => other
-                .intersections_primitive(*elem, epsilon, max_ulps)
+                .intersections_primitive(*elem, epsilon, max_relative)
                 .collect(),
             GeometryRef::LineSegment(elem) => other
-                .intersections_primitive(*elem, epsilon, max_ulps)
+                .intersections_primitive(*elem, epsilon, max_relative)
                 .collect(),
             GeometryRef::Line(elem) => other
-                .intersections_primitive(*elem, epsilon, max_ulps)
+                .intersections_primitive(*elem, epsilon, max_relative)
                 .collect(),
             GeometryRef::Segment(elem) => other
-                .intersections_primitive(*elem, epsilon, max_ulps)
+                .intersections_primitive(*elem, epsilon, max_relative)
                 .collect(),
             GeometryRef::Polysegment(elem) => other
-                .intersections_composite_par(*elem, epsilon, max_ulps)
+                .intersections_composite_par(*elem, epsilon, max_relative)
                 .collect(),
             GeometryRef::Contour(elem) => other
-                .intersections_composite_par(*elem, epsilon, max_ulps)
+                .intersections_composite_par(*elem, epsilon, max_relative)
                 .collect(),
             GeometryRef::Shape(elem) => other
-                .intersections_composite_par(*elem, epsilon, max_ulps)
+                .intersections_composite_par(*elem, epsilon, max_relative)
                 .collect(),
         }
     }
@@ -847,10 +865,10 @@ impl<'a> GeometryCow<'a> {
         &self,
         other: T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> Vec<Intersection> {
         let this: GeometryRef = self.into();
-        this.intersections(other, epsilon, max_ulps)
+        this.intersections(other, epsilon, max_relative)
     }
 
     /**
@@ -864,10 +882,10 @@ impl<'a> GeometryCow<'a> {
         &self,
         other: T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> Vec<Intersection> {
         let this: GeometryRef = self.into();
-        this.intersections_par(other, epsilon, max_ulps)
+        this.intersections_par(other, epsilon, max_relative)
     }
 }
 

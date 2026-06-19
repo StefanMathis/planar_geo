@@ -31,7 +31,7 @@ use serde::Serialize;
 use deserialize_untagged_verbose_error::DeserializeUntaggedVerboseError;
 
 use crate::{
-    CentroidData, DEFAULT_EPSILON, DEFAULT_MAX_ULPS, Transformation,
+    CentroidData, Transformation,
     primitive::{Primitive, PrimitiveIntersections},
 };
 
@@ -124,8 +124,6 @@ impl Segment {
     /// use planar_geo::prelude::*;
     /// use approx;
     ///
-    /// let e = DEFAULT_EPSILON;
-    /// let m = DEFAULT_MAX_ULPS;
     /// let mut iter = Segment::fillet_chain(
     ///    &[
     ///         [0.0, 0.0],
@@ -139,17 +137,13 @@ impl Segment {
     /// );
     /// approx::assert_abs_diff_eq!(
     ///     iter.next(),
-    ///     Some(
-    ///         LineSegment::new([0.0, 0.0], [0.5, 0.0], e, m)
-    ///             .unwrap()
-    ///              .into()
-    ///     ),
+    ///     Some(LineSegment::new([0.0, 0.0], [0.5, 0.0]).unwrap().into()),
     ///     epsilon = 1e-8
     /// );
     /// approx::assert_abs_diff_eq!(
     ///     iter.next(),
     ///     Some(
-    ///         ArcSegment::from_start_center_angle([0.5, 0.0], [0.5, 0.5], FRAC_PI_2, e, m)
+    ///         ArcSegment::from_start_center_angle([0.5, 0.0], [0.5, 0.5], FRAC_PI_2)
     ///             .unwrap()
     ///             .into()
     ///     ),
@@ -157,17 +151,13 @@ impl Segment {
     /// );
     /// approx::assert_abs_diff_eq!(
     ///     iter.next(),
-    ///     Some(
-    ///         LineSegment::new([1.0, 0.5], [0.75, 0.5], e, m)
-    ///             .unwrap()
-    ///              .into()
-    ///     ),
+    ///     Some(LineSegment::new([1.0, 0.5], [0.75, 0.5]).unwrap().into()),
     ///     epsilon = 1e-8
     /// );
     /// approx::assert_abs_diff_eq!(
     ///     iter.next(),
     ///     Some(
-    ///         ArcSegment::from_start_center_angle([0.75, 0.5], [0.75, 0.75], -FRAC_PI_2, e, m)
+    ///         ArcSegment::from_start_center_angle([0.75, 0.5], [0.75, 0.75], -FRAC_PI_2)
     ///             .unwrap()
     ///             .into()
     ///     ),
@@ -175,8 +165,13 @@ impl Segment {
     /// );
     /// approx::assert_abs_diff_eq!(
     ///     iter.next(),
+    ///     Some(LineSegment::new([0.5000000000000006, 0.75], [0.5000000000000006, 0.7499999999999999]).unwrap().into()),
+    ///     epsilon = 1e-8
+    /// );
+    /// approx::assert_abs_diff_eq!(
+    ///     iter.next(),
     ///     Some(
-    ///         ArcSegment::from_start_center_angle([0.5, 0.75], [0.25, 0.75], FRAC_PI_2, e, m)
+    ///         ArcSegment::from_start_center_angle([0.5, 0.75], [0.25, 0.75], FRAC_PI_2)
     ///             .unwrap()
     ///             .into()
     ///     ),
@@ -184,11 +179,7 @@ impl Segment {
     /// );
     /// approx::assert_abs_diff_eq!(
     ///     iter.next(),
-    ///     Some(
-    ///         LineSegment::new([0.25, 1.0], [0.0, 1.0], e, m)
-    ///             .unwrap()
-    ///              .into()
-    ///     ),
+    ///     Some(LineSegment::new([0.25, 1.0], [0.0, 1.0]).unwrap().into()),
     ///     epsilon = 1e-8
     /// );
     /// assert_eq!(iter.next(), None);
@@ -244,18 +235,16 @@ impl Segment {
     use std::f64::consts::PI;
     use planar_geo::prelude::*;
 
-    let ls = LineSegment::new([0.0, 0.0], [0.0, 2.0], 0.0, 0).unwrap();
+    let ls = LineSegment::new([0.0, 0.0], [0.0, 2.0]).unwrap();
     assert_eq!(ls.length(), 2.0);
     let s = Segment::from(ls);
     assert_eq!(s.length(), 2.0);
 
-    let arc = ArcSegment::from_center_radius_start_offset_angle(
+    let arc = ArcSegment::from_center_radius_start_sweep_angle(
             [0.0, 0.0],
             2.0,
             0.0,
             PI,
-            DEFAULT_EPSILON,
-            DEFAULT_MAX_ULPS,
         )
         .unwrap();
     approx::assert_abs_diff_eq!(arc.length(), 2.0 * PI);
@@ -291,7 +280,7 @@ impl Segment {
 
     ```
     use planar_geo::prelude::*;
-    let ls = LineSegment::new([0.0, 0.0], [0.0, 2.0], 0.0, 0).unwrap();
+    let ls = LineSegment::new([0.0, 0.0], [0.0, 2.0]).unwrap();
     let s = Segment::from(ls);
 
     assert_eq!(s.segment_point(0.0), s.start());
@@ -327,13 +316,11 @@ impl Segment {
     // Approximate an arc segment from 0 to 90 degrees by four straight
     // segments (five points). The returned points are regularily distributed
     // over the arc.
-    let arc = ArcSegment::from_center_radius_start_offset_angle(
+    let arc = ArcSegment::from_center_radius_start_sweep_angle(
             [0.0, 0.0],
             1.0,
             0.0,
             FRAC_PI_2,
-            DEFAULT_EPSILON,
-            DEFAULT_MAX_ULPS,
         )
         .unwrap();
     let s = Segment::from(arc);
@@ -363,13 +350,11 @@ impl Segment {
     use std::f64::consts::PI;
     use planar_geo::prelude::*;
 
-    let arc = ArcSegment::from_center_radius_start_offset_angle(
+    let arc = ArcSegment::from_center_radius_start_sweep_angle(
             [0.0, 0.0],
             2.0,
             0.0,
             PI,
-            DEFAULT_EPSILON,
-            DEFAULT_MAX_ULPS,
         )
         .unwrap();
     let s = Segment::from(arc);
@@ -388,7 +373,7 @@ impl Segment {
     ```
     use planar_geo::prelude::*;
 
-    let mut s: Segment = LineSegment::new([0.0, 0.0], [2.0, 0.0], 0.0, 0).unwrap().into();
+    let mut s: Segment = LineSegment::new([0.0, 0.0], [2.0, 0.0]).unwrap().into();
     assert_eq!(s.start(), [0.0, 0.0]);
     assert_eq!(s.stop(), [2.0, 0.0]);
 
@@ -420,14 +405,14 @@ impl Segment {
         &self,
         other: T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> bool {
         match self {
             Segment::LineSegment(line_segment) => {
-                line_segment.touches_segment(other, epsilon, max_ulps)
+                line_segment.touches_segment(other, epsilon, max_relative)
             }
             Segment::ArcSegment(arc_segment) => {
-                arc_segment.touches_segment(other, epsilon, max_ulps)
+                arc_segment.touches_segment(other, epsilon, max_relative)
             }
         }
     }
@@ -466,32 +451,42 @@ impl Transformation for Segment {
 impl crate::primitive::private::Sealed for Segment {}
 
 impl Primitive for Segment {
-    fn covers_point(&self, point: [f64; 2], epsilon: f64, max_ulps: u32) -> bool {
+    fn covers_point(&self, point: [f64; 2], epsilon: f64, max_relative: f64) -> bool {
         match self {
-            Segment::LineSegment(s) => s.covers_point(point, epsilon, max_ulps),
-            Segment::ArcSegment(s) => s.covers_point(point, epsilon, max_ulps),
+            Segment::LineSegment(s) => s.covers_point(point, epsilon, max_relative),
+            Segment::ArcSegment(s) => s.covers_point(point, epsilon, max_relative),
         }
     }
 
-    fn covers_arc_segment(&self, arc_segment: &ArcSegment, epsilon: f64, max_ulps: u32) -> bool {
+    fn covers_arc_segment(
+        &self,
+        arc_segment: &ArcSegment,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> bool {
         match self {
             Segment::LineSegment(_) => return false,
             Segment::ArcSegment(this) => {
-                return this.covers_arc_segment(arc_segment, epsilon, max_ulps);
+                return this.covers_arc_segment(arc_segment, epsilon, max_relative);
             }
         }
     }
 
-    fn covers_line_segment(&self, line_segment: &LineSegment, epsilon: f64, max_ulps: u32) -> bool {
+    fn covers_line_segment(
+        &self,
+        line_segment: &LineSegment,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> bool {
         match self {
             Segment::LineSegment(this) => {
-                return this.covers_line_segment(line_segment, epsilon, max_ulps);
+                return this.covers_line_segment(line_segment, epsilon, max_relative);
             }
             Segment::ArcSegment(_) => return false,
         }
     }
 
-    fn covers_line(&self, _line: &crate::line::Line, _epsilon: f64, _max_ulps: u32) -> bool {
+    fn covers_line(&self, _line: &crate::line::Line, _epsilon: f64, _max_relative: f64) -> bool {
         return false;
     }
 
@@ -499,11 +494,11 @@ impl Primitive for Segment {
         &self,
         line: &crate::line::Line,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> PrimitiveIntersections {
         match self {
-            Segment::LineSegment(s) => s.intersections_line(line, epsilon, max_ulps),
-            Segment::ArcSegment(s) => s.intersections_line(line, epsilon, max_ulps),
+            Segment::LineSegment(s) => s.intersections_line(line, epsilon, max_relative),
+            Segment::ArcSegment(s) => s.intersections_line(line, epsilon, max_relative),
         }
     }
 
@@ -511,13 +506,15 @@ impl Primitive for Segment {
         &self,
         line_segment: &LineSegment,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> PrimitiveIntersections {
         match self {
             Segment::LineSegment(s) => {
-                s.intersections_line_segment(line_segment, epsilon, max_ulps)
+                s.intersections_line_segment(line_segment, epsilon, max_relative)
             }
-            Segment::ArcSegment(s) => s.intersections_line_segment(line_segment, epsilon, max_ulps),
+            Segment::ArcSegment(s) => {
+                s.intersections_line_segment(line_segment, epsilon, max_relative)
+            }
         }
     }
 
@@ -525,11 +522,15 @@ impl Primitive for Segment {
         &self,
         arc_segment: &ArcSegment,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> PrimitiveIntersections {
         match self {
-            Segment::LineSegment(s) => s.intersections_arc_segment(arc_segment, epsilon, max_ulps),
-            Segment::ArcSegment(s) => s.intersections_arc_segment(arc_segment, epsilon, max_ulps),
+            Segment::LineSegment(s) => {
+                s.intersections_arc_segment(arc_segment, epsilon, max_relative)
+            }
+            Segment::ArcSegment(s) => {
+                s.intersections_arc_segment(arc_segment, epsilon, max_relative)
+            }
         }
     }
 
@@ -537,9 +538,9 @@ impl Primitive for Segment {
         &self,
         other: &T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> PrimitiveIntersections {
-        other.intersections_segment(self, epsilon, max_ulps)
+        other.intersections_segment(self, epsilon, max_relative)
     }
 }
 
@@ -646,13 +647,11 @@ variant and its parametrization, a different number of points is created:
 use std::f64::consts::PI;
 use planar_geo::prelude::*;
 
-let arc = ArcSegment::from_center_radius_start_offset_angle(
+let arc = ArcSegment::from_center_radius_start_sweep_angle(
     [0.0, 0.0],
     1.0,
     1.25 * PI,
     0.75 * PI,
-    DEFAULT_EPSILON,
-    DEFAULT_MAX_ULPS,
 )
 .unwrap();
 let s = Segment::from(arc);
@@ -727,22 +726,15 @@ use std::f64::consts::FRAC_PI_2;
 use approx;
 use planar_geo::prelude::*;
 
-let e = DEFAULT_EPSILON;
-let m = DEFAULT_MAX_ULPS;
-
 let mut iter = Segment::fillet_chain(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]], &[0.5]);
 approx::assert_abs_diff_eq!(
     iter.next(),
-    Some(
-        LineSegment::new([0.0, 0.0], [0.5, 0.0], e, m)
-            .unwrap()
-            .into()
-    )
+    Some(LineSegment::new([0.0, 0.0], [0.5, 0.0]).unwrap().into())
 );
 approx::assert_abs_diff_eq!(
     iter.next(),
     Some(
-        ArcSegment::from_start_center_angle([0.5, 0.0], [0.5, 0.5], FRAC_PI_2, e, m)
+        ArcSegment::from_start_center_angle([0.5, 0.0], [0.5, 0.5], FRAC_PI_2)
             .unwrap()
             .into()
     ),
@@ -750,11 +742,7 @@ approx::assert_abs_diff_eq!(
 );
 approx::assert_abs_diff_eq!(
     iter.next(),
-    Some(
-        LineSegment::new([1.0, 0.5], [1.0, 1.0], e, m)
-            .unwrap()
-            .into()
-    ),
+    Some(LineSegment::new([1.0, 0.5], [1.0, 1.0]).unwrap().into()),
     epsilon = 1e-8,
 );
 assert_eq!(iter.next(), None);
@@ -766,7 +754,8 @@ pub struct FilletChainIterator<'a> {
     radii: &'a [f64],
     pt_counter: usize,
     r_counter: usize,
-    start_next_seg: Option<[f64; 2]>,
+    stop_prev_arc: Option<[f64; 2]>,
+    start_next_arc: Option<[f64; 2]>,
 }
 
 impl<'a> FilletChainIterator<'a> {
@@ -776,7 +765,8 @@ impl<'a> FilletChainIterator<'a> {
             radii,
             pt_counter: 0,
             r_counter: 0,
-            start_next_seg: None,
+            stop_prev_arc: None,
+            start_next_arc: None,
         }
     }
 }
@@ -785,34 +775,56 @@ impl<'a> Iterator for FilletChainIterator<'a> {
     type Item = Segment;
 
     fn next(&mut self) -> Option<Self::Item> {
+        let a = self.points.get(self.pt_counter)?.clone();
         let b = self.points.get(self.pt_counter + 1)?.clone();
         let c = self.points.get(self.pt_counter + 2).cloned().unwrap_or(b);
         let r = self.radii.get(self.r_counter).cloned().unwrap_or(0.0);
 
-        let a = match self.start_next_seg {
+        let stop_prev_arc = match self.stop_prev_arc {
             Some(pt) => pt,
-            None => self.points.get(self.pt_counter)?.clone(),
+            None => a,
         };
 
-        match ArcSegment::fillet(a, b, c, r, DEFAULT_EPSILON, DEFAULT_MAX_ULPS) {
-            Ok(arc) => match LineSegment::new(a, arc.start(), DEFAULT_EPSILON, DEFAULT_MAX_ULPS) {
-                Ok(ls) => {
-                    self.start_next_seg = Some(arc.start());
-                    return Some(ls.into());
+        match ArcSegment::fillet(stop_prev_arc, b, c, r) {
+            Ok(arc) => {
+                let start_next_arc = self.start_next_arc.take().unwrap_or(arc.start());
+                match LineSegment::new(stop_prev_arc, start_next_arc) {
+                    Ok(ls) => {
+                        self.start_next_arc = Some(stop_prev_arc);
+                        return Some(ls.into());
+                    }
+                    Err(_) => {
+                        self.r_counter += 1;
+                        self.pt_counter += 1;
+                        self.stop_prev_arc = Some(arc.stop());
+                        return Some(arc.into());
+                    }
                 }
-                Err(_) => {
-                    self.r_counter += 1;
-                    self.pt_counter += 1;
-                    self.start_next_seg = Some(arc.stop());
-                    return Some(arc.into());
-                }
-            },
+            }
             Err(_) => {
-                self.start_next_seg = Some(b);
                 self.r_counter += 1;
                 self.pt_counter += 1;
-                match LineSegment::new(a, b, DEFAULT_EPSILON, DEFAULT_MAX_ULPS) {
-                    Ok(ls) => return Some(ls.into()),
+
+                if self.stop_prev_arc.is_none() {
+                    self.start_next_arc = Some(b);
+                }
+
+                let a = self.points.get(self.pt_counter)?.clone();
+                let b = self.points.get(self.pt_counter + 1).unwrap_or(&a).clone();
+
+                // Check how the next arc would look like
+                if let Some(r) = self.radii.get(self.r_counter).cloned() {
+                    let c = self.points.get(self.pt_counter + 2).cloned().unwrap_or(b);
+                    if let Ok(arc) = ArcSegment::fillet(stop_prev_arc, b, c, r) {
+                        self.start_next_arc = Some(arc.start());
+                    }
+                }
+
+                match LineSegment::new(stop_prev_arc, self.start_next_arc.unwrap_or(b)) {
+                    Ok(ls) => {
+                        self.start_next_arc = Some(stop_prev_arc);
+                        return Some(ls.into());
+                    }
                     Err(_) => return self.next(),
                 }
             }
@@ -965,14 +977,14 @@ impl<'a> SegmentRef<'a> {
         &self,
         other: T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> bool {
         match self {
             SegmentRef::LineSegment(line_segment) => {
-                line_segment.touches_segment(other, epsilon, max_ulps)
+                line_segment.touches_segment(other, epsilon, max_relative)
             }
             SegmentRef::ArcSegment(arc_segment) => {
-                arc_segment.touches_segment(other, epsilon, max_ulps)
+                arc_segment.touches_segment(other, epsilon, max_relative)
             }
         }
     }
@@ -999,32 +1011,42 @@ impl From<&SegmentRef<'_>> for CentroidData {
 impl<'a> crate::primitive::private::Sealed for SegmentRef<'a> {}
 
 impl<'a> Primitive for SegmentRef<'a> {
-    fn covers_point(&self, point: [f64; 2], epsilon: f64, max_ulps: u32) -> bool {
+    fn covers_point(&self, point: [f64; 2], epsilon: f64, max_relative: f64) -> bool {
         match self {
-            SegmentRef::LineSegment(s) => s.covers_point(point, epsilon, max_ulps),
-            SegmentRef::ArcSegment(s) => s.covers_point(point, epsilon, max_ulps),
+            SegmentRef::LineSegment(s) => s.covers_point(point, epsilon, max_relative),
+            SegmentRef::ArcSegment(s) => s.covers_point(point, epsilon, max_relative),
         }
     }
 
-    fn covers_arc_segment(&self, arc_segment: &ArcSegment, epsilon: f64, max_ulps: u32) -> bool {
+    fn covers_arc_segment(
+        &self,
+        arc_segment: &ArcSegment,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> bool {
         match self {
             SegmentRef::LineSegment(_) => return false,
             SegmentRef::ArcSegment(this) => {
-                return this.covers_arc_segment(arc_segment, epsilon, max_ulps);
+                return this.covers_arc_segment(arc_segment, epsilon, max_relative);
             }
         }
     }
 
-    fn covers_line_segment(&self, line_segment: &LineSegment, epsilon: f64, max_ulps: u32) -> bool {
+    fn covers_line_segment(
+        &self,
+        line_segment: &LineSegment,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> bool {
         match self {
             SegmentRef::LineSegment(this) => {
-                return this.covers_line_segment(line_segment, epsilon, max_ulps);
+                return this.covers_line_segment(line_segment, epsilon, max_relative);
             }
             SegmentRef::ArcSegment(_) => return false,
         }
     }
 
-    fn covers_line(&self, _line: &crate::line::Line, _epsilon: f64, _max_ulps: u32) -> bool {
+    fn covers_line(&self, _line: &crate::line::Line, _epsilon: f64, _max_relative: f64) -> bool {
         return false;
     }
 
@@ -1032,11 +1054,11 @@ impl<'a> Primitive for SegmentRef<'a> {
         &self,
         line: &crate::line::Line,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> PrimitiveIntersections {
         match self {
-            SegmentRef::LineSegment(s) => s.intersections_line(line, epsilon, max_ulps),
-            SegmentRef::ArcSegment(s) => s.intersections_line(line, epsilon, max_ulps),
+            SegmentRef::LineSegment(s) => s.intersections_line(line, epsilon, max_relative),
+            SegmentRef::ArcSegment(s) => s.intersections_line(line, epsilon, max_relative),
         }
     }
 
@@ -1044,14 +1066,14 @@ impl<'a> Primitive for SegmentRef<'a> {
         &self,
         line_segment: &LineSegment,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> PrimitiveIntersections {
         match self {
             SegmentRef::LineSegment(s) => {
-                s.intersections_line_segment(line_segment, epsilon, max_ulps)
+                s.intersections_line_segment(line_segment, epsilon, max_relative)
             }
             SegmentRef::ArcSegment(s) => {
-                s.intersections_line_segment(line_segment, epsilon, max_ulps)
+                s.intersections_line_segment(line_segment, epsilon, max_relative)
             }
         }
     }
@@ -1060,14 +1082,14 @@ impl<'a> Primitive for SegmentRef<'a> {
         &self,
         arc_segment: &ArcSegment,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> PrimitiveIntersections {
         match self {
             SegmentRef::LineSegment(s) => {
-                s.intersections_arc_segment(arc_segment, epsilon, max_ulps)
+                s.intersections_arc_segment(arc_segment, epsilon, max_relative)
             }
             SegmentRef::ArcSegment(s) => {
-                s.intersections_arc_segment(arc_segment, epsilon, max_ulps)
+                s.intersections_arc_segment(arc_segment, epsilon, max_relative)
             }
         }
     }
@@ -1076,9 +1098,9 @@ impl<'a> Primitive for SegmentRef<'a> {
         &self,
         other: &T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> PrimitiveIntersections {
-        other.intersections_segment(self.clone(), epsilon, max_ulps)
+        other.intersections_segment(self.clone(), epsilon, max_relative)
     }
 }
 
@@ -1123,7 +1145,7 @@ impl<'a> Iterator for PolygonPointsIterator<'a> {
             }
             SegmentRef::ArcSegment(segment) => {
                 let angle = segment.start_angle()
-                    + self.index as f64 / self.num_segs as f64 * segment.offset_angle();
+                    + self.index as f64 / self.num_segs as f64 * segment.sweep_angle();
                 let mut center = segment.center();
                 center.translate([
                     segment.radius() * angle.cos(),

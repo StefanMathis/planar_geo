@@ -8,15 +8,9 @@ fn file_path(filename: &str) -> PathBuf {
 }
 
 fn main() {
-    let arc = ArcSegment::from_center_radius_start_offset_angle(
-        [0.0, 0.0],
-        1.0,
-        1.25 * PI,
-        0.75 * PI,
-        DEFAULT_EPSILON,
-        DEFAULT_MAX_ULPS,
-    )
-    .unwrap();
+    let arc =
+        ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 1.0, 1.25 * PI, 0.75 * PI)
+            .unwrap();
     let s = Segment::from(arc);
 
     // Approximation by one segment

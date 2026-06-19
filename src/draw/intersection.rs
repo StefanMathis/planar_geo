@@ -160,7 +160,7 @@ impl Intersection {
     ///
     ///     shape.draw(&style, cr)?;
     ///     polysegment.draw(&style, cr)?;
-    ///     for i in shape.intersections_polysegment(&polysegment, DEFAULT_EPSILON, DEFAULT_MAX_ULPS) {
+    ///     for i in shape.intersections_polysegment(&polysegment, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE) {
     ///         i.draw(
     ///             &intersection_style,
     ///             Some(DrawableRef::new(&shape, intersected_segments_style.clone())),

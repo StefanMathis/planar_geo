@@ -288,7 +288,7 @@ use planar_geo::prelude::*;
 
 let sc = Polysegment::from_points(&[[0.0, 0.0], [1.0, 1.0], [1.0, 0.0], [0.0, 1.0], [0.0, 0.0]]);
 
-let mut iter = sc.intersections_polysegment(&sc, DEFAULT_EPSILON, DEFAULT_MAX_ULPS);
+let mut iter = sc.intersections_polysegment(&sc, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE);
 
 // Intersection in the "cross" middle
 assert_eq!(iter.next().unwrap().point, [0.5, 0.5]);
@@ -300,7 +300,7 @@ assert!(iter.next().is_none());
 // By contrast, a contour is closed by default, hence start and end point are
 // connected and therefore are not an intersection
 let c = Contour::new(sc.clone());
-let mut iter = c.intersections_contour(&c, DEFAULT_EPSILON, DEFAULT_MAX_ULPS);
+let mut iter = c.intersections_contour(&c, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE);
 
 // Intersection in the "cross" middle
 assert_eq!(iter.next().unwrap().point, [0.5, 0.5]);
@@ -316,7 +316,7 @@ that the composite intersection functions compare each segment of a with each
 segment of b (via [`Primitive::intersections_primitive`]).
 
 As with the intersection methods of [`Primitive`], each intersection function
-takes `epsilon` and `max_ulps` as additional arguments to specify a certain
+takes `epsilon` and `max_relative` as additional arguments to specify a certain
 tolerance for intersection detection.
 
 All intersection functions first check if the bounding boxes of the two
@@ -341,7 +341,7 @@ pub trait Composite: private::Sealed + Sync {
     // Drop the reference before reusing contour later
     {
         let segment = hole.segment(SegmentKey::from_segment_idx(2));
-        assert_eq!(segment, Some(&Segment::from(LineSegment::new([0.9, 0.9], [0.1, 0.9], 0.0, 0).unwrap())));
+        assert_eq!(segment, Some(&Segment::from(LineSegment::new([0.9, 0.9], [0.1, 0.9]).unwrap())));
     }
 
     let shape = Shape::new(vec![contour, hole]).expect("valid inputs");
@@ -349,7 +349,7 @@ pub trait Composite: private::Sealed + Sync {
     // SegmentKey of Shape is SegmentKey. This accessor retrieves the third
     // segment of the second contour / first hole of the shape
     let segment = shape.segment(SegmentKey::new(1, 2));
-    assert_eq!(segment, Some(&Segment::from(LineSegment::new([0.9, 0.9], [0.1, 0.9], 0.0, 0).unwrap())));
+    assert_eq!(segment, Some(&Segment::from(LineSegment::new([0.9, 0.9], [0.1, 0.9]).unwrap())));
     ```
      */
     fn segment(&self, key: SegmentKey) -> Option<&Segment>;
@@ -461,19 +461,19 @@ pub trait Composite: private::Sealed + Sync {
     let pt = [0.5, 0.9];
 
     // A polysegment cannot contain a point ...
-    assert!(!contour.polysegment().contains_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    assert!(!contour.polysegment().contains_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
 
     // ... but the outer contour does contain the point
-    assert!(contour.contains_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    assert!(contour.contains_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
 
     // The point is not contained by the hole contour, because it is on the boundary segments
-    assert!(!hole.contains_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    assert!(!hole.contains_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
 
     // The point is not contained by the shape, because it is on the hole boundary
-    assert!(!shape.contains_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    assert!(!shape.contains_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
     ```
      */
-    fn contains_point(&self, point: [f64; 2], epsilon: f64, max_ulps: u32) -> bool;
+    fn contains_point(&self, point: [f64; 2], epsilon: f64, max_relative: f64) -> bool;
 
     /**
     Returns whether `self` contains the given [`SegmentRef`].
@@ -492,23 +492,23 @@ pub trait Composite: private::Sealed + Sync {
     let hole = Contour::new(Polysegment::from_points(vertices));
     let shape = Shape::new(vec![contour.clone(), hole.clone()]).expect("valid inputs");
 
-    let ls = LineSegment::new([0.1, 0.1], [0.9, 0.1], 0.0, 0).unwrap();
+    let ls = LineSegment::new([0.1, 0.1], [0.9, 0.1]).unwrap();
 
     // Contour contains line segment
-    assert!(contour.contains_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    assert!(contour.contains_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
 
     // Hole does not contains line segment
-    assert!(!hole.contains_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    assert!(!hole.contains_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
 
     // Shape does not contains line segment
-    assert!(!shape.contains_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    assert!(!shape.contains_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
     ```
      */
     fn contains_segment<'a, T: Into<SegmentRef<'a>>>(
         &self,
         segment: T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> bool;
 
     /**
@@ -531,19 +531,24 @@ pub trait Composite: private::Sealed + Sync {
     let ps = Polysegment::from_points(&[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9]]);
 
     // Contour contains polysegment
-    assert!(contour.contains_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    assert!(contour.contains_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
 
     // Hole does not contains polysegment
-    assert!(!hole.contains_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    assert!(!hole.contains_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
 
     // Shape does not contains polysegment
-    assert!(!shape.contains_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    assert!(!shape.contains_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
     ```
      */
-    fn contains_polysegment(&self, polysegment: &Polysegment, epsilon: f64, max_ulps: u32) -> bool {
+    fn contains_polysegment(
+        &self,
+        polysegment: &Polysegment,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> bool {
         return polysegment
             .segments_par()
-            .all(|s| self.contains_segment(s, epsilon, max_ulps));
+            .all(|s| self.contains_segment(s, epsilon, max_relative));
     }
 
     /**
@@ -552,8 +557,8 @@ pub trait Composite: private::Sealed + Sync {
     This function just calls [`Composite::contains_polysegment`] on
     `contour.polysegment()`.
     */
-    fn contains_contour(&self, contour: &Contour, epsilon: f64, max_ulps: u32) -> bool {
-        return self.contains_polysegment(contour.polysegment(), epsilon, max_ulps);
+    fn contains_contour(&self, contour: &Contour, epsilon: f64, max_relative: f64) -> bool {
+        return self.contains_polysegment(contour.polysegment(), epsilon, max_relative);
     }
 
     /**
@@ -561,8 +566,8 @@ pub trait Composite: private::Sealed + Sync {
 
     A shape is contained within `self` if its outer `contour` is contained.
     */
-    fn contains_shape(&self, shape: &Shape, epsilon: f64, max_ulps: u32) -> bool {
-        return self.contains_contour(shape.contour(), epsilon, max_ulps);
+    fn contains_shape(&self, shape: &Shape, epsilon: f64, max_relative: f64) -> bool {
+        return self.contains_contour(shape.contour(), epsilon, max_relative);
     }
 
     /**
@@ -574,7 +579,7 @@ pub trait Composite: private::Sealed + Sync {
         &'a self,
         other: &'a T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> bool;
 
     /**
@@ -597,19 +602,19 @@ pub trait Composite: private::Sealed + Sync {
     let pt = [0.5, 0.9];
 
     // Polysegment does not cover the point ...
-    assert!(!contour.polysegment().covers_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    assert!(!contour.polysegment().covers_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
 
     // ... but the outer contour does cover the point
-    assert!(contour.covers_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    assert!(contour.covers_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
 
     // The point is covered by the hole contour, because it is on the boundary segments
-    assert!(hole.covers_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    assert!(hole.covers_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
 
     // The point is covered by the shape, because it is on the hole boundary
-    assert!(shape.covers_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    assert!(shape.covers_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
     ```
      */
-    fn covers_point(&self, point: [f64; 2], epsilon: f64, max_ulps: u32) -> bool;
+    fn covers_point(&self, point: [f64; 2], epsilon: f64, max_relative: f64) -> bool;
 
     /**
     Returns whether `self` covers the given [`SegmentRef`].
@@ -628,23 +633,23 @@ pub trait Composite: private::Sealed + Sync {
     let hole = Contour::new(Polysegment::from_points(vertices));
     let shape = Shape::new(vec![contour.clone(), hole.clone()]).expect("valid inputs");
 
-    let ls = LineSegment::new([0.1, 0.1], [0.9, 0.1], 0.0, 0).unwrap();
+    let ls = LineSegment::new([0.1, 0.1], [0.9, 0.1]).unwrap();
 
     // Contour covers line segment
-    assert!(contour.covers_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    assert!(contour.covers_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
 
     // Hole covers line segment
-    assert!(hole.covers_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    assert!(hole.covers_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
 
     // Shape covers line segment
-    assert!(shape.covers_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    assert!(shape.covers_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
     ```
      */
     fn covers_segment<'a, T: Into<SegmentRef<'a>>>(
         &self,
         segment: T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> bool;
 
     /**
@@ -667,19 +672,24 @@ pub trait Composite: private::Sealed + Sync {
     let ps = Polysegment::from_points(&[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9]]);
 
     // Contour covers polysegment
-    assert!(contour.covers_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    assert!(contour.covers_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
 
     // Hole covers polysegment
-    assert!(hole.covers_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    assert!(hole.covers_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
 
     // Shape covers polysegment
-    assert!(shape.covers_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    assert!(shape.covers_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
     ```
      */
-    fn covers_polysegment(&self, polysegment: &Polysegment, epsilon: f64, max_ulps: u32) -> bool {
+    fn covers_polysegment(
+        &self,
+        polysegment: &Polysegment,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> bool {
         return polysegment
             .segments_par()
-            .all(|s| self.covers_segment(s, epsilon, max_ulps));
+            .all(|s| self.covers_segment(s, epsilon, max_relative));
     }
 
     /**
@@ -688,8 +698,8 @@ pub trait Composite: private::Sealed + Sync {
     This function just calls [`Composite::covers_polysegment`] on
     `contour.polysegment()`.
     */
-    fn covers_contour(&self, contour: &Contour, epsilon: f64, max_ulps: u32) -> bool {
-        return self.covers_polysegment(contour.polysegment(), epsilon, max_ulps);
+    fn covers_contour(&self, contour: &Contour, epsilon: f64, max_relative: f64) -> bool {
+        return self.covers_polysegment(contour.polysegment(), epsilon, max_relative);
     }
 
     /**
@@ -697,8 +707,8 @@ pub trait Composite: private::Sealed + Sync {
 
     A shape is covered by `self` if its outer `contour` is covered.
     */
-    fn covers_shape(&self, shape: &Shape, epsilon: f64, max_ulps: u32) -> bool {
-        return self.covers_contour(shape.contour(), epsilon, max_ulps);
+    fn covers_shape(&self, shape: &Shape, epsilon: f64, max_relative: f64) -> bool {
+        return self.covers_contour(shape.contour(), epsilon, max_relative);
     }
 
     /**
@@ -710,7 +720,7 @@ pub trait Composite: private::Sealed + Sync {
         &'a self,
         other: &'a T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> bool;
 
     /**
@@ -733,7 +743,7 @@ pub trait Composite: private::Sealed + Sync {
     let polysegment = Polysegment::from_points(vertices);
 
     let line = Line::from_point_angle([0.5, 0.5], 0.0);
-    let mut intersections = polysegment.intersections_primitive(&line, 0.0, 0);
+    let mut intersections = polysegment.intersections_primitive(&line, 0.0, 0.0);
 
     approx::assert_abs_diff_eq!(
         intersections.next(),
@@ -750,11 +760,11 @@ pub trait Composite: private::Sealed + Sync {
         &'a self,
         primitive: &'a T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> impl Iterator<Item = Intersection> + 'a {
         self.iter()
             .map(move |(k, s)| {
-                s.intersections_primitive(primitive, epsilon, max_ulps)
+                s.intersections_primitive(primitive, epsilon, max_relative)
                     .into_iter()
                     .map(move |point| Intersection {
                         point,
@@ -776,11 +786,11 @@ pub trait Composite: private::Sealed + Sync {
         &'a self,
         primitive: &'a T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> impl ParallelIterator<Item = Intersection> + 'a {
         self.par_iter()
             .map(move |(k, s)| {
-                s.intersections_primitive(primitive, epsilon, max_ulps)
+                s.intersections_primitive(primitive, epsilon, max_relative)
                     .into_iter()
                     .par_bridge()
                     .map(move |point| Intersection {
@@ -809,7 +819,7 @@ pub trait Composite: private::Sealed + Sync {
     let vertices = &[[2.0, 1.0], [2.0, 0.5], [0.0, 0.5]];
     let right = Polysegment::from_points(vertices);
 
-    let mut intersections = left.intersections_polysegment(&right, 0.0, 0);
+    let mut intersections = left.intersections_polysegment(&right, 0.0, 0.0);
 
     approx::assert_abs_diff_eq!(
         intersections.next(),
@@ -822,7 +832,7 @@ pub trait Composite: private::Sealed + Sync {
     assert!(intersections.next().is_none());
 
     // Same result can be achieved with the generic method
-    let mut intersections = left.intersections_composite(&right, 0.0, 0);
+    let mut intersections = left.intersections_composite(&right, 0.0, 0.0);
 
     approx::assert_abs_diff_eq!(
         intersections.next(),
@@ -839,7 +849,7 @@ pub trait Composite: private::Sealed + Sync {
         &'a self,
         polysegment: &'a Polysegment,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> impl Iterator<Item = Intersection> + 'a;
 
     /**
@@ -853,7 +863,7 @@ pub trait Composite: private::Sealed + Sync {
         &'a self,
         polysegment: &'a Polysegment,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> impl ParallelIterator<Item = Intersection> + 'a;
 
     /**
@@ -873,7 +883,7 @@ pub trait Composite: private::Sealed + Sync {
     let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
     let contour = Contour::new(Polysegment::from_points(vertices));
 
-    let mut intersections = polysegment.intersections_contour(&contour, 0.0, 0);
+    let mut intersections = polysegment.intersections_contour(&contour, 0.0, 0.0);
 
     approx::assert_abs_diff_eq!(
         intersections.next(),
@@ -886,7 +896,7 @@ pub trait Composite: private::Sealed + Sync {
     assert!(intersections.next().is_none());
 
     // Same result can be achieved with the generic method
-    let mut intersections = polysegment.intersections_composite(&contour, 0.0, 0);
+    let mut intersections = polysegment.intersections_composite(&contour, 0.0, 0.0);
 
     approx::assert_abs_diff_eq!(
         intersections.next(),
@@ -903,9 +913,9 @@ pub trait Composite: private::Sealed + Sync {
         &'a self,
         contour: &'a Contour,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> impl Iterator<Item = Intersection> + 'a {
-        self.intersections_polysegment(contour.polysegment(), epsilon, max_ulps)
+        self.intersections_polysegment(contour.polysegment(), epsilon, max_relative)
     }
 
     /**
@@ -919,9 +929,9 @@ pub trait Composite: private::Sealed + Sync {
         &'a self,
         contour: &'a Contour,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> impl ParallelIterator<Item = Intersection> + 'a {
-        self.intersections_polysegment_par(contour.polysegment(), epsilon, max_ulps)
+        self.intersections_polysegment_par(contour.polysegment(), epsilon, max_relative)
     }
 
     /**
@@ -944,7 +954,7 @@ pub trait Composite: private::Sealed + Sync {
     let vertices = &[[2.0, 1.0], [2.0, 0.5], [0.0, 0.5]];
     let polysegment = Polysegment::from_points(vertices);
 
-    let mut intersections = polysegment.intersections_shape(&shape, 0.0, 0);
+    let mut intersections = polysegment.intersections_shape(&shape, 0.0, 0.0);
 
     approx::assert_abs_diff_eq!(
         intersections.next(),
@@ -956,7 +966,7 @@ pub trait Composite: private::Sealed + Sync {
     );
 
     // Same result can be achieved with the generic method
-    let mut intersections = polysegment.intersections_composite(&shape, 0.0, 0);
+    let mut intersections = polysegment.intersections_composite(&shape, 0.0, 0.0);
 
     approx::assert_abs_diff_eq!(
         intersections.next(),
@@ -972,7 +982,7 @@ pub trait Composite: private::Sealed + Sync {
         &'a self,
         shape: &'a Shape,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> impl Iterator<Item = Intersection> + 'a;
 
     /**
@@ -987,7 +997,7 @@ pub trait Composite: private::Sealed + Sync {
         &'a self,
         shape: &'a Shape,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> impl ParallelIterator<Item = Intersection> + 'a;
 
     /**
@@ -1006,9 +1016,9 @@ pub trait Composite: private::Sealed + Sync {
             &'a self,
             other: &'a T,
             epsilon: f64,
-            max_ulps: u32,
+           max_relative: f64,
         ) -> PrimitiveIntersections {
-            other.intersections_polysegment(self, epsilon, max_ulps)
+            other.intersections_polysegment(self, epsilon, max_relative)
         }
     }
     ```
@@ -1025,7 +1035,7 @@ pub trait Composite: private::Sealed + Sync {
         &'a self,
         other: &'a T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> impl Iterator<Item = Intersection> + 'a;
 
     /**
@@ -1038,7 +1048,7 @@ pub trait Composite: private::Sealed + Sync {
         &'a self,
         other: &'a T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> impl ParallelIterator<Item = Intersection> + 'a;
 
     /**
@@ -1071,7 +1081,7 @@ pub trait Composite: private::Sealed + Sync {
     let vertices = &[[2.0, 1.0], [2.0, 0.5], [0.0, 0.5]];
     let polysegment = Polysegment::from_points(vertices);
 
-    let intersections = polysegment.intersections(&shape, 0.0, 0);
+    let intersections = polysegment.intersections(&shape, 0.0, 0.0);
     assert_eq!(intersections.len(), 4);
     ```
      */
@@ -1079,13 +1089,13 @@ pub trait Composite: private::Sealed + Sync {
         &self,
         other: T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> Vec<Intersection>
     where
         Self: Sized,
     {
         let geo_ref: crate::geometry::GeometryRef = other.into();
-        return geo_ref.intersections_composite(self, epsilon, max_ulps);
+        return geo_ref.intersections_composite(self, epsilon, max_relative);
     }
 
     /**
@@ -1109,7 +1119,7 @@ pub trait Composite: private::Sealed + Sync {
     let vertices = &[[2.0, 1.0], [2.0, 0.5], [0.0, 0.5]];
     let polysegment = Polysegment::from_points(vertices);
 
-    let intersections = polysegment.intersections_par(&shape, 0.0, 0);
+    let intersections = polysegment.intersections_par(&shape, 0.0, 0.0);
     assert_eq!(intersections.len(), 4);
     ```
      */
@@ -1117,13 +1127,13 @@ pub trait Composite: private::Sealed + Sync {
         &self,
         other: T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> Vec<Intersection>
     where
         Self: Sized,
     {
         let geo_ref: crate::geometry::GeometryRef = other.into();
-        return geo_ref.intersections_composite_par(self, epsilon, max_ulps);
+        return geo_ref.intersections_composite_par(self, epsilon, max_relative);
     }
 
     /**
@@ -1149,20 +1159,20 @@ pub trait Composite: private::Sealed + Sync {
     let pt = [0.5, 0.9];
 
     // A polysegment cannot overlap a point ...
-    assert!(!contour.polysegment().overlaps_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    assert!(!contour.polysegment().overlaps_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
 
     // ... but the outer contour does overlap the point
-    assert!(contour.overlaps_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    assert!(contour.overlaps_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
 
     // The point is not overlapped by the hole contour, because it is on the boundary segments
-    assert!(!hole.overlaps_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    assert!(!hole.overlaps_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
 
     // The point is not overlapped by the shape, because it is on the hole boundary
-    assert!(!shape.overlaps_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    assert!(!shape.overlaps_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
     ```
      */
-    fn overlaps_point(&self, point: [f64; 2], epsilon: f64, max_ulps: u32) -> bool {
-        self.contains_point(point, epsilon, max_ulps)
+    fn overlaps_point(&self, point: [f64; 2], epsilon: f64, max_relative: f64) -> bool {
+        self.contains_point(point, epsilon, max_relative)
     }
 
     /**
@@ -1182,23 +1192,23 @@ pub trait Composite: private::Sealed + Sync {
     let hole = Contour::new(Polysegment::from_points(vertices));
     let shape = Shape::new(vec![contour.clone(), hole.clone()]).expect("valid inputs");
 
-    let ls = LineSegment::new([0.1, 0.1], [0.9, 0.1], 0.0, 0).unwrap();
+    let ls = LineSegment::new([0.1, 0.1], [0.9, 0.1]).unwrap();
 
-    assert!(contour.overlaps_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    assert!(contour.overlaps_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
 
     // Hole does not overlap the segment, because it is right on its boundary
-    assert!(!hole.overlaps_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    assert!(!hole.overlaps_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
 
     // Shape does not overlap line segment (because it is completely covered by
     // the hole and therefore none of its points are contained in the shape.
-    assert!(!shape.overlaps_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    assert!(!shape.overlaps_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
     ```
      */
     fn overlaps_segment<'a, T: Into<SegmentRef<'a>>>(
         &self,
         segment: T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> bool;
 
     /**
@@ -1220,20 +1230,25 @@ pub trait Composite: private::Sealed + Sync {
 
     let ps = Polysegment::from_points(&[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9]]);
 
-    assert!(contour.overlaps_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    assert!(contour.overlaps_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
 
     // Hole does not overlap the segment, because it is right on its boundary
-    assert!(!hole.overlaps_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    assert!(!hole.overlaps_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
 
     // Similar to overlaps_segment, all of the points of ps are covered by the
     // hole, hence it does not overlap with the shape.
-    assert!(!shape.overlaps_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    assert!(!shape.overlaps_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
     ```
      */
-    fn overlaps_polysegment(&self, polysegment: &Polysegment, epsilon: f64, max_ulps: u32) -> bool {
+    fn overlaps_polysegment(
+        &self,
+        polysegment: &Polysegment,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> bool {
         polysegment
             .segments_par()
-            .any(|s| self.overlaps_segment(s, epsilon, max_ulps))
+            .any(|s| self.overlaps_segment(s, epsilon, max_relative))
     }
 
     /**
@@ -1255,12 +1270,12 @@ pub trait Composite: private::Sealed + Sync {
 
     let c: Contour = Polysegment::from_points(&[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9]]).into();
 
-    assert!(contour.overlaps_contour(&c, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
-    assert!(hole.overlaps_contour(&c, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
-    assert!(!shape.overlaps_contour(&c, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    assert!(contour.overlaps_contour(&c, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(hole.overlaps_contour(&c, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(!shape.overlaps_contour(&c, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
     ```
      */
-    fn overlaps_contour(&self, contour: &Contour, epsilon: f64, max_ulps: u32) -> bool;
+    fn overlaps_contour(&self, contour: &Contour, epsilon: f64, max_relative: f64) -> bool;
 
     /**
     Returns whether `self` overlaps the given [`Shape`].
@@ -1281,12 +1296,12 @@ pub trait Composite: private::Sealed + Sync {
 
     let s = Shape::from_outer(Polysegment::from_points(&[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9]]).into()).unwrap();
 
-    assert!(contour.overlaps_shape(&s, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
-    assert!(hole.overlaps_shape(&s, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
-    assert!(!shape.overlaps_shape(&s, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    assert!(contour.overlaps_shape(&s, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(hole.overlaps_shape(&s, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(!shape.overlaps_shape(&s, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
     ```
      */
-    fn overlaps_shape(&self, shape: &Shape, epsilon: f64, max_ulps: u32) -> bool;
+    fn overlaps_shape(&self, shape: &Shape, epsilon: f64, max_relative: f64) -> bool;
 
     /**
     Returns whether `self` overlaps the given [`Composite`].
@@ -1297,7 +1312,7 @@ pub trait Composite: private::Sealed + Sync {
         &'a self,
         other: &'a T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> bool;
 }
 

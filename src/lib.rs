@@ -11,14 +11,14 @@
 [`Composite`]: crate::composite::Composite
 [`Transformation`]: crate::Transformation
 [`DEFAULT_EPSILON`]: crate::DEFAULT_EPSILON
-[`DEFAULT_MAX_ULPS`]: crate::DEFAULT_MAX_ULPS
+[`DEFAULT_MAX_RELATIVE`]: crate::DEFAULT_MAX_RELATIVE
 [crate_index]: crate
 [draw]: crate::draw
 [`Context`]: cairo::Context
 [cairo]: cairo
 [approxim]: approx
 [serde]: serde
-[`ulps_eq`]: approx::ulps_eq
+[`relative_eq`]: approx::relative_eq
 
 A Rust library for 2D geometry: geometric objects, algorithms and visualization.
  */
@@ -39,13 +39,14 @@ doc = ::embed_doc_image::embed_image!("intersection_composites.svg", "docs/img/i
 use bounding_box::BoundingBox;
 
 /**
+TODO
 A resonable value for the absolute tolerance.
 
 Comparing floating-point numbers is often necessary within this crate, e.g.
 when deciding whether two geometries intersect or not. Since floating point
 numbers do not have arbitrary precision, most real numbers cannot be represented
 exactly (e.g. 0.1). Hence, comparisons within this crate are done using the
-[`ulps_eq`](approx::UlpsEq::ulps_eq) function from the [`approxim`](approx)
+[`relative_eq`](approx::UlpsEq::relative_eq) function from the [`approxim`](approx)
 crate, which requires specifying an absolute tolerance and a maximum units in
 last place (ULPs) deviation. The former is mainly relevant when comparing
 numbers close to zero, while the latter gets important with (absolute) big
@@ -58,7 +59,7 @@ when comparing them:
 - [The Floating Point Guide - Comparison](https://floating-point-gui.de/errors/comparison/)
 - [What Every Computer Scientist Should Know About Floating-Point Arithmetic](https://docs.oracle.com/cd/E19957-01/806-3568/ncg_goldberg.html)
 
-This constant and [`DEFAULT_MAX_ULPS`] provide sane defaults which will work
+This constant and [`DEFAULT_MAX_RELATIVE`] provide sane defaults which will work
 well in most cases and are recommeded to be used in the various functions
 requiring an `epsilon` and a `max_ulps` argument. The reason they need to be
 provided as explicit arguments and are not simply used by default is that expert
@@ -68,14 +69,10 @@ if required for a particular use case.
 The specified value is the squere root of the machine precision
 (`f64::EPSILON.sqrt()`).
 */
-pub const DEFAULT_EPSILON: f64 = 0.000000014901161193847656_f64; //
+pub const DEFAULT_EPSILON: f64 = 0.000000014901161193847656_f64; // Absolute tolerance
 
-/**
-A resonable default value for the maximum units in last place (ULPs) tolerance.
-The (maximum) ULPs tolerance is used in a lot of functions across this crate,
-see the docstring of [`DEFAULT_EPSILON`] for more.
- */
-pub const DEFAULT_MAX_ULPS: u32 = 4;
+/// TODO
+pub const DEFAULT_MAX_RELATIVE: f64 = 1e-8; // Relative tolerance
 
 // Base
 pub mod error;

@@ -17,13 +17,13 @@ See the docstring of [`Line`] for more information.
 
 use std::f64::{INFINITY, NEG_INFINITY};
 
-use approx::ulps_eq;
+use approx::relative_eq;
 use bounding_box::{BoundingBox, ToBoundingBox};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    DEFAULT_EPSILON, DEFAULT_MAX_ULPS, Rotation2, Transformation,
+    DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE, Rotation2, Transformation,
     primitive::{Primitive, PrimitiveIntersections},
 };
 
@@ -92,9 +92,9 @@ impl Line {
     // A line with a 45° angle going through [2.0, 0.0].
     let line = Line::from_point_angle([2.0, 0.0], 0.25 * PI);
 
-    assert!(line.covers_point([1.0, -1.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
-    assert!(line.covers_point([2.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
-    assert!(line.covers_point([3.0, 1.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    assert!(line.covers_point([1.0, -1.0], DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(line.covers_point([2.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(line.covers_point([3.0, 1.0], DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
     ```
      */
     pub fn from_point_angle(pt: [f64; 2], angle: f64) -> Self {
@@ -107,8 +107,8 @@ impl Line {
 
     /**
     Creates a [`Line`] from two points. This constructor fails if the points are
-    identical (which is checked with [`approx::assert_ulps_eq`], using the
-    arguments `epsilon` and `max_ulps` for defining the absolute and ULPs
+    identical (which is checked with [`approx::assert_relative_eq`], using the
+    arguments `epsilon` and `max_relative` for defining the absolute and ULPs
     tolerance respectively).
 
     # Examples
@@ -117,26 +117,21 @@ impl Line {
     use planar_geo::prelude::*;
 
     // A line with a 45° angle going through [2.0, 0.0].
-    let line = Line::from_two_points([2.0, 0.0], [3.0, 1.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).expect("points not identical");
+    let line = Line::from_two_points([2.0, 0.0], [3.0, 1.0]).expect("points not identical");
 
-    assert!(line.covers_point([1.0, -1.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
-    assert!(line.covers_point([2.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
-    assert!(line.covers_point([3.0, 1.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    assert!(line.covers_point([1.0, -1.0], DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(line.covers_point([2.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(line.covers_point([3.0, 1.0], DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
     ```
      */
-    pub fn from_two_points(
-        pt1: [f64; 2],
-        pt2: [f64; 2],
-        epsilon: f64,
-        max_ulps: u32,
-    ) -> Result<Self, crate::error::Error> {
-        Ok(crate::segment::LineSegment::new(pt1, pt2, epsilon, max_ulps)?.into())
+    pub fn from_two_points(pt1: [f64; 2], pt2: [f64; 2]) -> Result<Self, crate::error::Error> {
+        Ok(crate::segment::LineSegment::new(pt1, pt2)?.into())
     }
 
     /**
     Returns `true` if the two given lines are parallel within the tolerance band
     defined by the absolute tolerance `epsilon` and the ULPs tolerance
-    `max_ulps`.
+    `max_relative`.
 
     # Examples
 
@@ -146,20 +141,20 @@ impl Line {
     let line_1 = Line::from_point_angle([2.0, 0.0], 1.0);
     let line_2 = Line::from_point_angle([2.0, 1.0], 1.0);
     let line_3 = Line::from_point_angle([2.0, 0.0], -1.0);
-    assert!(line_1.parallel(&line_2, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
-    assert!(!line_1.parallel(&line_3, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
-    assert!(!line_2.parallel(&line_3, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    assert!(line_1.parallel(&line_2, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(!line_1.parallel(&line_3, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(!line_2.parallel(&line_3, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
     ```
      */
-    pub fn parallel(&self, other: &Self, epsilon: f64, max_ulps: u32) -> bool {
+    pub fn parallel(&self, other: &Self, epsilon: f64, max_relative: f64) -> bool {
         let zn = det(self.a, self.b, other.a, other.b);
-        return ulps_eq!(zn, 0.0, epsilon = epsilon, max_ulps = max_ulps);
+        return relative_eq!(zn, 0.0, epsilon = epsilon, max_relative = max_relative);
     }
 
     /**
     Returns `true` if the two given lines are identical within the tolerance
     band defined by the absolute tolerance `epsilon` and the ULPs tolerance
-    `max_ulps`.
+    `max_relative`.
 
     # Examples
 
@@ -169,34 +164,34 @@ impl Line {
     let line_1 = Line::from_point_angle([2.0, 0.0], 0.0);
     let line_2 = Line::from_point_angle([-3.0, 0.0], 0.0);
     let line_3 = Line::from_point_angle([2.0, 1.0], 0.0);
-    assert!(line_1.identical(&line_2, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
-    assert!(!line_1.identical(&line_3, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
-    assert!(!line_2.identical(&line_3, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    assert!(line_1.identical(&line_2, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(!line_1.identical(&line_3, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(!line_2.identical(&line_3, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
     ```
      */
-    pub fn identical(&self, other: &Self, epsilon: f64, max_ulps: u32) -> bool {
-        return ulps_eq!(
+    pub fn identical(&self, other: &Self, epsilon: f64, max_relative: f64) -> bool {
+        return relative_eq!(
             det(self.a, self.b, other.a, other.b),
             0.0,
             epsilon = epsilon,
-            max_ulps = max_ulps
-        ) && ulps_eq!(
+            max_relative = max_relative
+        ) && relative_eq!(
             det(self.a, self.c, other.a, other.c),
             0.0,
             epsilon = epsilon,
-            max_ulps = max_ulps
-        ) && ulps_eq!(
+            max_relative = max_relative
+        ) && relative_eq!(
             det(self.b, self.c, other.b, other.c),
             0.0,
             epsilon = epsilon,
-            max_ulps = max_ulps
+            max_relative = max_relative
         );
     }
 }
 
 impl PartialEq for Line {
     fn eq(&self, other: &Self) -> bool {
-        return self.identical(other, DEFAULT_EPSILON, DEFAULT_MAX_ULPS);
+        return self.identical(other, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE);
     }
 }
 
@@ -304,14 +299,14 @@ impl Transformation for Line {
 impl crate::primitive::private::Sealed for Line {}
 
 impl Primitive for Line {
-    fn covers_point(&self, point: [f64; 2], epsilon: f64, max_ulps: u32) -> bool {
+    fn covers_point(&self, point: [f64; 2], epsilon: f64, max_relative: f64) -> bool {
         // Solution from https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line
-        return ulps_eq!(
+        return relative_eq!(
             (self.a * point[0] + self.b * point[1] + self.c).abs()
                 / (self.a.powi(2) + self.b.powi(2)).sqrt(),
             0.0,
             epsilon = epsilon,
-            max_ulps = max_ulps
+            max_relative = max_relative
         );
     }
 
@@ -319,7 +314,7 @@ impl Primitive for Line {
         &self,
         _arc_segment: &crate::prelude::ArcSegment,
         _epsilon: f64,
-        _max_ulps: u32,
+        _max_relative: f64,
     ) -> bool {
         return false;
     }
@@ -328,21 +323,21 @@ impl Primitive for Line {
         &self,
         line_segment: &crate::segment::LineSegment,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> bool {
         let other = Self::from(line_segment);
-        return self.covers_line(&other, epsilon, max_ulps);
+        return self.covers_line(&other, epsilon, max_relative);
     }
 
-    fn covers_line(&self, line: &Line, epsilon: f64, max_ulps: u32) -> bool {
-        return self.identical(line, epsilon, max_ulps);
+    fn covers_line(&self, line: &Line, epsilon: f64, max_relative: f64) -> bool {
+        return self.identical(line, epsilon, max_relative);
     }
 
     fn intersections_line(
         &self,
         line: &Line,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> PrimitiveIntersections {
         fn det(a: f64, b: f64, c: f64, d: f64) -> f64 {
             return a * d - b * c;
@@ -353,7 +348,7 @@ impl Primitive for Line {
         https://cp-algorithms.com/geometry/lines-intersection.html
         */
         let zn = det(self.a, self.b, line.a, line.b);
-        if approx::ulps_eq!(zn, 0.0, epsilon = epsilon, max_ulps = max_ulps) {
+        if approx::relative_eq!(zn, 0.0, epsilon = epsilon, max_relative = max_relative) {
             return PrimitiveIntersections::Zero;
         } else {
             let x = -det(self.c, self.b, line.c, line.b) / zn;
@@ -366,13 +361,13 @@ impl Primitive for Line {
         &self,
         line_segment: &crate::segment::LineSegment,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> PrimitiveIntersections {
         let other_line = Line::from(line_segment);
-        match self.intersections_line(&other_line, epsilon, max_ulps) {
+        match self.intersections_line(&other_line, epsilon, max_relative) {
             PrimitiveIntersections::Zero => PrimitiveIntersections::Zero,
             PrimitiveIntersections::One(pt) => {
-                return line_segment.intersections_point(pt, epsilon, max_ulps);
+                return line_segment.intersections_point(pt, epsilon, max_relative);
             }
             PrimitiveIntersections::Two(_) => {
                 unreachable!("line-line can have either zero or one intersection")
@@ -384,17 +379,17 @@ impl Primitive for Line {
         &self,
         arc_segment: &crate::segment::ArcSegment,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> PrimitiveIntersections {
-        arc_segment.intersections_line_circle(self.a, self.b, self.c, epsilon, max_ulps)
+        arc_segment.intersections_line_circle(self.a, self.b, self.c, epsilon, max_relative)
     }
 
     fn intersections_primitive<T: Primitive>(
         &self,
         other: &T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> PrimitiveIntersections {
-        return other.intersections_line(self, epsilon, max_ulps);
+        return other.intersections_line(self, epsilon, max_relative);
     }
 }

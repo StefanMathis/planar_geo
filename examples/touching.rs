@@ -7,11 +7,8 @@ fn file_path(filename: &str) -> PathBuf {
 }
 
 fn main() {
-    let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_ULPS;
-
-    let l1_not_touching = LineSegment::new([0.0, 0.0], [2.0, 0.0], e, m).unwrap();
-    let l2_not_touching = LineSegment::new([0.0, 1.0], [2.0, 0.3], e, m).unwrap();
+    let l1_not_touching = LineSegment::new([0.0, 0.0], [2.0, 0.0]).unwrap();
+    let l2_not_touching = LineSegment::new([0.0, 1.0], [2.0, 0.3]).unwrap();
 
     let text_not_touching = Text::new(
         "Not touching".into(),
@@ -25,8 +22,8 @@ fn main() {
 
     // =========================================================================
 
-    let l1_touching = LineSegment::new([3.0, 0.0], [5.0, 0.0], e, m).unwrap();
-    let l2_touching = LineSegment::new([3.0, 1.0], [4.0, 0.0], e, m).unwrap();
+    let l1_touching = LineSegment::new([3.0, 0.0], [5.0, 0.0]).unwrap();
+    let l2_touching = LineSegment::new([3.0, 1.0], [4.0, 0.0]).unwrap();
 
     let text_touching = Text::new(
         "Touching".into(),
@@ -40,8 +37,8 @@ fn main() {
 
     // =========================================================================
 
-    let l1_dividing = LineSegment::new([6.0, 0.0], [8.0, 0.0], e, m).unwrap();
-    let l2_dividing = LineSegment::new([6.0, 1.0], [8.0, -0.25], e, m).unwrap();
+    let l1_dividing = LineSegment::new([6.0, 0.0], [8.0, 0.0]).unwrap();
+    let l2_dividing = LineSegment::new([6.0, 1.0], [8.0, -0.25]).unwrap();
 
     let text_dividing = Text::new(
         "Dividing".into(),
@@ -55,14 +52,12 @@ fn main() {
 
     // =========================================================================
 
-    let l_tangent = LineSegment::new([9.0, 0.0], [11.0, 0.0], e, m).unwrap();
-    let a_tangent = ArcSegment::from_center_radius_start_offset_angle(
+    let l_tangent = LineSegment::new([9.0, 0.0], [11.0, 0.0]).unwrap();
+    let a_tangent = ArcSegment::from_center_radius_start_sweep_angle(
         [10.0, 1.5],
         1.5,
         -0.5 * FRAC_PI_2,
         -FRAC_PI_2,
-        e,
-        m,
     )
     .unwrap();
 

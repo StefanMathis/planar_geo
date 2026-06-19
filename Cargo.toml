@@ -1,6 +1,6 @@
 [package]
 name = "planar_geo"
-version = "0.4.10"
+version = "0.5.0"
 edition = "2024"
 description = "A computational geometry library that treats circular arcs as first-class geometric primitives rather than approximating them with straight line segments."
 readme = "README.md"
@@ -8,26 +8,26 @@ license  = "MIT OR Apache-2.0"
 repository = "https://github.com/StefanMathis/planar_geo.git"
 
 [dependencies]
-cairo-rs = {version = "0.21", optional = true}
-bounding_box = { version = "0.5", features = ["approx"]}
+cairo-rs = {version = "0.22", optional = true}
+bounding_box = { version = "0.6", features = ["approx"]}
 rayon = "1.5"
 num = "0.4.0"
-ordered-float = "^3.6.0"
 serde = { version = "1", features = ["derive"], optional = true }
 deserialize_untagged_verbose_error = { version = "^0.1.5", optional = true }
 geometry-predicates = "0.3"
 approx = { package = "approxim", version = "0.6", features = ["array_impl"] }
 compare_variables = { version = "^0.3.0" }
 embed-doc-image = { version = "^0.1.4", optional = true }
+planar_convex_hull = {version = "0.2.2", optional = true}
 
 [features]
-default = []
+default = ["planar_convex_hull"]
 serde = ["dep:serde", "dep:deserialize_untagged_verbose_error", "bounding_box/serde"]
 cairo = ["dep:cairo-rs"]
 doc-images = ["dep:embed-doc-image"]
 
 [dev-dependencies]
-cairo_viewport = { version = "^0.2.6", features = ["image-compare"] }
+cairo_viewport = { version = "^0.3", features = ["image-compare"] }
 planar_geo = { path = ".", features = ["serde", "cairo"] }
 
 [package.metadata.docs.rs]

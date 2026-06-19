@@ -21,7 +21,7 @@ use crate::{
     {CentroidData, Rotation2, Transformation},
 };
 
-use approx::ulps_eq;
+use approx::relative_eq;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -71,40 +71,32 @@ pub struct LineSegment {
 impl LineSegment {
     /**
     Creates a new [`LineSegment`] instance if the `start` and `stop` are not
-    equal (within the tolerances defined by `epsilon` and `max_ulps`).
+    equal.
 
     # Examples
 
     ```
     use planar_geo::segment::LineSegment;
 
-    // Successfull construction
-    assert!(LineSegment::new([0.0, 0.0], [1.0, 0.0], 0.0, 0).is_ok());
+    // Successful construction
+    assert!(LineSegment::new([0.0, 0.0], [1.0, 0.0]).is_ok());
 
     // Points are identical
-    assert!(LineSegment::new([0.0, 0.0], [0.0, 0.0], 0.0, 0).is_err());
-
-    // Points are identical within the defined tolerance
-    assert!(LineSegment::new([0.0, 0.0], [1.0, 0.0], 1.0, 0).is_err());
+    assert!(LineSegment::new([0.0, 0.0], [0.0, 0.0]).is_err());
     ```
      */
-    pub fn new(
-        start: [f64; 2],
-        stop: [f64; 2],
-        epsilon: f64,
-        max_ulps: u32,
-    ) -> crate::error::Result<Self> {
-        if ulps_eq!(start, stop, epsilon = epsilon, max_ulps = max_ulps) {
-            return Err(crate::error::ErrorType::PointsIdentical { start, stop }.into());
+    pub fn new(start: [f64; 2], stop: [f64; 2]) -> crate::error::Result<Self> {
+        if start == stop {
+            return Err(crate::error::ErrorType::PointsIdentical.into());
         } else {
             return Ok(LineSegment { start, stop });
         }
     }
 
     /**
-    Creates a [`LineSegment`] from a `start` point, an `angle` and its `length`.
-    If the `length` is zero, the points are identical and the construction
-    fails.
+    Creates a [`LineSegment`] from a `start` point, an `angle` in rad and its
+    `length`. If the `length` is zero, the points are identical and the
+    construction fails.
 
     # Examples
 
@@ -112,26 +104,21 @@ impl LineSegment {
     use planar_geo::segment::LineSegment;
 
     // Successfull construction
-    assert!(LineSegment::from_start_angle_length([0.0, 0.0], 0.0, 1.0, 0.0, 0).is_ok());
-    assert!(LineSegment::from_start_angle_length([0.0, 0.0], 0.0, -1.0, 0.0, 0).is_ok());
+    assert!(LineSegment::from_start_angle_length([0.0, 0.0], 0.0, 1.0).is_ok());
+    assert!(LineSegment::from_start_angle_length([0.0, 0.0], 0.0, -1.0).is_ok());
 
     // Points are identical
-    assert!(LineSegment::from_start_angle_length([0.0, 0.0], 0.0, 0.0, 0.0, 0).is_err());
-
-    // Points are identical within the defined tolerance
-    assert!(LineSegment::from_start_angle_length([0.0, 0.0], 0.0, 1.0, 1.0, 0).is_err());
+    assert!(LineSegment::from_start_angle_length([0.0, 0.0], 0.0, 0.0).is_err());
     ```
      */
     pub fn from_start_angle_length(
         start: [f64; 2],
         angle: f64,
         length: f64,
-        epsilon: f64,
-        max_ulps: u32,
     ) -> crate::error::Result<Self> {
         let mut stop = start.clone();
         stop.translate([length * angle.cos(), length * angle.sin()]);
-        return Self::new(start, stop, epsilon, max_ulps);
+        return Self::new(start, stop);
     }
 
     /**
@@ -143,7 +130,7 @@ impl LineSegment {
     use planar_geo::segment::LineSegment;
 
     // Successfull construction
-    let ls = LineSegment::new([0.0, 0.0], [1.0, -1.0], 0.0, 0).expect("points not identical");
+    let ls = LineSegment::new([0.0, 0.0], [1.0, -1.0]).expect("points not identical");
     assert_eq!(ls.xmin(), 0.0);
     ```
      */
@@ -164,7 +151,7 @@ impl LineSegment {
     use planar_geo::segment::LineSegment;
 
     // Successfull construction
-    let ls = LineSegment::new([0.0, 0.0], [1.0, -1.0], 0.0, 0).expect("points not identical");
+    let ls = LineSegment::new([0.0, 0.0], [1.0, -1.0]).expect("points not identical");
     assert_eq!(ls.xmax(), 1.0);
     ```
      */
@@ -185,7 +172,7 @@ impl LineSegment {
     use planar_geo::segment::LineSegment;
 
     // Successfull construction
-    let ls = LineSegment::new([0.0, 0.0], [1.0, -1.0], 0.0, 0).expect("points not identical");
+    let ls = LineSegment::new([0.0, 0.0], [1.0, -1.0]).expect("points not identical");
     assert_eq!(ls.ymin(), -1.0);
     ```
      */
@@ -206,7 +193,7 @@ impl LineSegment {
     use planar_geo::segment::LineSegment;
 
     // Successfull construction
-    let ls = LineSegment::new([0.0, 0.0], [1.0, -1.0], 0.0, 0).expect("points not identical");
+    let ls = LineSegment::new([0.0, 0.0], [1.0, -1.0]).expect("points not identical");
     assert_eq!(ls.ymax(), 0.0);
     ```
      */
@@ -227,11 +214,11 @@ impl LineSegment {
     use planar_geo::segment::LineSegment;
 
     // 45° slope
-    let line = LineSegment::new([0.0, 0.0], [1.0, -1.0], 0.0, 0).unwrap();
+    let line = LineSegment::new([0.0, 0.0], [1.0, -1.0]).expect("points not identical");
     assert_eq!(line.slope(), -1.0);
 
     // Infinite slope (vertical line)
-    let line = LineSegment::new([0.0, 0.0], [0.0, -1.0], 0.0, 0).unwrap();
+    let line = LineSegment::new([0.0, 0.0], [0.0, -1.0]).expect("points not identical");
     assert!(line.slope().is_infinite());
     ```
      */
@@ -252,23 +239,19 @@ impl LineSegment {
     use std::f64::consts::PI;
 
     // 45°
-    let line = LineSegment::new([0.0, 0.0], [1.0, 1.0], DEFAULT_EPSILON,
-                                DEFAULT_MAX_ULPS).unwrap();
+    let line = LineSegment::new([0.0, 0.0], [1.0, 1.0]).expect("points not identical");
     approx::assert_abs_diff_eq!(line.angle(), 0.25 * PI);
 
     // 180°
-    let line = LineSegment::new([1.0, 1.0], [-1.0, 1.0], DEFAULT_EPSILON,
-                                DEFAULT_MAX_ULPS).unwrap();
+    let line = LineSegment::new([1.0, 1.0], [-1.0, 1.0]).expect("points not identical");
     approx::assert_abs_diff_eq!(line.angle(), PI);
 
     // 225°
-    let line = LineSegment::new([-2.0, -8.0], [-4.0, -10.0], DEFAULT_EPSILON,
-                                DEFAULT_MAX_ULPS).unwrap();
+    let line = LineSegment::new([-2.0, -8.0], [-4.0, -10.0]).expect("points not identical");
     approx::assert_abs_diff_eq!(line.angle(), -0.75 * PI);
 
     // 315°
-    let line = LineSegment::new([5.0, 0.0], [6.0, -1.0], DEFAULT_EPSILON,
-                                DEFAULT_MAX_ULPS).unwrap();
+    let line = LineSegment::new([5.0, 0.0], [6.0, -1.0]).expect("points not identical");
     approx::assert_abs_diff_eq!(line.angle(), -0.25 * PI);
     ```
      */
@@ -286,7 +269,7 @@ impl LineSegment {
     ```
     use planar_geo::prelude::*;
 
-    let line = LineSegment::new([0.0, 0.0], [1.0, -1.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap();
+    let line = LineSegment::new([0.0, 0.0], [1.0, -1.0]).expect("points not identical");
     assert_eq!(line.euclidian_distance_to_point([-1.0, 0.0]), 1.0);
     approx::assert_abs_diff_eq!(line.euclidian_distance_to_point([2.0, 0.0]), 2.0f64.sqrt());
 
@@ -324,7 +307,7 @@ impl LineSegment {
     ```
     use planar_geo::segment::LineSegment;
 
-    let ls = LineSegment::new([0.0, 0.0], [-2.0, 0.0], 0.0, 0).unwrap();
+    let ls = LineSegment::new([0.0, 0.0], [-2.0, 0.0]).expect("points not identical");
     assert_eq!(ls.length(), 2.0);
      ```
      */
@@ -343,8 +326,8 @@ impl LineSegment {
     ```
     use planar_geo::segment::LineSegment;
 
-    let ls1 = LineSegment::new([0.0, 0.0], [1.0, 0.0], 0.0, 0).unwrap();
-    let ls2 = LineSegment::new([0.0, 0.0], [2.0, 0.0], 0.0, 0).unwrap();
+    let ls1 = LineSegment::new([0.0, 0.0], [1.0, 0.0]).expect("points not identical");
+    let ls2 = LineSegment::new([0.0, 0.0], [2.0, 0.0]).expect("points not identical");
 
     assert_eq!(ls1.length_sq() > ls2.length_sq(), ls1.length() > ls2.length());
     ```
@@ -381,7 +364,7 @@ impl LineSegment {
     ```
     use planar_geo::segment::LineSegment;
 
-    let mut ls = LineSegment::new([0.0, 0.0], [1.0, 0.0], 0.0, 0).unwrap();
+    let mut ls = LineSegment::new([0.0, 0.0], [1.0, 0.0]).expect("points not identical");
 
     assert_eq!(ls.start(), [0.0, 0.0]);
     assert_eq!(ls.stop(), [1.0, 0.0]);
@@ -410,7 +393,7 @@ impl LineSegment {
     ```
     use planar_geo::segment::LineSegment;
 
-    let line = LineSegment::new([0.0, 0.0], [2.0, 0.0], 0.0, 0).unwrap();
+    let line = LineSegment::new([0.0, 0.0], [2.0, 0.0]).expect("points not identical");
 
     // Middle point of the segment
     assert_eq!(line.segment_point(0.5), [1.0, 0.0]);
@@ -436,7 +419,7 @@ impl LineSegment {
     ```
     use planar_geo::segment::LineSegment;
 
-    let line = LineSegment::new([0.0, 0.0], [2.0, 0.0], 0.0, 0).unwrap();
+    let line = LineSegment::new([0.0, 0.0], [2.0, 0.0]).expect("points not identical");
 
     assert_eq!(line.centroid(), [1.0, 0.0]);
     assert_eq!(line.centroid(), line.segment_point(0.5)); // Middle of the segment
@@ -461,7 +444,7 @@ impl LineSegment {
     ```
     use planar_geo::prelude::*;
 
-    let line = LineSegment::new([0.0, 0.0], [2.0, 0.0], 0.0, 0).unwrap();
+    let line = LineSegment::new([0.0, 0.0], [2.0, 0.0]).expect("points not identical");
 
     let mut iter = line.polygonize(SegmentPolygonizer::InnerSegments(4));
 
@@ -503,7 +486,7 @@ impl LineSegment {
     ```
     use planar_geo::prelude::*;
 
-    let mut ls = LineSegment::new([0.0, 0.0], [2.0, 0.0], 0.0, 0).unwrap();
+    let mut ls = LineSegment::new([0.0, 0.0], [2.0, 0.0]).expect("points not identical");
     assert_eq!(ls.start(), [0.0, 0.0]);
     assert_eq!(ls.stop(), [2.0, 0.0]);
 
@@ -532,7 +515,7 @@ impl LineSegment {
     ```
     use planar_geo::segment::LineSegment;
 
-    let line = LineSegment::new([0.0, 0.0], [2.0, 0.0], 0.0, 0).unwrap();
+    let line = LineSegment::new([0.0, 0.0], [2.0, 0.0]).expect("points not identical");
 
     let mut iter = line.points();
 
@@ -568,32 +551,32 @@ impl LineSegment {
     /// ```
     /// use planar_geo::prelude::*;
     ///
-    /// let l1 = LineSegment::new([0.0, 0.0], [1.0, 0.0], 0.0, 0).unwrap();
-    /// let l2 = LineSegment::new([0.5, 0.0], [1.5, 0.0], 0.0, 0).unwrap();
-    /// let l3 = LineSegment::new([1.0, 0.0], [2.0, 0.0], 0.0, 0).unwrap();
-    /// let l4 = LineSegment::new([0.5, 0.0], [0.5, 1.0], 0.0, 0).unwrap();
-    /// let l5 = LineSegment::new([0.5, -1.0], [0.5, 1.0], 0.0, 0).unwrap();
+    /// let l1 = LineSegment::new([0.0, 0.0], [1.0, 0.0]).expect("points not identical");
+    /// let l2 = LineSegment::new([0.5, 0.0], [1.5, 0.0]).expect("points not identical");
+    /// let l3 = LineSegment::new([1.0, 0.0], [2.0, 0.0]).expect("points not identical");
+    /// let l4 = LineSegment::new([0.5, 0.0], [0.5, 1.0]).expect("points not identical");
+    /// let l5 = LineSegment::new([0.5, -1.0], [0.5, 1.0]).expect("points not identical");
     ///
     /// // l1 and l2 overlap
-    /// assert!(l1.touches_segment(&l2, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    /// assert!(l1.touches_segment(&l2, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
     ///
     /// // l1 and l3 share the same end point
-    /// assert!(l1.touches_segment(&l3, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    /// assert!(l1.touches_segment(&l3, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
     ///
     /// // Start point of l4 is somewhere on l1
-    /// assert!(l1.touches_segment(&l4, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    /// assert!(l1.touches_segment(&l4, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
     ///
     /// // l5 divides l1
-    /// assert!(!l1.touches_segment(&l5, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    /// assert!(!l1.touches_segment(&l5, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
     /// ```
     pub fn touches_segment<'a, T: Into<super::SegmentRef<'a>>>(
         &self,
         other: T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> bool {
         return self
-            .touches_and_intersections(other.into(), epsilon, max_ulps)
+            .touches_and_intersections(other.into(), epsilon, max_relative)
             .0;
     }
 
@@ -601,40 +584,49 @@ impl LineSegment {
         &self,
         other: super::SegmentRef<'_>,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> (bool, PrimitiveIntersections) {
-        fn ep_ls(s: &LineSegment, pt: [f64; 2], epsilon: f64, max_ulps: u32) -> bool {
-            return ulps_eq!(pt, s.start(), epsilon = epsilon, max_ulps = max_ulps)
-                || ulps_eq!(pt, s.stop(), epsilon = epsilon, max_ulps = max_ulps);
+        fn ep_ls(s: &LineSegment, pt: [f64; 2], epsilon: f64, max_relative: f64) -> bool {
+            return relative_eq!(
+                pt,
+                s.start(),
+                epsilon = epsilon,
+                max_relative = max_relative
+            ) || relative_eq!(pt, s.stop(), epsilon = epsilon, max_relative = max_relative);
         }
 
-        fn ep_as(s: &super::ArcSegment, pt: [f64; 2], epsilon: f64, max_ulps: u32) -> bool {
-            return ulps_eq!(pt, s.start(), epsilon = epsilon, max_ulps = max_ulps)
-                || ulps_eq!(pt, s.stop(), epsilon = epsilon, max_ulps = max_ulps);
+        fn ep_as(s: &super::ArcSegment, pt: [f64; 2], epsilon: f64, max_relative: f64) -> bool {
+            return relative_eq!(
+                pt,
+                s.start(),
+                epsilon = epsilon,
+                max_relative = max_relative
+            ) || relative_eq!(pt, s.stop(), epsilon = epsilon, max_relative = max_relative);
         }
 
-        let intersections = self.intersections_primitive(&other, epsilon, max_ulps);
+        let intersections = self.intersections_primitive(&other, epsilon, max_relative);
         let touches = match other {
             super::SegmentRef::LineSegment(line_segment) => match intersections {
                 PrimitiveIntersections::Zero => false,
                 PrimitiveIntersections::One(i) => {
-                    ep_ls(self, i, epsilon, max_ulps) || ep_ls(line_segment, i, epsilon, max_ulps)
+                    ep_ls(self, i, epsilon, max_relative)
+                        || ep_ls(line_segment, i, epsilon, max_relative)
                 }
                 PrimitiveIntersections::Two(_) => true,
             },
             super::SegmentRef::ArcSegment(arc_segment) => match intersections {
                 PrimitiveIntersections::Zero => false,
                 PrimitiveIntersections::One(i) => {
-                    ep_ls(self, i, epsilon, max_ulps)
-                        || ep_as(arc_segment, i, epsilon, max_ulps)
-                        || self.is_tangent(arc_segment, epsilon, max_ulps)
+                    ep_ls(self, i, epsilon, max_relative)
+                        || ep_as(arc_segment, i, epsilon, max_relative)
+                        || self.is_tangent(arc_segment, epsilon, max_relative)
                 }
                 PrimitiveIntersections::Two([i1, i2]) => {
                     // Are the intersections end points?
-                    (ep_ls(self, i1, epsilon, max_ulps)
-                        || ep_as(arc_segment, i1, epsilon, max_ulps))
-                        && (ep_ls(self, i2, epsilon, max_ulps)
-                            || ep_as(arc_segment, i2, epsilon, max_ulps))
+                    (ep_ls(self, i1, epsilon, max_relative)
+                        || ep_as(arc_segment, i1, epsilon, max_relative))
+                        && (ep_ls(self, i2, epsilon, max_relative)
+                            || ep_as(arc_segment, i2, epsilon, max_relative))
                 }
             },
         };
@@ -654,22 +646,27 @@ impl LineSegment {
     use std::f64::consts::PI;
     use planar_geo::prelude::*;
 
-    let ls = LineSegment::new([-2.0, 0.0], [2.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_ULPS).unwrap();
+    let ls = LineSegment::new([-2.0, 0.0], [2.0, 0.0]).expect("points not identical");
 
     // Arc touches ls at its end points, but ls is not a tangent
-    let arc = ArcSegment::from_center_radius_start_offset_angle([0.0, 0.0], 2.0, 0.0, PI, 0.0, 0).unwrap();
-    assert!(!ls.is_tangent(&arc, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    let arc = ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 2.0, 0.0, PI).expect("points not identical");
+    assert!(!ls.is_tangent(&arc, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
 
     // Arc which touches ls at [0.0, 0.0]
-    let arc = ArcSegment::from_center_radius_start_offset_angle([0.0, 2.0], 2.0, PI, PI, 0.0, 0).unwrap();
-    assert!(ls.is_tangent(&arc, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    let arc = ArcSegment::from_center_radius_start_sweep_angle([0.0, 2.0], 2.0, PI, PI).expect("points not identical");
+    assert!(ls.is_tangent(&arc, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
 
     // Underlying circle touches ls in [0.0, 0.0], but that intersection point is not part of arc
-    let arc = ArcSegment::from_center_radius_start_offset_angle([0.0, 2.0], 2.0, 0.0, PI, 0.0, 0).unwrap();
-    assert!(!ls.is_tangent(&arc, DEFAULT_EPSILON, DEFAULT_MAX_ULPS));
+    let arc = ArcSegment::from_center_radius_start_sweep_angle([0.0, 2.0], 2.0, 0.0, PI).expect("points not identical");
+    assert!(!ls.is_tangent(&arc, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
     ```
      */
-    pub fn is_tangent(&self, arc_segment: &super::ArcSegment, epsilon: f64, max_ulps: u32) -> bool {
+    pub fn is_tangent(
+        &self,
+        arc_segment: &super::ArcSegment,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> bool {
         let [x1, y1] = self.start();
         let [x2, y2] = self.stop();
 
@@ -689,7 +686,7 @@ impl LineSegment {
         let px = x1 + t * dx;
         let py = y1 + t * dy;
 
-        if !arc_segment.covers_point([px, py], epsilon, max_ulps) {
+        if !arc_segment.covers_point([px, py], epsilon, max_relative) {
             return false;
         }
 
@@ -697,7 +694,7 @@ impl LineSegment {
         let dist = ((px - cx).powi(2) + (py - cy).powi(2)).sqrt();
 
         // Check tangency
-        if approx::ulps_ne!(dist, r, epsilon = epsilon, max_ulps = max_ulps) {
+        if approx::relative_ne!(dist, r, epsilon = epsilon, max_relative = max_relative) {
             return false;
         }
 
@@ -799,12 +796,7 @@ impl LineSegment {
     removing common significant digits from the calculation to
     maintain more bits of precision.
      */
-    fn proper_intersection(
-        &self,
-        line_segment: &LineSegment,
-        epsilon: f64,
-        max_ulps: u32,
-    ) -> [f64; 2] {
+    fn proper_intersection(&self, line_segment: &LineSegment, epsilon: f64) -> [f64; 2] {
         // Computes a segment intersection using homogeneous coordinates.
         // Round-off error can cause the raw computation to fail,
         // (usually due to the segments being approximately parallel).
@@ -817,8 +809,8 @@ impl LineSegment {
         // confusingly, Envelope::contains(coord) in JTS is actually an
         // *intersection* check, not a true SFS `contains`, because it includes
         // the boundary of the rect.
-        if !(BoundingBox::from(self).approx_covers_point(int_pt, epsilon, max_ulps)
-            && BoundingBox::from(line_segment).approx_covers_point(int_pt, epsilon, max_ulps))
+        if !(BoundingBox::from(self).approx_covers_point(int_pt, epsilon)
+            && BoundingBox::from(line_segment).approx_covers_point(int_pt, epsilon))
         {
             // compute a safer result
             // copy the coordinate, since it may be rounded later
@@ -949,17 +941,17 @@ impl std::fmt::Display for LineSegment {
 impl crate::primitive::private::Sealed for LineSegment {}
 
 impl Primitive for LineSegment {
-    fn covers_point(&self, p: [f64; 2], epsilon: f64, max_ulps: u32) -> bool {
+    fn covers_point(&self, p: [f64; 2], epsilon: f64, max_relative: f64) -> bool {
         // Quick first check: If point p is outside the segment bounding box, it can't
         // be contained.
-        if !BoundingBox::from(self).approx_covers_point(p, epsilon, max_ulps) {
+        if !BoundingBox::from(self).approx_covers_point(p, epsilon) {
             return false;
         }
 
         // Check if the points of the segment and p are collinear. If they aren't, p
         // can't be contained. If they are, p is contained, since it is also
         // inside the segment bounding box.
-        if epsilon == 0.0 && max_ulps == 0 {
+        if epsilon == 0.0 && max_relative == 0.0 {
             return geometry_predicates::orient2d(self.start.into(), self.stop.into(), p.into())
                 == 0.0;
         } else {
@@ -973,7 +965,7 @@ impl Primitive for LineSegment {
             // Calculate the (squared) distance between the segment and the given point
             let pt = [v[0] + t * (w[0] - v[0]), v[1] + t * (w[1] - v[1])];
             let dist = ((pt[0] - p[0]).powi(2) + (pt[1] - p[1]).powi(2)).sqrt();
-            return approx::ulps_eq!(dist, 0.0, epsilon = epsilon, max_ulps = max_ulps);
+            return approx::relative_eq!(dist, 0.0, epsilon = epsilon, max_relative = max_relative);
         }
     }
 
@@ -981,13 +973,18 @@ impl Primitive for LineSegment {
         &self,
         _arc_segment: &crate::segment::ArcSegment,
         _epsilon: f64,
-        _max_ulps: u32,
+        _max_relative: f64,
     ) -> bool {
         return false;
     }
 
-    fn covers_line_segment(&self, line_segment: &LineSegment, epsilon: f64, max_ulps: u32) -> bool {
-        match self.intersections_primitive(line_segment, epsilon, max_ulps) {
+    fn covers_line_segment(
+        &self,
+        line_segment: &LineSegment,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> bool {
+        match self.intersections_primitive(line_segment, epsilon, max_relative) {
             // Deal with special case where self and line_segment are identical
             PrimitiveIntersections::Zero => std::ptr::eq(self, line_segment),
             PrimitiveIntersections::One(_) => false,
@@ -995,15 +992,15 @@ impl Primitive for LineSegment {
                 let start = line_segment.start();
                 let stop = line_segment.stop();
 
-                ulps_eq!(start, pt1, epsilon = epsilon, max_ulps = max_ulps)
-                    && ulps_eq!(stop, pt2, epsilon = epsilon, max_ulps = max_ulps)
-                    || ulps_eq!(start, pt2, epsilon = epsilon, max_ulps = max_ulps)
-                        && ulps_eq!(stop, pt1, epsilon = epsilon, max_ulps = max_ulps)
+                relative_eq!(start, pt1, epsilon = epsilon, max_relative = max_relative)
+                    && relative_eq!(stop, pt2, epsilon = epsilon, max_relative = max_relative)
+                    || relative_eq!(start, pt2, epsilon = epsilon, max_relative = max_relative)
+                        && relative_eq!(stop, pt1, epsilon = epsilon, max_relative = max_relative)
             }
         }
     }
 
-    fn covers_line(&self, _line: &crate::line::Line, _epsilon: f64, _max_ulps: u32) -> bool {
+    fn covers_line(&self, _line: &crate::line::Line, _epsilon: f64, _max_relative: f64) -> bool {
         return false;
     }
 
@@ -1011,16 +1008,16 @@ impl Primitive for LineSegment {
         &self,
         line: &crate::line::Line,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> PrimitiveIntersections {
-        return line.intersections_line_segment(self, epsilon, max_ulps);
+        return line.intersections_line_segment(self, epsilon, max_relative);
     }
 
     fn intersections_line_segment(
         &self,
         line_segment: &LineSegment,
         epsilon: f64,
-        max_ulps: u32,
+        _max_relative: f64,
     ) -> PrimitiveIntersections {
         // This is geo's line_intersection algorithm
         // (https://github.com/georust/geo/blob/3b0d5738f54bd8964f7d1f573bd63dc114587dc4/geo/src/algorithm/line_intersection.rs)
@@ -1113,10 +1110,10 @@ impl Primitive for LineSegment {
             let bb2 = BoundingBox::from(line_segment);
 
             return match (
-                bb1.approx_covers_point(line_segment.start, epsilon, max_ulps),
-                bb1.approx_covers_point(line_segment.stop, epsilon, max_ulps),
-                bb2.approx_covers_point(self.start, epsilon, max_ulps),
-                bb2.approx_covers_point(self.stop, epsilon, max_ulps),
+                bb1.approx_covers_point(line_segment.start, epsilon),
+                bb1.approx_covers_point(line_segment.stop, epsilon),
+                bb2.approx_covers_point(self.start, epsilon),
+                bb2.approx_covers_point(self.stop, epsilon),
             ) {
                 (true, true, _, _) => {
                     PrimitiveIntersections::Two([line_segment.start, line_segment.stop])
@@ -1178,7 +1175,7 @@ impl Primitive for LineSegment {
                 };
             PrimitiveIntersections::One(intersection)
         } else {
-            let intersection = self.proper_intersection(line_segment, epsilon, max_ulps);
+            let intersection = self.proper_intersection(line_segment, epsilon);
             return PrimitiveIntersections::One(intersection);
         }
     }
@@ -1187,7 +1184,7 @@ impl Primitive for LineSegment {
         &self,
         arc_segment: &crate::segment::ArcSegment,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> PrimitiveIntersections {
         let x1 = self.start[0];
         let y1 = self.start[1];
@@ -1206,11 +1203,11 @@ impl Primitive for LineSegment {
         let mut intersections = PrimitiveIntersections::Zero;
 
         for pt in arc_segment
-            .intersections_line_circle(a, b, c, epsilon, max_ulps)
+            .intersections_line_circle(a, b, c, epsilon, max_relative)
             .into_iter()
             .map(From::from)
         {
-            if self.covers_point(pt, epsilon, max_ulps) {
+            if self.covers_point(pt, epsilon, max_relative) {
                 intersections.push(pt);
             }
         }
@@ -1221,8 +1218,8 @@ impl Primitive for LineSegment {
         &self,
         other: &T,
         epsilon: f64,
-        max_ulps: u32,
+        max_relative: f64,
     ) -> PrimitiveIntersections {
-        other.intersections_line_segment(self, epsilon, max_ulps)
+        other.intersections_line_segment(self, epsilon, max_relative)
     }
 }

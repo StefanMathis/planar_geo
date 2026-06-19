@@ -10,13 +10,9 @@ fn file_path(filename: &str) -> PathBuf {
 }
 
 fn main() {
-    let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_ULPS;
-
     // Line segment
     // =========================================================================
-    let line_segment =
-        LineSegment::new([0.0, 0.0], [2.0, -1.0], e, m).expect("end points not identical");
+    let line_segment = LineSegment::new([0.0, 0.0], [2.0, -1.0]).expect("end points not identical");
 
     let mut style = Style::default();
     style.background_color = Color::from_rgba8(144, 213, 255, 255);
@@ -39,8 +35,7 @@ fn main() {
     // Arc segment
     // =========================================================================
     let arc_segment =
-        ArcSegment::from_center_radius_start_offset_angle([4.0, 0.0], 1.0, PI, 0.75 * PI, e, m)
-            .unwrap();
+        ArcSegment::from_center_radius_start_sweep_angle([4.0, 0.0], 1.0, PI, 0.75 * PI).unwrap();
 
     let mut bb = BoundingBox::from(&arc_segment);
     bb.scale(1.1);
@@ -81,7 +76,7 @@ fn main() {
     let mut polysegment = Polysegment::new();
 
     polysegment.push_back(
-        ArcSegment::from_center_radius_start_offset_angle([0.0, 0.0], 1.0, 0.0, -0.5 * PI, e, m)
+        ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 1.0, 0.0, -0.5 * PI)
             .unwrap()
             .into(),
     );

@@ -3,25 +3,16 @@ use planar_geo::prelude::*;
 use std::f64::consts::PI;
 
 fn main() {
-    let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_ULPS;
-
-    let mut line_1: Segment = LineSegment::new([0.0, 0.0], [3.0, 0.0], e, m)
+    let mut line_1: Segment = LineSegment::new([0.0, 0.0], [3.0, 0.0])
         .expect("segment length is not zero")
         .into();
-    let mut line_2: Segment = LineSegment::new([2.0, -0.5], [2.0, 0.5], e, m)
+    let mut line_2: Segment = LineSegment::new([2.0, -0.5], [2.0, 0.5])
         .expect("segment length is not zero")
         .into();
-    let mut arc: Segment = ArcSegment::from_center_radius_start_offset_angle(
-        [1.0, 0.0],
-        0.5,
-        -0.25 * PI,
-        1.5 * PI,
-        e,
-        m,
-    )
-    .expect("offet angle is not zero")
-    .into();
+    let mut arc: Segment =
+        ArcSegment::from_center_radius_start_sweep_angle([1.0, 0.0], 0.5, -0.25 * PI, 1.5 * PI)
+            .expect("offet angle is not zero")
+            .into();
 
     line_1.line_reflection([0.0, 0.0], [1.0, 0.0]);
     line_2.line_reflection([0.0, 0.0], [1.0, 0.0]);
