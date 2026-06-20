@@ -151,6 +151,11 @@ impl Segment {
     /// );
     /// approx::assert_abs_diff_eq!(
     ///     iter.next(),
+    ///     Some(LineSegment::new([1.0000000000000002, 0.5000000000000001], [1.0, 0.5]).unwrap().into()),
+    ///     epsilon = 1e-8
+    /// );
+    /// approx::assert_abs_diff_eq!(
+    ///     iter.next(),
     ///     Some(LineSegment::new([1.0, 0.5], [0.75, 0.5]).unwrap().into()),
     ///     epsilon = 1e-8
     /// );
@@ -752,10 +757,9 @@ assert_eq!(iter.next(), None);
 pub struct FilletChainIterator<'a> {
     points: &'a [[f64; 2]],
     radii: &'a [f64],
-    pt_counter: usize,
-    r_counter: usize,
-    stop_prev_arc: Option<[f64; 2]>,
-    start_next_arc: Option<[f64; 2]>,
+    counter: usize,
+    waiting_arc: Option<ArcSegment>,
+    stop_last_arc: Option<[f64; 2]>,
 }
 
 impl<'a> FilletChainIterator<'a> {
@@ -763,10 +767,9 @@ impl<'a> FilletChainIterator<'a> {
         Self {
             points,
             radii,
-            pt_counter: 0,
-            r_counter: 0,
-            stop_prev_arc: None,
-            start_next_arc: None,
+            counter: 0,
+            waiting_arc: None,
+            stop_last_arc: None,
         }
     }
 }
@@ -775,57 +778,68 @@ impl<'a> Iterator for FilletChainIterator<'a> {
     type Item = Segment;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let a = self.points.get(self.pt_counter)?.clone();
-        let b = self.points.get(self.pt_counter + 1)?.clone();
-        let c = self.points.get(self.pt_counter + 2).cloned().unwrap_or(b);
-        let r = self.radii.get(self.r_counter).cloned().unwrap_or(0.0);
+        /*
+        The algorithm works as follows:
+        1. Fetch the next three points and the next radius using the counter. If
+        there are not enough points, the iterator is exhausted.
+        2. If there is a waiting arc, return it. This will not be the case on
+        the first iteration.
+        3. If there is no waiting arc, increment the counter, then try to create
+        a fillet arc from the three fetched points. If this succeeds, check if
+        its stop point is equal to the third point. If that is the case, the arc
+        is so large that it "skips" one segment / iteration completely, hence
+        the counter is incremented again. The start point of the arc is used as
+        the stop point of the line segment leading to the fillet arc. The arc
+        stop point is also stashed.
+        4. Define a line segment leading to the fillet arc (if step 3 succeeded)
+        or the second fetched point. The start point is either the stop
+        point of the previous arc (which was stashed in a previous iteration)
+        or the first fetched point. The stop point is either the start point
+        of the fillet arc created in this iteration or simply the second fetched
+        point.
+        4. Try to create the line segment. If this works, return it, otherwise
+        iterate again.
+         */
 
-        let stop_prev_arc = match self.stop_prev_arc {
-            Some(pt) => pt,
-            None => a,
-        };
+        let a = self.points.get(self.counter)?.clone();
+        let b = self.points.get(self.counter + 1).cloned().unwrap_or(a);
+        let c = self.points.get(self.counter + 2).cloned().unwrap_or(b);
+        let r = self.radii.get(self.counter).cloned().unwrap_or(0.0);
 
-        match ArcSegment::fillet(stop_prev_arc, b, c, r) {
-            Ok(arc) => {
-                let start_next_arc = self.start_next_arc.take().unwrap_or(arc.start());
-                match LineSegment::new(stop_prev_arc, start_next_arc) {
+        match self.waiting_arc.take() {
+            Some(arc) => {
+                return Some(arc.into());
+            }
+            None => {
+                self.counter += 1;
+                let start = self.stop_last_arc.take().unwrap_or(a);
+
+                // Create the next arc segment and then the line segment connecting to it
+                let stop = match ArcSegment::fillet(start, b, c, r) {
+                    Ok(arc) => {
+                        let line_stop = arc.start();
+                        let arc_stop = arc.stop();
+
+                        // Arc "skips" the next segment, since its stop point is
+                        // the stop point of the next segment as well.
+                        if arc_stop == c {
+                            self.counter += 1;
+                        }
+
+                        self.stop_last_arc = Some(arc_stop);
+                        self.waiting_arc = Some(arc);
+                        line_stop
+                    }
+                    Err(_) => b,
+                };
+
+                match LineSegment::new(start, stop) {
                     Ok(ls) => {
-                        self.start_next_arc = Some(stop_prev_arc);
                         return Some(ls.into());
                     }
                     Err(_) => {
-                        self.r_counter += 1;
-                        self.pt_counter += 1;
-                        self.stop_prev_arc = Some(arc.stop());
-                        return Some(arc.into());
+                        return self.next();
                     }
-                }
-            }
-            Err(_) => {
-                self.r_counter += 1;
-                self.pt_counter += 1;
-
-                if self.stop_prev_arc.is_none() {
-                    self.start_next_arc = Some(b);
-                }
-
-                let a = self.points.get(self.pt_counter)?.clone();
-                let b = self.points.get(self.pt_counter + 1).unwrap_or(&a).clone();
-
-                // Check how the next arc would look like
-                if let Some(r) = self.radii.get(self.r_counter).cloned() {
-                    let c = self.points.get(self.pt_counter + 2).cloned().unwrap_or(b);
-                    if let Ok(arc) = ArcSegment::fillet(stop_prev_arc, b, c, r) {
-                        self.start_next_arc = Some(arc.start());
-                    }
-                }
-
-                match LineSegment::new(stop_prev_arc, self.start_next_arc.unwrap_or(b)) {
-                    Ok(ls) => {
-                        self.start_next_arc = Some(stop_prev_arc);
-                        return Some(ls.into());
-                    }
-                    Err(_) => return self.next(),
                 }
             }
         }

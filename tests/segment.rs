@@ -40,6 +40,84 @@ fn test_fillet_chain() {
                 [0.5, 1.0],
                 [1.0, 1.0],
             ],
+            &[0.0, 0.5, 2.0],
+        );
+
+        let gap_check = iter.clone();
+        let gap_check_skip_one = gap_check.clone();
+
+        // Check if there is a gap between the segments
+        for (prev, next) in gap_check.zip(gap_check_skip_one.skip(1)) {
+            assert_eq!(prev.stop(), next.start());
+        }
+
+        approx::assert_abs_diff_eq!(
+            iter.next(),
+            Some(LineSegment::new([0.0, 0.0], [1.0, 0.0]).unwrap().into())
+        );
+        approx::assert_abs_diff_eq!(
+            iter.next(),
+            Some(
+                ArcSegment::from_start_center_angle([1.0, 0.0], [0.5, 0.0], FRAC_PI_2)
+                    .unwrap()
+                    .into()
+            )
+        );
+        approx::assert_abs_diff_eq!(
+            iter.next(),
+            Some(LineSegment::new([0.5, 0.5], [0.5, 1.0]).unwrap().into())
+        );
+        approx::assert_abs_diff_eq!(
+            iter.next(),
+            Some(LineSegment::new([0.5, 1.0], [1.0, 1.0]).unwrap().into())
+        );
+        assert_eq!(iter.next(), None);
+    }
+    {
+        // Small and large radius
+        let mut iter = Segment::fillet_chain(
+            &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]],
+            &[0.5, 20.0],
+        );
+        approx::assert_abs_diff_eq!(
+            iter.next(),
+            Some(LineSegment::new([0.0, 0.0], [0.5, 0.0]).unwrap().into())
+        );
+        approx::assert_abs_diff_eq!(
+            iter.next(),
+            Some(
+                ArcSegment::from_start_center_angle([0.5, 0.0], [0.5, 0.5], FRAC_PI_2)
+                    .unwrap()
+                    .into()
+            ),
+            epsilon = 1e-8,
+        );
+        approx::assert_abs_diff_eq!(
+            iter.next(),
+            Some(
+                ArcSegment::from_start_center_angle([1.0, 0.5], [0.5, 0.5], FRAC_PI_2)
+                    .unwrap()
+                    .into()
+            ),
+            epsilon = 1e-8,
+        );
+        approx::assert_abs_diff_eq!(
+            iter.next(),
+            Some(LineSegment::new([0.5, 1.0], [0.0, 1.0]).unwrap().into()),
+            epsilon = 1e-8,
+        );
+        assert_eq!(iter.next(), None);
+    }
+    {
+        let mut iter = Segment::fillet_chain(
+            &[
+                [0.0, 0.0],
+                [1.0, 0.0],
+                [1.0, 0.5],
+                [0.5, 0.5],
+                [0.5, 1.0],
+                [1.0, 1.0],
+            ],
             &[0.5, 0.5, 2.0],
         );
 
@@ -70,12 +148,17 @@ fn test_fillet_chain() {
         approx::assert_abs_diff_eq!(
             iter.next(),
             Some(
-                LineSegment::new(
-                    [1.0000000000000002, 0.5000000000000001],
-                    [0.9999999999999997, 0.5]
-                )
-                .unwrap()
-                .into()
+                LineSegment::new([1.0000000000000002, 0.5000000000000001], [1.0, 0.5])
+                    .unwrap()
+                    .into()
+            )
+        );
+        approx::assert_abs_diff_eq!(
+            iter.next(),
+            Some(
+                LineSegment::new([1.0, 0.5], [0.9999999999999997, 0.5])
+                    .unwrap()
+                    .into()
             )
         );
         approx::assert_abs_diff_eq!(
@@ -90,11 +173,17 @@ fn test_fillet_chain() {
         approx::assert_abs_diff_eq!(
             iter.next(),
             Some(
-                LineSegment::new([0.49999999999999956, 1.0], [1.0, 1.0])
+                LineSegment::new([0.4999999999999998, 1.0], [0.5, 1.0])
                     .unwrap()
                     .into()
             )
         );
+        approx::assert_abs_diff_eq!(
+            iter.next(),
+            Some(LineSegment::new([0.5, 1.0], [1.0, 1.0]).unwrap().into())
+        );
+
+        // Assert that the iterator is exhausted
         assert_eq!(iter.next(), None);
         assert_eq!(iter.next(), None);
         assert_eq!(iter.next(), None);
@@ -114,6 +203,8 @@ fn test_fillet_chain() {
         assert_eq!(iter.next(), None);
     }
     {
+        println!("\n");
+
         // Small radius
         let mut iter = Segment::fillet_chain(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]], &[0.5]);
         approx::assert_abs_diff_eq!(
@@ -175,41 +266,6 @@ fn test_fillet_chain() {
                     .unwrap()
                     .into()
             )
-        );
-        assert_eq!(iter.next(), None);
-    }
-    {
-        // Small and large radius
-        let mut iter = Segment::fillet_chain(
-            &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]],
-            &[0.5, 20.0],
-        );
-        approx::assert_abs_diff_eq!(
-            iter.next(),
-            Some(LineSegment::new([0.0, 0.0], [0.5, 0.0]).unwrap().into())
-        );
-        approx::assert_abs_diff_eq!(
-            iter.next(),
-            Some(
-                ArcSegment::from_start_center_angle([0.5, 0.0], [0.5, 0.5], FRAC_PI_2)
-                    .unwrap()
-                    .into()
-            ),
-            epsilon = 1e-8,
-        );
-        approx::assert_abs_diff_eq!(
-            iter.next(),
-            Some(
-                ArcSegment::from_start_center_angle([1.0, 0.5], [0.5, 0.5], FRAC_PI_2)
-                    .unwrap()
-                    .into()
-            ),
-            epsilon = 1e-8,
-        );
-        approx::assert_abs_diff_eq!(
-            iter.next(),
-            Some(LineSegment::new([0.5, 1.0], [0.0, 1.0]).unwrap().into()),
-            epsilon = 1e-8,
         );
         assert_eq!(iter.next(), None);
     }
@@ -298,6 +354,15 @@ fn test_fillet_chain() {
             iter.next(),
             Some(
                 ArcSegment::from_start_center_angle([0.5, 0.0], [0.5, 0.5], FRAC_PI_2)
+                    .unwrap()
+                    .into()
+            ),
+            epsilon = 1e-8,
+        );
+        approx::assert_abs_diff_eq!(
+            iter.next(),
+            Some(
+                LineSegment::new([1.0000000000000002, 0.5000000000000001], [1.0, 0.5])
                     .unwrap()
                     .into()
             ),
