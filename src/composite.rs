@@ -1333,7 +1333,7 @@ pub enum Polygonizer {
         /// [`SegmentPolygonizer`] for all arc segments.
         arc: SegmentPolygonizer,
         /// [`SegmentPolygonizer`] for all line segments.
-        straight: SegmentPolygonizer,
+        line: SegmentPolygonizer,
     },
     /**
     This variant allows specifying individual [`SegmentPolygonizer`]s for each
@@ -1365,8 +1365,8 @@ impl Polygonizer {
     {
         let segment: SegmentRef = segment.into();
         match self {
-            Polygonizer::PerType { arc, straight } => match segment {
-                SegmentRef::LineSegment(_) => return *straight,
+            Polygonizer::PerType { arc, line } => match segment {
+                SegmentRef::LineSegment(_) => return *line,
                 SegmentRef::ArcSegment(_) => return *arc,
             },
             Polygonizer::Individual { default, map } => return *map.get(&index).unwrap_or(default),
@@ -1378,7 +1378,7 @@ impl Default for Polygonizer {
     fn default() -> Self {
         return Polygonizer::PerType {
             arc: SegmentPolygonizer::default(),
-            straight: SegmentPolygonizer::default(),
+            line: SegmentPolygonizer::default(),
         };
     }
 }

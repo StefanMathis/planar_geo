@@ -667,7 +667,7 @@ fn test_polygonize() {
 
         let mut iter = path.polygonize(Polygonizer::PerType {
             arc: SegmentPolygonizer::MaximumAngle(FRAC_PI_2),
-            straight: SegmentPolygonizer::InnerSegments(1),
+            line: SegmentPolygonizer::InnerSegments(1),
         });
 
         approx::assert_abs_diff_eq!(iter.next().unwrap(), [2.0, 0.0], epsilon = 1e-10);
@@ -687,7 +687,7 @@ fn test_polygonize() {
 
         let mut iter = path.polygonize(Polygonizer::PerType {
             arc: SegmentPolygonizer::MaximumAngle(FRAC_PI_2),
-            straight: SegmentPolygonizer::InnerSegments(1),
+            line: SegmentPolygonizer::InnerSegments(1),
         });
 
         approx::assert_abs_diff_eq!(iter.next().unwrap(), [2.0, 0.0], epsilon = 1e-10);

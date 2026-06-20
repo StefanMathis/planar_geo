@@ -444,6 +444,21 @@ impl Shape {
         }
         return None;
     }
+
+    /**
+    Returns the convex hull of the polygonized outer [`contour`](Shape::contour)
+    of `self`.
+
+    This method is implemented as `self.contour().convex_hull(polygonizer)`, see
+    [`Contour::convex_hull`] for details and examples.
+     */
+    #[cfg(feature = "convex_hull")]
+    pub fn convex_hull(
+        &self,
+        polygonizer: crate::composite::Polygonizer,
+    ) -> planar_convex_hull::ConvexHullIter {
+        return self.contour().convex_hull(polygonizer);
+    }
 }
 
 impl crate::composite::private::Sealed for Shape {}

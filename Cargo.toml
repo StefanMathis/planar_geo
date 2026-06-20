@@ -18,10 +18,11 @@ geometry-predicates = "0.3"
 approx = { package = "approxim", version = "0.6", features = ["array_impl"] }
 compare_variables = { version = "^0.3.0" }
 embed-doc-image = { version = "^0.1.4", optional = true }
-planar_convex_hull = {version = "0.2.2", optional = true}
+planar_convex_hull = {version = "0.3.1", optional = true, features = ["rayon"] }
 
 [features]
-default = ["planar_convex_hull"]
+default = ["convex_hull"]
+convex_hull = ["dep:planar_convex_hull"]
 serde = ["dep:serde", "dep:deserialize_untagged_verbose_error", "bounding_box/serde"]
 cairo = ["dep:cairo-rs"]
 doc-images = ["dep:embed-doc-image"]

@@ -720,6 +720,51 @@ impl Polysegment {
     }
 
     /**
+    Returns the convex hull of a polygonized approximation of `self`.
+
+    Since a polysegment can contain arc segments, it is not possible to directly
+    calculate its convex hull. Instead, the polysegment is first approximated as
+    a polygon via [`polygonize`](Polysegment::polygonize) and then the convex
+    hull of the resulting points is calculated. The returned iterator yields the
+    points of the convex hull in counter-clockwise order. See
+    [`ConvexHull`](planar_convex_hull::ConvexHull) for more details.
+
+    # Examples
+
+    ```
+    use std::f64::consts::{FRAC_PI_2, SQRT_2};
+    use approx::assert_abs_diff_eq;
+    use planar_geo::prelude::*;
+
+    let mut polysegment = Polysegment::new();
+    polysegment.push_back(LineSegment::new([0.0, 0.0], [1.0, 0.0]).unwrap().into());
+    polysegment.push_back(ArcSegment::from_start_center_angle([1.0, 0.0], [0.0, 0.0], FRAC_PI_2).unwrap().into());
+    polysegment.push_back(LineSegment::new([0.0, 1.0], [0.5, 0.5]).unwrap().into());
+
+    let polygonizer = Polygonizer::PerType {
+        arc: SegmentPolygonizer::MaximumAngle(1.0),
+        line: SegmentPolygonizer::MaximumSegmentLength(0.1),
+    };
+
+    let mut hull = polysegment.convex_hull(polygonizer);
+    assert_abs_diff_eq!(hull.next().map(|(_, p)| p), Some([1.0, 0.0]));
+
+    // Arc was polygonized into two lines
+    assert_abs_diff_eq!(hull.next().map(|(_, p)| p), Some([1.0 / SQRT_2, 1.0 / SQRT_2]));
+
+    assert_abs_diff_eq!(hull.next().map(|(_, p)| p), Some([6e-17, 1.0]));
+    assert_abs_diff_eq!(hull.next().map(|(_, p)| p), Some([0.0, 1.0]));
+    assert_abs_diff_eq!(hull.next().map(|(_, p)| p), Some([0.0, 0.0]));
+    assert_eq!(hull.next(), None);
+    ```
+     */
+    #[cfg(feature = "convex_hull")]
+    pub fn convex_hull(&self, polygonizer: Polygonizer) -> planar_convex_hull::ConvexHullIter {
+        use planar_convex_hull::ConvexHull;
+        Vec::from_iter(self.polygonize(polygonizer)).convex_hull()
+    }
+
+    /**
     Returns the combined length of all segments of `self`.
 
     ```

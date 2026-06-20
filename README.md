@@ -316,6 +316,13 @@ assert_eq!(intersections.len(), 4);
 
 # Features
 
+## Convex hull
+
+When the `convex_hull` feature is enabled (true by default), [`Contour`]
+and [`Shape`] have `convex_hull` methods which return the convex hulls of their
+corner points. Under the hood, this feature uses the
+[planar_convex_hull](https://crates.io/crates/planar_convex_hull) crate.
+
 ## Serialization and deserialization
 
 When the `serde` feature is enabled, all geometric objects can be serialized and

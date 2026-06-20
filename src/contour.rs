@@ -702,6 +702,17 @@ impl Contour {
         return Contour::arrow_from_tail_length_angle(tail, length, angle, stem_width, head_size);
     }
 
+    /**
+    Returns the convex hull of a polygonized approximation of `self`.
+
+    This method is implemented as `self.polysegment().convex_hull(polygonizer)`,
+    see [`Polysegment::convex_hull`] for details and examples.
+     */
+    #[cfg(feature = "convex_hull")]
+    pub fn convex_hull(&self, polygonizer: Polygonizer) -> planar_convex_hull::ConvexHullIter {
+        return self.polysegment().convex_hull(polygonizer);
+    }
+
     /// The algorithms are almost identical, hence the function is reused and
     /// a compile-time boolean is used to differentiate
     fn covers_or_contains_point<const COVERS: bool>(
