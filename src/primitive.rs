@@ -38,10 +38,11 @@ assert_eq!(
     PrimitiveIntersections::Two([[1.0, 1.0], [0.0, 0.0]])
 )
 ```
-- The [`AbsDiffEq`](approx::AbsDiffEq), [`RelativeEq`](approx::RelativeEq) and
-[`UlpsEq`] traits from the [approx] crate to allow for approximate equality
-comparison. This should generally be preferred over comparing for exact equality
-via the [`PartialEq`] trait when dealing with floating point values.
+- The [`AbsDiffEq`](approx::AbsDiffEq), [`RelativeEq`] and
+[`UlpsEq`](approx::UlpsEq) traits from the [approx] crate to allow for
+approximate equality comparison. This should generally be preferred over
+comparing for exact equality via the [`PartialEq`] trait when dealing with
+floating point values.
  */
 #[derive(Clone, Copy, Debug)]
 pub enum PrimitiveIntersections {
@@ -190,10 +191,10 @@ impl PrimitiveIntersections {
     /**
     Returns a reference to the intersection at the given index:
     - If `self` is [`PrimitiveIntersections::Zero`], any index returns [`None`].
-    - If `self` is [`PrimitiveIntersections::One`], index 0 returns the contained
-    intersection, all other indices return [`None`].
-    - If `self` is [`PrimitiveIntersections::Two`], indices 0 and 1 return the respective
-    intersection, all other indices return [`None`].
+    - If `self` is [`PrimitiveIntersections::One`], index 0 returns the
+    contained intersection, all other indices return [`None`].
+    - If `self` is [`PrimitiveIntersections::Two`], indices 0 and 1 return the
+    respective intersection, all other indices return [`None`].
 
     # Examples
 
@@ -224,7 +225,7 @@ impl PrimitiveIntersections {
                     return None;
                 }
             }
-            PrimitiveIntersections::Two(ai) => ai.get(index),
+            PrimitiveIntersections::Two(i) => i.get(index),
         }
     }
 
@@ -402,8 +403,9 @@ pub trait Primitive: private::Sealed + Sync {
     Since floating point values are prone to rounding errors and precision
     issues (i.e. the number 0.2 cannot be represented exactly as a floating
     point number at all), the implementations for the different primitive types
-    check whether the point is covered within a tolerance band defined by
-    `epsilon` and `max_relative`. See the [crate-level documentation](crate).
+    check whether the point is covered within a tolerance band defined by the
+    absolute tolerance `epsilon` and the relative tolerance `max_relative`. See
+    the [crate-level documentation](crate).
 
     # Examples
 
@@ -657,7 +659,7 @@ pub trait Primitive: private::Sealed + Sync {
     Returns the intersections between `self` and a [`Line`].
 
     This is a straightforward calculation, but there are two degenerate cases
-    which need to be treated explicitly:
+    which need to be treated separately:
     - Intersection between two [`Line`]s which are identical
     - Intersection between a [`Line`] and [`LineSegment`] where the latter
     is contained in the former.
@@ -708,7 +710,7 @@ pub trait Primitive: private::Sealed + Sync {
     Returns the intersections between `self` and a [`LineSegment`].
 
     This is a straightforward calculation, but there are two degenerate cases
-    which need to be treated explicitly:
+    which need to be treated separately:
     - Intersection between a [`Line`] and [`LineSegment`] where the latter
     is contained in the former.
     - Intersection between two [`LineSegment`]s which overlap.
@@ -891,7 +893,7 @@ pub trait Primitive: private::Sealed + Sync {
     [`Composite::intersections_primitive`](crate::composite::Composite::intersections_primitive)
     method offers a non-allocating (lazy) alternative.
 
-    The main advantage of this method is its genericness. If allocating a vector
+    The main advantage of this method is its genericity. If allocating a vector
     for the results is not an issue, consider using this method instead of the
     specialized variants mentioned above to simplify the interface to this
     trait.

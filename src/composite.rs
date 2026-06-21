@@ -66,7 +66,7 @@ assert_eq!(shape.segment(key), manually_retrieved);
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct SegmentKey {
     /// Index of the [`Contour`] where the [`Segment`] is located. Ignored when
-    ///the key is not used on a [`Shape`].
+    /// the key is not used on a [`Shape`].
     pub contour_idx: usize,
     /// Index of the [`Segment`] itself within the [`Contour`] or
     /// [`Polysegment`].
@@ -281,7 +281,7 @@ refers to the type of the other composite. See the docstring of [`Intersection`]
 for more.
 
 In contrast to primitives, composites can self-intersect. The self-intersection
-points can be calculated by using `self` also as the second argument `other`:
+points can be calculated by using `self` as the second argument `other`:
 
 ```
 use planar_geo::prelude::*;
@@ -317,7 +317,7 @@ segment of b (via [`Primitive::intersections_primitive`]).
 
 As with the intersection methods of [`Primitive`], each intersection function
 takes `epsilon` and `max_relative` as additional arguments to specify a certain
-tolerance for intersection detection.
+absolute and relative tolerance for intersection detection.
 
 All intersection functions first check if the bounding boxes of the two
 primitives overlap (short-circuiting the evaluation if they don't). Hence, it is
@@ -655,8 +655,8 @@ pub trait Composite: private::Sealed + Sync {
     /**
     Returns whether `self` covers the given [`Polysegment`].
 
-    This function applies [`Composite::covers_segment`] to all segments of
-    `polysegment`.
+    This function evaluates to `true` if [`Composite::covers_segment`] was
+    `true` for all segments of `polysegment`.
 
     # Examples
 
@@ -1384,7 +1384,8 @@ impl Default for Polygonizer {
 }
 
 /**
-An iterator over all points contained within the
+An iterator over all points created with [`Polysegment::polygonize`] /
+[`Contour::polygonize`].
  */
 #[derive(Clone, Debug)]
 pub struct PointIterator<'a> {

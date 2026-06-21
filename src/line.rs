@@ -8,9 +8,7 @@ variants [`ArcSegment`](crate::segment::ArcSegment) and
 [`LineSegment`](crate::segment::LineSegment)), it is not used in defining more
 complex "composite" types (such as the
 [`Polysegment`](crate::polysegment::Polysegment)). Its main purpose is to
-serve as a tool for calculations, for example in the "ray casting" algorithm
-which is used to determine whether a point is inside a
-[`Contour`](crate::contour::Contour) or a [`Shape`](crate::shape::Shape).
+serve as a tool for calculations, for example for intersection calculation.
 
 See the docstring of [`Line`] for more information.
  */
@@ -35,12 +33,10 @@ A line can be represented by the equation `a*x + b*y + c = 0`. The three fields
 
 The main purpose of this type is being a tool for calculations. For example,
 the intersection of two [`LineSegment`](crate::segment::LineSegment)s (straight
-connections between two points of usually finite length) can be calculated by
-first calculating the intersection of the corresponding infinite lines and then
-by checking whether the found intersection point is actually located on the
-segments. Another example is the ray casting algorithm, which is used in the
-[`covers_point`](crate::composite::Composite::covers_point) implementation
-for [`Shape`](crate::shape::Shape)s.
+connections between two points of finite length) can be calculated by first
+calculating the intersection of the corresponding infinite lines and then
+checking whether the found intersection point is actually covered by both
+segments.
 
 Obviously, a [`Line`] object can be directly created by providing its three
 coefficients. Additionally, it is also possible to derive a [`Line`] from a
@@ -107,9 +103,7 @@ impl Line {
 
     /**
     Creates a [`Line`] from two points. This constructor fails if the points are
-    identical (which is checked with [`approx::assert_relative_eq`], using the
-    arguments `epsilon` and `max_relative` for defining the absolute and ULPs
-    tolerance respectively).
+    identical.
 
     # Examples
 
@@ -130,7 +124,7 @@ impl Line {
 
     /**
     Returns `true` if the two given lines are parallel within the tolerance band
-    defined by the absolute tolerance `epsilon` and the ULPs tolerance
+    defined by the absolute tolerance `epsilon` and the relative tolerance
     `max_relative`.
 
     # Examples
@@ -153,7 +147,7 @@ impl Line {
 
     /**
     Returns `true` if the two given lines are identical within the tolerance
-    band defined by the absolute tolerance `epsilon` and the ULPs tolerance
+    band defined by the absolute tolerance `epsilon` and the relative tolerance
     `max_relative`.
 
     # Examples

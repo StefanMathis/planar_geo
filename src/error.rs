@@ -1,7 +1,6 @@
 /*!
-This module contains the [`Error`] struct, which contains a boxed [`ErrorType`].
-The [`ErrorType`] represents all the possible failures which can occur when
-using this crate. See the docstrings of struct and enum for details.
+This module contains error types representing all the possible failures which
+can occur when using this crate. See their docstrings for details.
 */
 
 use crate::contour::Contour;
@@ -122,10 +121,10 @@ impl<T> std::fmt::Display for ShapeConstructorError<T> {
 impl<T: std::fmt::Debug> std::error::Error for ShapeConstructorError<T> {}
 
 /**
-This struct represents all errors which can occur when using this crate. This is
-a thin wrapper around a boxed [`ErrorType`]. Its main purpose is to provide a
-small container (essentially just a pointer) which can be easily passed around
-while avoiding moving the large [`ErrorType`] in memory.
+This struct represents the errors which can occur when using this crate.
+This is a thin wrapper around a boxed [`ErrorType`]. Its main purpose is to
+provide a small container (essentially just a pointer) which can be easily
+passed around while avoiding moving the large [`ErrorType`] in memory.
 
 See the documentation of [`ErrorType`] for details regarding the different
 failure modes.

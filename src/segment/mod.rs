@@ -265,7 +265,7 @@ impl Segment {
     }
 
     /**
-    Reverses the underlying segment, i.e. switching the segment direction.
+    Reverses the underlying segment, i.e. switches the segment direction.
      */
     pub fn reverse(&mut self) {
         match self {
@@ -305,7 +305,7 @@ impl Segment {
     }
 
     /**
-    Returns the points of a polygon polysegment which approximates `self`.
+    Returns the points of a polyline which approximates `self`.
 
     The number  of points is defined by the [`SegmentPolygonizer`] (see its
     docstring). The points are regularily distributed over the segment, which
@@ -368,34 +368,6 @@ impl Segment {
      */
     pub fn centroid(&self) -> [f64; 2] {
         return CentroidData::from(self).into();
-    }
-
-    /**
-    Switches start and end / stop points of `self`.
-
-    # Examples
-
-    ```
-    use planar_geo::prelude::*;
-
-    let mut s: Segment = LineSegment::new([0.0, 0.0], [2.0, 0.0]).unwrap().into();
-    assert_eq!(s.start(), [0.0, 0.0]);
-    assert_eq!(s.stop(), [2.0, 0.0]);
-
-    s.invert();
-    assert_eq!(s.start(), [2.0, 0.0]);
-    assert_eq!(s.stop(), [0.0, 0.0]);
-
-    s.invert();
-    assert_eq!(s.start(), [0.0, 0.0]);
-    assert_eq!(s.stop(), [2.0, 0.0]);
-    ```
-     */
-    pub fn invert(&mut self) {
-        match self {
-            Segment::LineSegment(s) => s.invert(),
-            Segment::ArcSegment(s) => s.invert(),
-        }
     }
 
     /**
@@ -688,8 +660,8 @@ assert_eq!(iter.count(), 4);
 #[derive(Debug, Clone, Copy)]
 pub enum SegmentPolygonizer {
     /**
-    Inner of line segments of the polygon polysegments given explicitly
-    -> Inner of points is equal to this plus one (end point of the last
+    Number of line segments of the polygon polysegments given explicitly
+    -> Number of points is equal to this plus one (end point of the last
     segment). If the number of line segments is specified to be 0, only the
     start point of the input is returned.
      */
@@ -852,8 +824,8 @@ impl<'a> Iterator for FilletChainIterator<'a> {
 }
 
 /**
-The "borrowed" version of [`Segment`] which has the same variants as its
-brother, but with references instead of owned instances of the underlying
+The "borrowed" version of a [`Segment`] which has the same variants as its
+sibling, but with references instead of owned instances of the underlying
 segment types.
 
 The main purpose of this type is to enable the usage of references for any
@@ -964,7 +936,7 @@ impl<'a> SegmentRef<'a> {
     }
 
     /**
-    Returns the points of a polygon polysegment which approximates `self`.
+    Returns the points of a polyline which approximates `self`.
 
     See [`Segment::polygonize`] for further explanation and examples.
      */

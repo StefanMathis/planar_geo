@@ -8,7 +8,7 @@ this module offers the following container enums:
 - [`GeometryRef`] for borrowed types
 - [`GeometryCow`] for types wrapped in a [`Cow`] smart pointer.
 
-A geometric type such as a [`Segment`] can be wrapped into its container via
+A geometric type such as a [`Segment`] can be wrapped into a container via
 [`From`]:
 
 ```
@@ -33,11 +33,11 @@ let geo_ref = GeometryRef::from(&geo);
 
 These containers enable the generic `intersections` interface which avoids the
 need to use the specialized intersection methods from [`Primitive`] or
-[`Composite`] (it defers to those under the hood). Its main disadvantage is that
-it needs to eagerly allocate a vector to hold the [`Intersection`]s, because the
-specialized methods return different iterator types. If that is not an issues,
-using the `intersections` methods greatly simplifies finding the intersections
-between any two geometric types
+[`Composite`] (it defers to those under the hood). The main disadvantage of the
+interace is that it needs to eagerly allocate a vector to hold the
+[`Intersection`]s, because the specialized methods return different iterator
+types. If that is not an issue, using the `intersections` methods greatly
+simplifies finding the intersections between any two geometric types.
 
 ```
 use planar_geo::prelude::*;
@@ -87,6 +87,7 @@ assert_eq!(bb.xmax(), 2.0);
 assert_eq!(bb.ymin(), 0.0);
 assert_eq!(bb.ymax(), 3.0);
 ```
+
 If the `cairo` feature is activated, it is also possible to use the container
 types for drawing onto a cairo canvas.
 */
@@ -120,6 +121,9 @@ use crate::shape::Shape;
 /**
 A container enum for owned geometric types. See the
 [module-level documentation](crate::geometry) for more.
+
+A special feature of [`Geometry`] compared to [`GeometryRef`] and
+[`GeometryCow`] is the fact that it implements [`Transformation`].
  */
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]

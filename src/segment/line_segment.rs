@@ -53,7 +53,7 @@ points is the main difference between this type and the
 [`Line`](crate::line::Line) struct. It is trivial to convert a [`LineSegment`]
 to a [`Line`](crate::line::Line) via the corresponding [`From`]
 / [`Into`] implementations, however a direct conversion in the other direction
-is not possible because the start and end point information is lost.
+is not possible because the start and end point information is not available.
 
 # Serialization and deserialization
 
@@ -103,7 +103,7 @@ impl LineSegment {
     ```
     use planar_geo::segment::LineSegment;
 
-    // Successfull construction
+    // Successful construction
     assert!(LineSegment::from_start_angle_length([0.0, 0.0], 0.0, 1.0).is_ok());
     assert!(LineSegment::from_start_angle_length([0.0, 0.0], 0.0, -1.0).is_ok());
 
@@ -129,7 +129,7 @@ impl LineSegment {
     ```
     use planar_geo::segment::LineSegment;
 
-    // Successfull construction
+    // Successful construction
     let ls = LineSegment::new([0.0, 0.0], [1.0, -1.0]).expect("points not identical");
     assert_eq!(ls.xmin(), 0.0);
     ```
@@ -150,7 +150,7 @@ impl LineSegment {
     ```
     use planar_geo::segment::LineSegment;
 
-    // Successfull construction
+    // Successful construction
     let ls = LineSegment::new([0.0, 0.0], [1.0, -1.0]).expect("points not identical");
     assert_eq!(ls.xmax(), 1.0);
     ```
@@ -171,7 +171,7 @@ impl LineSegment {
     ```
     use planar_geo::segment::LineSegment;
 
-    // Successfull construction
+    // Successful construction
     let ls = LineSegment::new([0.0, 0.0], [1.0, -1.0]).expect("points not identical");
     assert_eq!(ls.ymin(), -1.0);
     ```
@@ -192,7 +192,7 @@ impl LineSegment {
     ```
     use planar_geo::segment::LineSegment;
 
-    // Successfull construction
+    // Successful construction
     let ls = LineSegment::new([0.0, 0.0], [1.0, -1.0]).expect("points not identical");
     assert_eq!(ls.ymax(), 0.0);
     ```
@@ -207,6 +207,10 @@ impl LineSegment {
 
     /**
     Returns the slope of `self`.
+
+    For a vertical line segment, this value becomes infinity. If a line segment
+    is almost vertical, this method might return inaccurate results due to
+    catastrophic floating point cancellation.
 
     # Examples
 
@@ -432,7 +436,7 @@ impl LineSegment {
     }
 
     /**
-    Returns the points of a polygon polysegment which approximates `self`. The number
+    Returns the points of a polyline which approximates `self`. The number
     of points is defined by the
     [`SegmentPolygonizer`](crate::segment::SegmentPolygonizer) (see its
     docstring). The points are regularily distributed over the segment, which
@@ -476,33 +480,6 @@ impl LineSegment {
             num_segs,
             segment: super::SegmentRef::LineSegment(self),
         };
-    }
-
-    /**
-    Switches start and end / stop points of `self`.
-
-    # Examples
-
-    ```
-    use planar_geo::prelude::*;
-
-    let mut ls = LineSegment::new([0.0, 0.0], [2.0, 0.0]).expect("points not identical");
-    assert_eq!(ls.start(), [0.0, 0.0]);
-    assert_eq!(ls.stop(), [2.0, 0.0]);
-
-    ls.invert();
-    assert_eq!(ls.start(), [2.0, 0.0]);
-    assert_eq!(ls.stop(), [0.0, 0.0]);
-
-    ls.invert();
-    assert_eq!(ls.start(), [0.0, 0.0]);
-    assert_eq!(ls.stop(), [2.0, 0.0]);
-    ```
-     */
-    pub fn invert(&mut self) {
-        let tmp = self.start;
-        self.start = self.stop;
-        self.stop = tmp;
     }
 
     /**
@@ -704,46 +681,42 @@ impl LineSegment {
     }
 
     /**
-    Finds the endpoint of the segments P and Q which is closest to the other segment.  This is
-    a reasonable surrogate for the true intersection points in ill-conditioned cases (e.g.
-    where two segments are nearly coincident, or where the endpoint of one segment lies almost
-    on the other segment).
-
-    This replaces the older CentralEndpoint heuristic, which chose the wrong endpoint in some
-    cases where the segments had very distinct slopes and one endpoint lay almost on the other
-    segment.
+    Finds the endpoint of `self` which is closest to `other`.  This is a
+    reasonable surrogate for the true intersection points in ill-conditioned
+    cases (e.g. where two segments are nearly coincident, or where the endpoint
+    of one segment lies almost on the other segment).
      */
-    fn nearest_endpoint(&self, line_segment: &LineSegment) -> [f64; 2] {
+    fn nearest_endpoint(&self, other: &LineSegment) -> [f64; 2] {
         let mut nearest_pt = self.start;
-        let mut min_dist = line_segment.euclidian_distance_to_point(self.start);
+        let mut min_dist = other.euclidian_distance_to_point(self.start);
 
-        let dist = line_segment.euclidian_distance_to_point(self.stop);
+        let dist = other.euclidian_distance_to_point(self.stop);
         if dist < min_dist {
             min_dist = dist;
             nearest_pt = self.stop;
         }
-        let dist = self.euclidian_distance_to_point(line_segment.start);
+        let dist = self.euclidian_distance_to_point(other.start);
         if dist < min_dist {
             min_dist = dist;
-            nearest_pt = line_segment.start;
+            nearest_pt = other.start;
         }
-        let dist = self.euclidian_distance_to_point(line_segment.stop);
+        let dist = self.euclidian_distance_to_point(other.stop);
         if dist < min_dist {
-            nearest_pt = line_segment.stop;
+            nearest_pt = other.stop;
         }
         nearest_pt
     }
 
-    fn raw_line_intersection(&self, line_segment: &LineSegment) -> Option<[f64; 2]> {
+    fn raw_line_intersection(&self, other: &LineSegment) -> Option<[f64; 2]> {
         let p_min_x = self.start[0].min(self.stop[0]);
         let p_min_y = self.start[1].min(self.stop[1]);
         let p_max_x = self.start[0].max(self.stop[0]);
         let p_max_y = self.start[1].max(self.stop[1]);
 
-        let q_min_x = line_segment.start[0].min(line_segment.stop[0]);
-        let q_min_y = line_segment.start[1].min(line_segment.stop[1]);
-        let q_max_x = line_segment.start[0].max(line_segment.stop[0]);
-        let q_max_y = line_segment.start[1].max(line_segment.stop[1]);
+        let q_min_x = other.start[0].min(other.stop[0]);
+        let q_min_y = other.start[1].min(other.stop[1]);
+        let q_max_x = other.start[0].max(other.stop[0]);
+        let q_max_y = other.start[1].max(other.stop[1]);
 
         let int_min_x = p_min_x.max(q_min_x);
         let int_max_x = p_max_x.min(q_max_x);
@@ -758,10 +731,10 @@ impl LineSegment {
         let p1y = self.start[1] - mid_y;
         let p2x = self.stop[0] - mid_x;
         let p2y = self.stop[1] - mid_y;
-        let q1x = line_segment.start[0] - mid_x;
-        let q1y = line_segment.start[1] - mid_y;
-        let q2x = line_segment.stop[0] - mid_x;
-        let q2y = line_segment.stop[1] - mid_y;
+        let q1x = other.start[0] - mid_x;
+        let q1y = other.start[1] - mid_y;
+        let q2x = other.stop[0] - mid_x;
+        let q2y = other.stop[1] - mid_y;
 
         // unrolled computation using homogeneous coordinates eqn
         let px = p1y - p2y;
@@ -796,25 +769,25 @@ impl LineSegment {
     removing common significant digits from the calculation to
     maintain more bits of precision.
      */
-    fn proper_intersection(&self, line_segment: &LineSegment, epsilon: f64) -> [f64; 2] {
+    fn proper_intersection(&self, other: &LineSegment, epsilon: f64) -> [f64; 2] {
         // Computes a segment intersection using homogeneous coordinates.
         // Round-off error can cause the raw computation to fail,
         // (usually due to the segments being approximately parallel).
         // If this happens, a reasonable approximation is computed instead.
         let mut int_pt = self
-            .raw_line_intersection(line_segment)
-            .unwrap_or_else(|| self.nearest_endpoint(line_segment));
+            .raw_line_intersection(other)
+            .unwrap_or_else(|| self.nearest_endpoint(other));
 
         // NOTE: At this point, JTS does a `Envelope::contains(coord)` check, but
         // confusingly, Envelope::contains(coord) in JTS is actually an
         // *intersection* check, not a true SFS `contains`, because it includes
         // the boundary of the rect.
         if !(BoundingBox::from(self).approx_covers_point(int_pt, epsilon)
-            && BoundingBox::from(line_segment).approx_covers_point(int_pt, epsilon))
+            && BoundingBox::from(other).approx_covers_point(int_pt, epsilon))
         {
             // compute a safer result
             // copy the coordinate, since it may be rounded later
-            int_pt = self.nearest_endpoint(line_segment);
+            int_pt = self.nearest_endpoint(other);
         }
         int_pt
     }

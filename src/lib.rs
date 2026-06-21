@@ -39,16 +39,15 @@ doc = ::embed_doc_image::embed_image!("intersection_composites.svg", "docs/img/i
 use bounding_box::BoundingBox;
 
 /**
-TODO
-A resonable value for the absolute tolerance.
+A reasonable default value for the absolute tolerance.
 
 Comparing floating-point numbers is often necessary within this crate, e.g.
 when deciding whether two geometries intersect or not. Since floating point
 numbers do not have arbitrary precision, most real numbers cannot be represented
 exactly (e.g. 0.1). Hence, comparisons within this crate are done using the
-[`relative_eq`](approx::UlpsEq::relative_eq) function from the [`approxim`](approx)
-crate, which requires specifying an absolute tolerance and a maximum units in
-last place (ULPs) deviation. The former is mainly relevant when comparing
+[`relative_eq`](approx::relative_eq) macro from the [`approxim`](approx)
+crate, which requires specifying an absolute tolerance `epsilon` and a relative
+tolerance `max_relative`. The former is mainly relevant when comparing
 numbers close to zero, while the latter gets important with (absolute) big
 numbers.
 
@@ -61,18 +60,22 @@ when comparing them:
 
 This constant and [`DEFAULT_MAX_RELATIVE`] provide sane defaults which will work
 well in most cases and are recommeded to be used in the various functions
-requiring an `epsilon` and a `max_ulps` argument. The reason they need to be
+requiring an `epsilon` and a `max_relative` argument. The reason they need to be
 provided as explicit arguments and are not simply used by default is that expert
 users can modify the comparison behaviour of e.g. the intersection algorithms
 if required for a particular use case.
 
-The specified value is the squere root of the machine precision
+The value of this constant is the square root of the machine precision
 (`f64::EPSILON.sqrt()`).
 */
-pub const DEFAULT_EPSILON: f64 = 0.000000014901161193847656_f64; // Absolute tolerance
+pub const DEFAULT_EPSILON: f64 = 0.000000014901161193847656_f64;
 
-/// TODO
-pub const DEFAULT_MAX_RELATIVE: f64 = 1e-8; // Relative tolerance
+/// A reasonable default value for the relative tolerance.
+///
+/// A lot of functions in this crate require the specification of both an
+/// absolute tolerance `epsilon` and a relative tolerance `max_relative`. See
+/// the docstring of [`DEFAULT_EPSILON`] for details.
+pub const DEFAULT_MAX_RELATIVE: f64 = 1e-8;
 
 // Base
 pub mod error;
@@ -262,7 +265,7 @@ pub(crate) struct CentroidData {
 
 impl CentroidData {
     /**
-    Calculates the common centroid of self and other.
+    Calculates the common centroid of `self` and `other`.
      */
     pub(crate) fn union(&self, other: &Self) -> Self {
         let area = self.area + other.area;
@@ -278,8 +281,8 @@ impl CentroidData {
     }
 
     /**
-    Calculates the common centroid of self and other, but subtract other from
-    self (i.e. the original contour of other is subtracted from self)
+    Calculates the common centroid of `self` and `other`, but subtract `other`
+    from `self` (i.e. the original contour of `other` is subtracted from `self`)
      */
     pub(crate) fn subtract(&self, other: &Self) -> Self {
         let area = self.area - other.area;

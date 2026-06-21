@@ -63,11 +63,7 @@ Of particular interest are the various constructors available for an
 
 These constructors can fail if either the radius becomes non-positive or
 infinite (which degenerates the arc segment to a line segment) or if the
-sweep angle becomes zero. The latter is checked using [`approx::relative_eq`],
-which is why all constructors take an `epsilon` and a `max_relative` argument. See
-the documentation of [approx] for more.
-
-See the [module documentation](crate::segment::arc_segment) for more.
+sweep angle becomes zero.
 
 # Serialization and deserialization
 
@@ -89,8 +85,7 @@ impl ArcSegment {
     Creates an [`ArcSegment`] from its `center`, `radius`, `start_angle` and
     `sweep_angle`. This fails in the following cases:
     - `radius` is not positive.
-    - `sweep_angle` is approximately zero (checked with [`approx::relative_eq`] and
-    the provided `epsilon` and `max_relative`).
+    - `sweep_angle` is zero.
 
     This function is an alias for
     [`ArcSegment::from_center_radius_start_sweep_angle`].
@@ -155,7 +150,8 @@ impl ArcSegment {
 
     /**
     Returns the sweep angle of `self` in rad. This is the angle covered by the
-    arc segment. Add this value to the start angle to get the stop angle.
+    arc segment. Add this value to [`ArcSegment::start_angle`] to get
+    [`ArcSegment::stop_angle`].
      */
     pub fn sweep_angle(&self) -> f64 {
         return self.sweep_angle;
@@ -190,7 +186,7 @@ impl ArcSegment {
     /**
     Creates an [`ArcSegment`] representing a full circle, i.e. where
     [`ArcSegment::start_angle`] is 0 and [`ArcSegment::sweep_angle`] is 2 times
-    the circle number pi. Fails if radius is not positive.
+    the circle number pi. Fails if the `radius` is not positive.
 
     # Examples
 
@@ -214,8 +210,7 @@ impl ArcSegment {
     Creates an [`ArcSegment`] from its `center`, `radius`, `start_angle` and
     `sweep_angle`. This fails in the following cases:
     - `radius` is not positive.
-    - `sweep_angle` is approximately zero (checked with [`approx::relative_eq`] and
-    the provided `epsilon` and `max_relative`).
+    - `sweep_angle` is zero .
 
     # Examples
 
@@ -270,8 +265,7 @@ impl ArcSegment {
     Creates an [`ArcSegment`] from its `center`, `radius`, `start_angle` and
     `stop_angle`. This fails in the following cases:
     - `radius` is not positive.
-    - `start_angle` is approximately equal to `stop_angle` (checked with
-    [`approx::relative_eq`] and the provided `epsilon` and `max_relative`).
+    - `start_angle` is equal to `stop_angle`.
 
     # Examples
 
@@ -366,7 +360,7 @@ impl ArcSegment {
     Creates an [`ArcSegment`] from its `start`, its `sweep_angle` and its
     `center`. This fails in the following cases:
     - `start` is identical to `center`.
-    - `sweep_angle` is apprixmately zero.
+    - `sweep_angle` is zero.
 
     ```
     use planar_geo::segment::ArcSegment;
@@ -556,15 +550,17 @@ impl ArcSegment {
     /**
     Creates an [`ArcSegment`] from its `start`, `stop` and `center`.
 
-    TODO: Explain that this constructor is corrective!
-
     With those three input parameters, the `radius` of the arc is overdefined,
     since it can be calculated both from the distance `start` - `center` and
-    `stop` - `center`. Hence, this function calculates both distances and
+    `stop` - `center`. Hence, this function calculates both radii and
     compares them. If they are (approximately) equal, this function then
-    forwards to [`ArcSegment::from_start_stop_radius`]. See the docstring of
-    that function for an explanation of the `positive` and `large_arc`
-    arguments.
+    forwards to [`ArcSegment::from_start_stop_radius`], using the radius
+    calculated with `start`. Hence, this method is (sligthly) corrective because
+    [`ArcSegment::stop`] might return a slightly different value than the
+    specified input `stop`.
+
+    See the docstring of [`ArcSegment::from_start_stop_radius`] for an
+    explanation of the `positive` and `large_arc` arguments.
 
     # Examples
 
@@ -956,8 +952,8 @@ impl ArcSegment {
     }
 
     /**
-    Returns the points of a polygon polysegment which approximates `self`. The number
-    of points is defined by the
+    Returns the points of a polyline which approximates `self`. The
+    number of points is defined by the
     [`SegmentPolygonizer`](crate::segment::SegmentPolygonizer) (see its
     docstring). The points are regularily distributed over the segment, which
     means that two subsequent points always have the same euclidian distance
@@ -1036,36 +1032,11 @@ impl ArcSegment {
     }
 
     /**
-    Switches start and end / stop points of `self`.
+    Returns whether `self` and `other` lay approximately on the same circle
+    (center and radius are approximately equal).
 
-    # Examples
-
-    ```
-    use std::f64::consts::PI;
-    use approx;
-    use planar_geo::prelude::*;
-
-    let mut arc = ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 2.0, 0.0, PI).expect("valid_arc");
-    approx::assert_abs_diff_eq!(arc.start(), [2.0, 0.0], epsilon = 1e-3);
-    approx::assert_abs_diff_eq!(arc.stop(), [-2.0, 0.0], epsilon = 1e-3);
-
-    arc.invert();
-    approx::assert_abs_diff_eq!(arc.start(), [-2.0, 0.0], epsilon = 1e-3);
-    approx::assert_abs_diff_eq!(arc.stop(), [2.0, 0.0], epsilon = 1e-3);
-
-    arc.invert();
-    approx::assert_abs_diff_eq!(arc.start(), [2.0, 0.0], epsilon = 1e-3);
-    approx::assert_abs_diff_eq!(arc.stop(), [-2.0, 0.0], epsilon = 1e-3);
-    ```
-     */
-    pub fn invert(&mut self) {
-        self.start_angle = self.stop_angle();
-        self.sweep_angle = -self.sweep_angle;
-    }
-
-    /**
-    Returns whether `self` and `other` lay on the same circle (center and radius
-    are equal).
+    Center and radius arre approximately equal if [`relative_eq`] returns true
+    with the specified absolute `epsilon` and `max_relative` tolerances.
 
     # Examples
 
@@ -1383,8 +1354,9 @@ impl ArcSegment {
         return intersections;
     }
 
-    /// Split arc in y-monotonic segments (where each y-value appears at most
-    /// once)
+    /// Split arc in y-monotonic segments.
+    ///
+    /// Each point of a y-monotonic segment has a unique y-value.
     pub(crate) fn split_y_monotonic(&self) -> [Option<ArcSegment>; 3] {
         // Cover special case of a circle
         let start_angle = if self.is_circle() {
@@ -1499,8 +1471,8 @@ impl Primitive for ArcSegment {
             return true;
         }
 
-        // Quick first check: If point p is outside the segment bounding box, it can't
-        // be part of the arc segment.
+        // Quick first check: If point p is outside the segment bounding box, it
+        // can't be part of the arc segment.
         if !BoundingBox::from(self).approx_covers_point(point, epsilon) {
             return false;
         }
@@ -1598,7 +1570,7 @@ impl Primitive for ArcSegment {
 
     /// This function uses a modified version of the circle-circle intersection
     /// algorithm from cp-algorithms.com:
-    /// https://cp-algorithms.com/geometry/circle-circle-intersection.html
+    /// <https://cp-algorithms.com/geometry/circle-circle-intersection.html>
     fn intersections_arc_segment(
         &self,
         arc_segment: &ArcSegment,
