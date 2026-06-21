@@ -29,7 +29,7 @@ planar_geo does offer algorithms for that). Supporting both straight and arc
 segments within the same contour requires runtime dispatch between segment
 types, introducing a small amount of branching overhead compared to libraries
 that only operate on line segments. If your workload consists exclusively of
-straight-line geometry, libraries specialized for line-segment operations such
+straight-line geometry, libraries specialized for line segment operations such
 as [geo](https://crates.io/crates/geo) or [geos](https://crates.io/crates/geos)
 may offer better performance.
 
@@ -64,20 +64,13 @@ If the corresponding features are activated, it is also possible to serialize
 and deserialize (using [serde]) and to draw (using [gtk-rs]) these types.
 See the [Features](#features) section for more.
 
-One distinct feature of this library is the treatment of arcs: Arcs are not
-approximated as polylines (i.e. a connected series of line segments), but
-instead being represented as "true" arcs (see e.g. the examples for surface
-area calculation below). In fact, this is the reason why this library was
-written in the first place.
-
 Since the "point" type is defined using the floating-point type `f64`, a lot of
 operations (i.e. intersection calculation) are prone to rounding-errors. These
 operations therefore require specifying an absolute tolerance `epsilon` and a
-maximum units in last place tolerance `max_ulps`, which are used as inputs
-for [`relative_eq`] (from the [approxim] crate) to e.g. determine whether two points
-are approximately equal. It is recommended to use the "default" tolerances
-[`DEFAULT_EPSILON`] and [`DEFAULT_MAX_RELATIVE`] unless there is a good reason to
-use other values.
+relative tolerance `max_relative` for floating point comparison (using the
+[`relative_eq`] macro from the [approxim] crate). It is recommended to use the
+"default" tolerances [`DEFAULT_EPSILON`] and [`DEFAULT_MAX_RELATIVE`] unless
+there is a good reason to use other values.
 
 The following paragraphs will provide some examples for the aforementioned
 features.
@@ -101,7 +94,7 @@ let first_arc =
     ArcSegment::from_center_radius_start_sweep_angle([1.5, 0.0], 1.5, PI, -FRAC_PI_2)
         .expect("radius is positive and sweep angle is not zero");
 let line = LineSegment::new([1.5, 1.5], [3.5, 1.5])
-    .expect("segment length is not zero");
+    .expect("start and stop are not identical");
 let second_arc = ArcSegment::from_start_center_angle([3.5, 1.5], [3.5, 0.0], -FRAC_PI_2)
     .expect("radius is positive and sweep angle is not zero");
 
@@ -154,7 +147,7 @@ approx::assert_abs_diff_eq!(shape.holes()[0].centroid(), [2.5, 0.75], epsilon = 
 ## Transformation
 
 The [`Transformation`] trait allows translating, rotating, scaling and mirroring
-of all [`Primitive`] and [`Composite`] types:
+all [`Primitive`] and [`Composite`] types:
 
 ```rust
 use planar_geo::prelude::*;
@@ -167,7 +160,7 @@ pt.translate([1.0, 2.0]);
 assert_eq!(pt, [3.0, 4.0]);
 
 // Rotate a line segment
-let mut ls = LineSegment::new([1.0, 0.0], [2.0, 0.0]).expect("points are not equal");
+let mut ls = LineSegment::new([1.0, 0.0], [2.0, 0.0]).expect("start and stop are not identical");
 ls.rotate([1.0, 1.0], PI);
 
 approx::assert_abs_diff_eq!(ls.start(), [1.0, 2.0], epsilon = 1e-15);
@@ -198,8 +191,8 @@ A major feature of this crate are the various methods available for defining
 relationships between different geometric types, e.g. if they intersect, contain
 or cover one another etc.
 
-For example, the following code shows intersections between the segments shown
-in this image:
+For example, the following code returns if points are covered by segments and
+where those segments intersect:
 
 ![Intersection between segments][intersection_segments.svg]
 
@@ -210,15 +203,15 @@ use planar_geo::prelude::*;
 use std::f64::consts::PI;
 
 let line_1: Segment = LineSegment::new([0.0, 0.0], [3.0, 0.0])
-    .expect("segment length is not zero").into();
+    .expect("start and stop are not identical").into();
 let line_2: Segment = LineSegment::new([2.0, -0.5], [2.0, 0.5])
-    .expect("segment length is not zero").into();
+    .expect("start and stop are not identical").into();
 let arc: Segment = ArcSegment::from_center_radius_start_sweep_angle(
     [1.0, 0.0],
     0.5,
     -0.25*PI,
     1.5*PI
-).expect("offet angle is not zero").into();
+).expect("radius is positive and sweep angle is not zero").into();
 
 // Are the following points part of the respective segment?
 let pt1 = [2.3, 0.0];

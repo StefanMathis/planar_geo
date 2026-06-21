@@ -15,13 +15,13 @@ this struct. See the [module documentation](crate::draw::intersection) for
 an example.
  */
 pub struct IntersectionStyle {
-    /// Color of all lines of the geometric object. Corresponds to
+    /// Color of all lines of the intersection cross. Corresponds to
     /// "border-color" as defined in <https://www.w3.org/TR/css-backgrounds-3/#border-color>.
     pub line_color: Color,
-    /// Width of all lines of the geometric object. Corresponds to
+    /// Width of all lines of the intersection cross. Corresponds to
     /// "border-color" as defined in <https://www.w3.org/TR/css-backgrounds-3/#the-border-width>.
     pub line_width: f64,
-    /// How the end points of lines are rendered. See
+    /// How the end points of the cross are rendered. See
     /// <https://www.cairographics.org/manual/cairo-cairo-t.html#cairo-line-cap-t>.
     pub line_cap: cairo::LineCap,
     /// Height / width of the intersection cross in points.
@@ -95,7 +95,7 @@ impl Intersection {
     /// [`cairo::Context`] using the given [`IntersectionStyle`].
     ///
     /// Since an intersection is just a point, it is represented as a "X"
-    /// when drawing it. The visual properties of that "+" are provided by
+    /// when drawing it. The visual properties of that "X" are provided by
     /// the given [`IntersectionStyle`]. If `left` or `right` are provided
     /// and are [`Composite`](crate::composite::Composite)s, the
     /// [`Intersection::left`] or [`Intersection::right`] key are used to

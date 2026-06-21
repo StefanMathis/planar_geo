@@ -21,7 +21,7 @@ struct is an optional field of [`Style`], but can also be used to display a
 "standalone" text via its [`draw`](Text::draw) method (in that case, the text is
 placed relative to the origin of the [`Context`](cairo::Context)).
 - [`Anchor`]: Defines the orientation of a [`Text`] next to its geometric type
-(e.g. on top of it).
+(e.g. at the center of the geometric object).
 */
 
 use bounding_box::BoundingBox;
@@ -711,8 +711,9 @@ impl LineStyle {
 }
 
 /**
-A displayable string. Besides the string itself, it also has a couple of
-properties which define the placement and depiction of the string on the canvas.
+A displayable string. Besides the string itself, this struct also holds a couple
+of property values which define the placement and depiction of the string on the
+canvas.
 
 Two properties which warrant further explanation are `fixed_anchor_offset` and
 `scaled_anchor_offset`. The two images below show the same two
@@ -720,9 +721,9 @@ Two properties which warrant further explanation are `fixed_anchor_offset` and
 [`Viewport`](cairo_viewport::Viewport) of the second image has been scaled by
 2. On the left side, `scaled_anchor_offset` is set to `(0.3, 0.3)` and on the
 right side, `fixed_anchor_offset` is set to `(10, 10)`. Comparing the two images
-show that the offset of the text from the top left corner is scaled with the
+shows that the offset of the text from the top left corner is scaled with the
 [`Viewport`](cairo_viewport::Viewport) for the left
-[`Contour`](crate::prelude::Contour) , but not for the right
+[`Contour`](crate::prelude::Contour), but not for the right
 [`Contour`](crate::prelude::Contour). The font size is also not scaled.
 
 If a [`Text`] is used as part of a [`Style`] for a geometric object (such as a
@@ -893,7 +894,7 @@ impl Text {
     }
 
     /**
-    Draw the [`Text`] onto the given [`cairo::Context`].
+    Draws the [`Text`] onto the given [`cairo::Context`].
 
     The placement of the text is defined by the following fields:
     [`Text::anchor`], [`Text::fixed_anchor_offset`] and
@@ -1051,8 +1052,8 @@ visualization of a geometric object, the [`Anchor`] determines how the text is
 placed relative to the bounding box of the geometric object. However, a [`Text`]
 can also be shown "standalone" using [`Text::draw`]. In that case, the
 [`Anchor`] defines the text placement relative to a point defined by
-[`Text::fixed_anchor_offset`] and [`Text::scaled_anchor_offset`]. See docstring
-of [`Text`].
+[`Text::fixed_anchor_offset`] and [`Text::scaled_anchor_offset`]. See the
+docstring of [`Text`] for more.
 
 The image below shows both cases: On the left side, the red bounding box of an
 geometric object and the associated text placement options are shown. On the

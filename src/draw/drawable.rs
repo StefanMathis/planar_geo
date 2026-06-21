@@ -8,8 +8,9 @@ implements a `draw` method: [`Drawable::draw`], [`DrawableRef::draw`] and
 [`DrawableCow::draw`]. The `draw` method calls the `draw` method of the
 contained geometric type (e.g.
 [`ArcSegment::draw`](crate::segment::ArcSegment::draw)) with its [`Style`] field
-as the second argument. The helper structs are therefore useful to group a
-geometric type together with its [`Style`] - for example, to pass them around.
+as the second argument. The helper structs are therefore useful to group
+geometric type stogether with their [`Style`]s - for example, to pass them
+around.
 
 There are two geometric types which cannot be drawn:
 - The "point" type `[f64; 2]` (because it has no size)
@@ -30,8 +31,8 @@ It provides the [`Drawable::draw`] method for drawing itself onto a
 [`cairo::Context`]. See the [module level documentation](crate::draw::drawable)
 for more.
 
-A special feature of [`Geometry`] compared to [`GeometryRef`] and
-[`GeometryCow`] is the fact that it owns its [`Drawable::geometry`]. Therefore,
+A special feature of [`Drawable`] compared to [`DrawableRef`] and
+[`DrawableCow`] is the fact that it owns its [`Drawable::geometry`]. Therefore,
 it implements [`Transformation`].
  */
 #[derive(Clone)]
@@ -112,7 +113,8 @@ for more.
 pub struct DrawableRef<'a> {
     /// Underlying geometry object.
     pub geometry: GeometryRef<'a>,
-    /// [`Style`] for the [`DrawableRef::geometry`], used in [`Drawable::draw`].
+    /// [`Style`] for the [`DrawableRef::geometry`], used in
+    /// [`DrawableRef::draw`].
     pub style: Style,
 }
 
@@ -190,7 +192,7 @@ where
 /**
 A wrapper around a [`GeometryCow`] and its corresponding [`Style`].
 
-It provides the [`Drawable::draw`] method for drawing itself onto a
+It provides the [`DrawableCow::draw`] method for drawing itself onto a
 [`cairo::Context`]. See the [module level documentation](crate::draw::drawable)
 for more.
  */
@@ -198,13 +200,14 @@ for more.
 pub struct DrawableCow<'a> {
     /// Underlying geometry object.
     pub geometry: GeometryCow<'a>,
-    /// [`Style`] for the [`DrawableCow::geometry`], used in [`Drawable::draw`].
+    /// [`Style`] for the [`DrawableCow::geometry`], used in
+    /// [`DrawableCow::draw`].
     pub style: Style,
 }
 
 impl<'a> DrawableCow<'a> {
     /**
-    Returns a new instance of a [`GeometryCow`] from any [`GeometryCow`] and its
+    Returns a new instance of a [`DrawableCow`] from any [`GeometryCow`] and its
     [`Style`].
      */
     pub fn new<G: Into<GeometryCow<'a>>>(geo: G, style: Style) -> Self {
