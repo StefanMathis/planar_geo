@@ -779,7 +779,12 @@ impl<'a> Iterator for FilletChainIterator<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         /*
-        The algorithm works as follows:
+        High level idea of the algorithm:
+        Create the fillet arc segment and the line segment leading to it at the
+        same time, the first return the line segment. In the next iteration,
+        return the line segment and repeat.
+
+        Detailed description:
         1. Fetch the next three points and the next radius using the counter. If
         there are not enough points, the iterator is exhausted.
         2. If there is a waiting arc, return it. This will not be the case on

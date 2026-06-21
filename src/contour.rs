@@ -713,8 +713,13 @@ impl Contour {
         return self.polysegment().convex_hull(polygonizer);
     }
 
+    /// Detects if a point is covered / contained a contour using the
+    /// ray-casting algorithm.
+    ///
     /// The algorithms are almost identical, hence the function is reused and
-    /// a compile-time boolean is used to differentiate
+    /// a compile-time boolean is used to differentiate. The ray-casting
+    /// algorithm as implemented here is described in
+    /// docs/point_inside_contour/point_inside_contour.md.
     fn covers_or_contains_point<const COVERS: bool>(
         &self,
         point: [f64; 2],
@@ -811,21 +816,7 @@ impl Contour {
                             let candidates = [cx - sqrt, cx + sqrt];
 
                             for x_intersect in candidates {
-                                let theta = (y - cy).atan2(x_intersect - cx);
-                                if partial_arc.covers_angle(theta)
-                                    || relative_eq!(
-                                        theta,
-                                        partial_arc.start_angle(),
-                                        epsilon = epsilon,
-                                        max_relative = max_relative
-                                    )
-                                    || relative_eq!(
-                                        theta,
-                                        partial_arc.stop_angle(),
-                                        epsilon = epsilon,
-                                        max_relative = max_relative
-                                    )
-                                {
+                                if partial_arc.bounding_box().covers_point([x_intersect, y]) {
                                     // Check if the intersection is located
                                     // on the ray (x_intersect > x) and if
                                     // the intersection is not the upper end

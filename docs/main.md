@@ -307,6 +307,18 @@ into the docstrings of items using the
 
 # Documentation
 
+## Building
+
 When building the documentation, it is recommended to enable all features with
 `cargo doc --all-features`; otherwise the generated documentation will not have
 any images and will miss the items hidden behind feature flags.
+
+## Additional resources
+
+Some algorithms deserve a more throughout documentation than is possible in a
+Rust function docstring. Therefore, the `docs` folder contains standalone
+documents with detailed algorithm descriptions.
+
+Currently, the following documents are available:
+- `docs/point_inside_contour/point_inside_contour.md` describes how to use the
+ray casting algorithm to determine if a point is inside or outside a contour.
