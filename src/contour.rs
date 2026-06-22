@@ -873,7 +873,7 @@ impl Contour {
 
         match back {
             Segment::LineSegment(_) => {
-                if let Ok(s) = LineSegment::new(back.start(), front.start()) {
+                if let Ok(s) = LineSegment::new(back.stop(), front.start()) {
                     self.0.push_back(s.into());
                 } else {
                     self.0.pop_back();
@@ -881,7 +881,7 @@ impl Contour {
             }
             Segment::ArcSegment(_) => match front {
                 Segment::LineSegment(_) => {
-                    if let Ok(s) = LineSegment::new(back.stop(), front.stop()) {
+                    if let Ok(s) = LineSegment::new(back.stop(), front.start()) {
                         self.0.0[0] = s.into();
                     } else {
                         self.0.pop_front();
