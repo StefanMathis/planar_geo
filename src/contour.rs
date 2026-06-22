@@ -21,15 +21,18 @@ use std::f64::consts::TAU;
 
 use approx::relative_eq;
 use compare_variables::*;
-use rayon::iter::ParallelIterator;
+use rayon::prelude::*;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-use crate::composite::*;
-use crate::polysegment::Polysegment;
+use crate::polysegment::{
+    LeftRightRelation, Polysegment, intersections_between_polysegment_and_segment,
+    intersections_between_polysegment_and_segment_par,
+};
 use crate::primitive::Primitive;
 use crate::segment::{Segment, SegmentRef, arc_segment::ArcSegment, line_segment::LineSegment};
 use crate::{CentroidData, Transformation};
+use crate::{DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE, composite::*};
 
 use bounding_box::{BoundingBox, ToBoundingBox};
 
@@ -750,15 +753,14 @@ impl Contour {
         }
 
         let [x, y] = point;
-
-        /*
-        TODO: Explain ray cast algorithm
-        // TODO: Explain that we only consider segments where at least one of their
-        // values is above y
-
-         */
-
         let mut inside = false;
+
+        // The algorithm skips "almost" horizontal segments because the
+        // intersection algorithm for line segments fails if y1 is approximately
+        // y2. However, this means that y1 of the horizontal segment needs to be
+        // used in the next iteration, because otherwise there might be a tiny
+        // gap y-wise. Therefore, y1 is stashed in this variable.
+        let mut y_stashed = None;
 
         for segment in self.segments() {
             match segment {
@@ -767,9 +769,19 @@ impl Contour {
                     let [x2, y2] = segment.stop();
 
                     // Skip horizontal line segments
-                    if y1 == y2 {
+                    if relative_eq!(
+                        y1,
+                        y2,
+                        epsilon = DEFAULT_EPSILON,
+                        max_relative = DEFAULT_MAX_RELATIVE
+                    ) {
+                        if y_stashed.is_none() {
+                            y_stashed = Some(y1);
+                        }
                         continue;
                     }
+
+                    let y1 = y_stashed.take().unwrap_or(y1);
 
                     // Check if the intersection is located on the ray
                     // (x_intersect > x) and if the intersection is not the
@@ -786,8 +798,8 @@ impl Contour {
                 Segment::ArcSegment(a) => {
                     for split in a.split_y_monotonic() {
                         if let Some(partial_arc) = split {
-                            let [_, y1] = partial_arc.start();
-                            let [_, y2] = partial_arc.stop();
+                            let y1 = y_stashed.take().unwrap_or(partial_arc.start()[1]);
+                            let y2 = partial_arc.stop()[1];
 
                             // Find the intersections between the underlying circle of
                             // partial_arc and the horizontal line at y.
@@ -938,9 +950,27 @@ impl Composite for Contour {
         epsilon: f64,
         max_relative: f64,
     ) -> impl Iterator<Item = Intersection> + 'a {
-        let is_identical = std::ptr::eq(self, contour);
-        self.polysegment()
-            .intersections_polysegment(contour.polysegment(), epsilon, max_relative)
+        let (is_identical, left_right_relation) = if std::ptr::eq(self, contour) {
+            (true, LeftRightRelation::EqualContour(self.len()))
+        } else {
+            (false, LeftRightRelation::Other)
+        };
+
+        return self
+            .polysegment()
+            .vec_deque()
+            .iter()
+            .enumerate()
+            .flat_map(move |(right_idx, right_seg)| {
+                intersections_between_polysegment_and_segment(
+                    contour.polysegment().vec_deque().iter(),
+                    right_idx,
+                    right_seg,
+                    left_right_relation,
+                    epsilon,
+                    max_relative,
+                )
+            })
             .filter(move |i| {
                 if is_identical
                     && i.left.segment_idx == 0
@@ -957,7 +987,7 @@ impl Composite for Contour {
                     }
                 };
                 return true;
-            })
+            });
     }
 
     fn intersections_contour_par<'a>(
@@ -966,9 +996,26 @@ impl Composite for Contour {
         epsilon: f64,
         max_relative: f64,
     ) -> impl ParallelIterator<Item = Intersection> + 'a {
-        let is_identical = std::ptr::eq(self, contour);
+        let (is_identical, left_right_relation) = if std::ptr::eq(self, contour) {
+            (true, LeftRightRelation::EqualContour(self.len()))
+        } else {
+            (false, LeftRightRelation::Other)
+        };
+
         self.polysegment()
-            .intersections_polysegment_par(contour.polysegment(), epsilon, max_relative)
+            .vec_deque()
+            .par_iter()
+            .enumerate()
+            .flat_map(move |(right_idx, right_seg)| {
+                intersections_between_polysegment_and_segment_par(
+                    contour.polysegment().vec_deque().par_iter(),
+                    right_idx,
+                    right_seg,
+                    left_right_relation,
+                    epsilon,
+                    max_relative,
+                )
+            })
             .filter(move |i| {
                 if is_identical
                     && i.left.segment_idx == 0

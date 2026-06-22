@@ -690,6 +690,26 @@ fn test_covers_point() {
 
 #[test]
 fn test_self_intersection() {
+    {
+        // Regression test from stem_magnet crate
+        let arc1 = ArcSegment::from_center_radius_start_sweep_angle(
+            [0.0, -0.06],
+            0.06,
+            1.3089969389957472,
+            0.5235987755982988,
+        )
+        .unwrap();
+        let arc2 = ArcSegment::from_center_radius_start_sweep_angle(
+            [-3.469446951953614e-18, -0.027712440737676466],
+            0.03,
+            2.1148844334769814,
+            -1.0881762133641695,
+        )
+        .unwrap();
+        let c: Contour = Polysegment::from_iter([arc1.into(), arc2.into()].into_iter()).into();
+        let intersections = c.intersections_contour(&c, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE);
+        assert_eq!(intersections.count(), 0);
+    }
     // Open polysegment
     {
         let c: Contour =
@@ -829,7 +849,7 @@ fn test_intersects() {
 
     assert_eq!(c1.intersection_cut(c2.polysegment(), e, m).len(), 4);
     assert_eq!(c1.intersection_cut(c3.polysegment(), e, m).len(), 1);
-    assert_eq!(c1.intersection_cut(c4.polysegment(), e, m).len(), 3);
+    assert_eq!(c1.intersection_cut(c4.polysegment(), e, m).len(), 2);
 }
 
 #[test]

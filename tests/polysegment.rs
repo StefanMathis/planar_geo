@@ -427,8 +427,6 @@ fn test_self_intersection() {
             DEFAULT_EPSILON,
             DEFAULT_MAX_RELATIVE,
         );
-
-        // Polysegment touches itself at the end
         assert_eq!(intersections.count(), 1);
 
         // Intersect the line with itself
@@ -437,8 +435,6 @@ fn test_self_intersection() {
             DEFAULT_EPSILON,
             DEFAULT_MAX_RELATIVE,
         );
-
-        // No self-intersection
         assert_eq!(intersections.count(), 1);
     }
 }

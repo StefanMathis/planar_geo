@@ -213,10 +213,10 @@ impl Shape {
     assert!(Shape::from_outer(c).is_err());
     ```
      */
-    pub fn from_outer(outer: Contour) -> Result<Self, ShapeConstructorError<Contour>> {
+    pub fn from_outer(outer: Contour) -> Result<Self, ShapeConstructorError<Vec<Contour>>> {
         if outer.is_empty() {
             return Err(ShapeConstructorError::EmptyContour {
-                input: outer,
+                input: vec![outer],
                 idx: 0,
             });
         }
@@ -225,7 +225,7 @@ impl Shape {
             .find_map_any(|v| Some(v))
         {
             return Err(ShapeConstructorError::Intersection {
-                input: outer,
+                input: vec![outer],
                 intersection: Intersection {
                     point: i.point,
                     left: i.left,
