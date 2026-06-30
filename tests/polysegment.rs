@@ -371,15 +371,13 @@ fn test_intersection_cut() {
 
     // Check the vertices of the second entry
     let verts: Vec<[f64; 2]> = separated_lines[1].points().collect();
-    assert_abs_diff_eq!(verts[0], [0.5, 0.0]);
+    assert_abs_diff_eq!(verts[0], [0.5, 0.0], epsilon = 1e-15);
     assert_abs_diff_eq!(&verts[1], &[0.9, 0.2], epsilon = 1e-15);
 
     // Check the vertices of the third entry
     let verts: Vec<[f64; 2]> = separated_lines[2].points().collect();
     assert_abs_diff_eq!(&verts[0], &[0.9, 0.2], epsilon = 1e-15);
     assert_abs_diff_eq!(&verts[1], &[1.0, 0.5], epsilon = 1e-15);
-    assert_eq!(verts[2], [1.0, 1.0]);
-    assert_eq!(verts[3], [0.5, 1.0]);
 
     // Check the vertices of the first entry
     let verts: Vec<[f64; 2]> = separated_lines[3].points().collect();

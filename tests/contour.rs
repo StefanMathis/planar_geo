@@ -1864,14 +1864,38 @@ fn test_overlaps_line_segment() {
             [1.0, 1.0],
             [1.0, 0.0],
         ]));
-        assert!(c.overlaps_segment(&LineSegment::new([0.0, 0.0], [1.0, 1.0]).unwrap(), e, m));
-        assert!(c.overlaps_segment(&LineSegment::new([-0.5, 0.5], [0.5, 0.5]).unwrap(), e, m));
-        assert!(c.overlaps_segment(&LineSegment::new([-1.0, 2.0], [1.0, 0.0]).unwrap(), e, m));
-        assert!(c.overlaps_segment(&LineSegment::new([-1.0, 2.0], [0.5, 0.5]).unwrap(), e, m));
-        assert!(!c.overlaps_segment(&LineSegment::new([0.5, -0.5], [1.5, 0.5]).unwrap(), e, m));
-        assert!(!c.overlaps_segment(&LineSegment::new([0.0, 0.0], [0.0, 1.0]).unwrap(), e, m));
-        assert!(!c.overlaps_segment(&LineSegment::new([0.0, -1.0], [0.0, 0.0]).unwrap(), e, m));
-        assert!(!c.overlaps_segment(&LineSegment::new([0.0, -2.0], [0.0, -1.0]).unwrap(), e, m));
+        assert!(
+            c.overlaps_segment(&LineSegment::new([0.0, 0.0], [1.0, 1.0]).unwrap(), e, m)
+                .is_some()
+        );
+        assert!(
+            c.overlaps_segment(&LineSegment::new([-0.5, 0.5], [0.5, 0.5]).unwrap(), e, m)
+                .is_some()
+        );
+        assert!(
+            c.overlaps_segment(&LineSegment::new([-1.0, 2.0], [1.0, 0.0]).unwrap(), e, m)
+                .is_some()
+        );
+        assert!(
+            c.overlaps_segment(&LineSegment::new([-1.0, 2.0], [0.5, 0.5]).unwrap(), e, m)
+                .is_some()
+        );
+        assert!(
+            !c.overlaps_segment(&LineSegment::new([0.5, -0.5], [1.5, 0.5]).unwrap(), e, m)
+                .is_some()
+        );
+        assert!(
+            !c.overlaps_segment(&LineSegment::new([0.0, 0.0], [0.0, 1.0]).unwrap(), e, m)
+                .is_some()
+        );
+        assert!(
+            !c.overlaps_segment(&LineSegment::new([0.0, -1.0], [0.0, 0.0]).unwrap(), e, m)
+                .is_some()
+        );
+        assert!(
+            !c.overlaps_segment(&LineSegment::new([0.0, -2.0], [0.0, -1.0]).unwrap(), e, m)
+                .is_some()
+        );
     }
 }
 
@@ -1902,6 +1926,7 @@ fn test_overlaps_arc_segment() {
                     e,
                     m
                 )
+                .is_some()
             );
             assert!(
                 c.overlaps_segment(
@@ -1915,6 +1940,7 @@ fn test_overlaps_arc_segment() {
                     e,
                     m
                 )
+                .is_some()
             );
             assert!(
                 c.overlaps_segment(
@@ -1928,6 +1954,7 @@ fn test_overlaps_arc_segment() {
                     e,
                     m
                 )
+                .is_some()
             );
             assert!(
                 c.overlaps_segment(
@@ -1941,6 +1968,7 @@ fn test_overlaps_arc_segment() {
                     e,
                     m
                 )
+                .is_some()
             );
             assert!(
                 !c.overlaps_segment(
@@ -1954,6 +1982,7 @@ fn test_overlaps_arc_segment() {
                     e,
                     m
                 )
+                .is_some()
             );
         }
     }
@@ -1976,6 +2005,7 @@ fn test_overlaps_arc_segment() {
                 e,
                 m
             )
+            .is_some()
         );
     }
     {
@@ -1991,8 +2021,8 @@ fn test_overlaps_arc_segment() {
             [0.9, 0.9],
             [0.9, 0.1],
         ]));
-        assert!(c1.overlaps_contour(&c2, e, m));
-        assert!(c2.overlaps_contour(&c1, e, m));
+        assert!(c1.overlaps_contour(&c2, e, m).is_some());
+        assert!(c2.overlaps_contour(&c1, e, m).is_some());
     }
 }
 
@@ -2026,16 +2056,16 @@ fn test_overlaps_contour() {
             [0.9, 0.1],
         ]));
 
-        assert!(c1.overlaps_contour(&c1, e, m));
+        assert!(c1.overlaps_contour(&c1, e, m).is_some());
 
-        assert!(c1.overlaps_contour(&c2, e, m));
-        assert!(c2.overlaps_contour(&c1, e, m));
+        assert!(c1.overlaps_contour(&c2, e, m).is_some());
+        assert!(c2.overlaps_contour(&c1, e, m).is_some());
 
-        assert!(!c1.overlaps_contour(&c3, e, m));
-        assert!(!c3.overlaps_contour(&c1, e, m));
+        assert!(!c1.overlaps_contour(&c3, e, m).is_some());
+        assert!(!c3.overlaps_contour(&c1, e, m).is_some());
 
-        assert!(c1.overlaps_contour(&c4, e, m));
-        assert!(c4.overlaps_contour(&c1, e, m));
+        assert!(c1.overlaps_contour(&c4, e, m).is_some());
+        assert!(c4.overlaps_contour(&c1, e, m).is_some());
     }
     {
         let c1 = Contour::new(Polysegment::from_points(&[
@@ -2048,37 +2078,37 @@ fn test_overlaps_contour() {
             [1.0, 0.0],
             [1.0, 1.0],
         ]));
-        assert!(!c1.overlaps_contour(&c2, e, m));
-        assert!(!c2.overlaps_contour(&c1, e, m));
+        assert!(!c1.overlaps_contour(&c2, e, m).is_some());
+        assert!(!c2.overlaps_contour(&c1, e, m).is_some());
     }
     {
         let c1 = Contour::from(ArcSegment::circle([0.0, 0.0], 1.0).unwrap());
-        assert!(c1.overlaps_contour(&c1, e, m));
+        assert!(c1.overlaps_contour(&c1, e, m).is_some());
 
         let c2 = Contour::from(ArcSegment::circle([2.0, 0.0], 1.0).unwrap());
-        assert!(!c1.overlaps_contour(&c2, e, m));
-        assert!(!c2.overlaps_contour(&c1, e, m));
+        assert!(!c1.overlaps_contour(&c2, e, m).is_some());
+        assert!(!c2.overlaps_contour(&c1, e, m).is_some());
 
         let c3 = Contour::from(
             ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 1.0, 0.0, FRAC_PI_2)
                 .unwrap(),
         );
-        assert!(c1.overlaps_contour(&c3, e, m));
-        assert!(c3.overlaps_contour(&c1, e, m));
+        assert!(c1.overlaps_contour(&c3, e, m).is_some());
+        assert!(c3.overlaps_contour(&c1, e, m).is_some());
 
         let c4 = Contour::from(
             ArcSegment::from_center_radius_start_sweep_angle([0.2, 0.0], 1.0, 0.0, FRAC_PI_2)
                 .unwrap(),
         );
-        assert!(c1.overlaps_contour(&c4, e, m));
-        assert!(c4.overlaps_contour(&c1, e, m));
+        assert!(c1.overlaps_contour(&c4, e, m).is_some());
+        assert!(c4.overlaps_contour(&c1, e, m).is_some());
 
         let c5 = Contour::from(
             ArcSegment::from_center_radius_start_sweep_angle([0.2, 0.0], 1.0, FRAC_PI_2, FRAC_PI_2)
                 .unwrap(),
         );
-        assert!(c1.overlaps_contour(&c5, e, m));
-        assert!(c5.overlaps_contour(&c1, e, m));
+        assert!(c1.overlaps_contour(&c5, e, m).is_some());
+        assert!(c5.overlaps_contour(&c1, e, m).is_some());
     }
     {
         let c1 = Contour::from(
@@ -2088,7 +2118,7 @@ fn test_overlaps_contour() {
             ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 1.0, 0.5 + PI, PI)
                 .unwrap(),
         );
-        assert!(!c1.overlaps_contour(&c2, e, m));
-        assert!(!c2.overlaps_contour(&c1, e, m));
+        assert!(!c1.overlaps_contour(&c2, e, m).is_some());
+        assert!(!c2.overlaps_contour(&c1, e, m).is_some());
     }
 }

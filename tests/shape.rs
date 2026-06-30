@@ -754,64 +754,100 @@ fn test_overlaps_segment() {
         ]));
         let shape = Shape::new(vec![outer, hole]).unwrap();
 
-        assert!(shape.overlaps_segment(&LineSegment::new([0.0, 0.0], [1.0, 1.0]).unwrap(), e, m));
-        assert!(shape.overlaps_segment(&LineSegment::new([-1.0, -1.0], [2.0, 2.0]).unwrap(), e, m));
-        assert!(!shape.overlaps_segment(&LineSegment::new([0.2, 0.2], [0.8, 0.8]).unwrap(), e, m));
-        assert!(!shape.overlaps_segment(&LineSegment::new([0.1, 0.1], [0.9, 0.9]).unwrap(), e, m));
         assert!(
-            shape.overlaps_segment(
-                &ArcSegment::from_center_radius_start_sweep_angle([0.1, 0.1], 0.9, 0.0, FRAC_PI_2,)
+            shape
+                .overlaps_segment(&LineSegment::new([0.0, 0.0], [1.0, 1.0]).unwrap(), e, m)
+                .is_some()
+        );
+        assert!(
+            shape
+                .overlaps_segment(&LineSegment::new([-1.0, -1.0], [2.0, 2.0]).unwrap(), e, m)
+                .is_some()
+        );
+        assert!(
+            !shape
+                .overlaps_segment(&LineSegment::new([0.2, 0.2], [0.8, 0.8]).unwrap(), e, m)
+                .is_some()
+        );
+        assert!(
+            !shape
+                .overlaps_segment(&LineSegment::new([0.1, 0.1], [0.9, 0.9]).unwrap(), e, m)
+                .is_some()
+        );
+        assert!(
+            shape
+                .overlaps_segment(
+                    &ArcSegment::from_center_radius_start_sweep_angle(
+                        [0.1, 0.1],
+                        0.9,
+                        0.0,
+                        FRAC_PI_2,
+                    )
                     .unwrap(),
-                e,
-                m
-            )
-        );
-        assert!(
-            !shape.overlaps_segment(
-                &ArcSegment::from_center_radius_start_sweep_angle(
-                    [0.1, 0.1],
-                    SQRT_2,
-                    0.0,
-                    FRAC_PI_2,
+                    e,
+                    m
                 )
-                .unwrap(),
-                e,
-                m
-            )
+                .is_some()
         );
         assert!(
-            !shape.overlaps_segment(
-                &ArcSegment::from_center_radius_start_sweep_angle([0.1, 0.1], 0.8, 0.0, FRAC_PI_2,)
+            !shape
+                .overlaps_segment(
+                    &ArcSegment::from_center_radius_start_sweep_angle(
+                        [0.1, 0.1],
+                        SQRT_2,
+                        0.0,
+                        FRAC_PI_2,
+                    )
                     .unwrap(),
-                e,
-                m
-            )
+                    e,
+                    m
+                )
+                .is_some()
         );
         assert!(
-            shape.overlaps_segment(
-                &ArcSegment::from_center_radius_start_sweep_angle(
-                    [0.1, 0.1],
-                    0.8,
-                    -0.1,
-                    FRAC_PI_2,
+            !shape
+                .overlaps_segment(
+                    &ArcSegment::from_center_radius_start_sweep_angle(
+                        [0.1, 0.1],
+                        0.8,
+                        0.0,
+                        FRAC_PI_2,
+                    )
+                    .unwrap(),
+                    e,
+                    m
                 )
-                .unwrap(),
-                e,
-                m
-            )
+                .is_some()
         );
         assert!(
-            shape.overlaps_segment(
-                &ArcSegment::from_center_radius_start_sweep_angle(
-                    [0.1, 0.1],
-                    0.8,
-                    -0.1,
-                    FRAC_PI_2 + 0.2,
+            shape
+                .overlaps_segment(
+                    &ArcSegment::from_center_radius_start_sweep_angle(
+                        [0.1, 0.1],
+                        0.8,
+                        -0.1,
+                        FRAC_PI_2,
+                    )
+                    .unwrap(),
+                    e,
+                    m
                 )
-                .unwrap(),
-                e,
-                m
-            )
+                .is_some()
+        );
+        assert!(
+            shape
+                .overlaps_segment(
+                    &ArcSegment::from_center_radius_start_sweep_angle(
+                        [0.1, 0.1],
+                        0.8,
+                        -0.1,
+                        FRAC_PI_2 + 0.2,
+                    )
+                    .unwrap(),
+                    e,
+                    m
+                )
+                .is_some()
         );
     }
 }
@@ -835,66 +871,90 @@ fn test_overlaps_contour() {
         ]));
         let shape = Shape::new(vec![outer, hole]).unwrap();
 
-        assert!(shape.overlaps_contour(
-            &Contour::new(Polysegment::from_points(&[
-                [0.0, 0.0],
-                [0.0, 1.0],
-                [1.0, 1.0],
-                [1.0, 0.0],
-            ])),
-            e,
-            m
-        ));
-        assert!(!shape.overlaps_contour(
-            &Contour::new(Polysegment::from_points(&[
-                [0.0, 0.0],
-                [0.0, -1.0],
-                [1.0, -1.0],
-                [1.0, 0.0],
-            ])),
-            e,
-            m
-        ));
-        assert!(shape.overlaps_contour(
-            &Contour::new(Polysegment::from_points(&[
-                [0.0, 0.0],
-                [0.0, 0.1],
-                [1.0, 0.1],
-                [1.0, 0.0],
-            ])),
-            e,
-            m
-        ));
-        assert!(shape.overlaps_contour(
-            &Contour::new(Polysegment::from_points(&[
-                [0.0, 0.0],
-                [0.0, 0.8],
-                [1.0, 0.8],
-                [1.0, 0.0],
-            ])),
-            e,
-            m
-        ));
-        assert!(!shape.overlaps_contour(
-            &Contour::new(Polysegment::from_points(&[
-                [0.1, 0.1],
-                [0.1, 0.9],
-                [0.9, 0.9],
-                [0.9, 0.1],
-            ])),
-            e,
-            m
-        ));
-        assert!(shape.overlaps_contour(
-            &Contour::new(Polysegment::from_points(&[
-                [-0.1, -0.1],
-                [-0.1, 1.1],
-                [1.1, 1.1],
-                [1.1, -0.1],
-            ])),
-            e,
-            m
-        ));
+        assert!(
+            shape
+                .overlaps_contour(
+                    &Contour::new(Polysegment::from_points(&[
+                        [0.0, 0.0],
+                        [0.0, 1.0],
+                        [1.0, 1.0],
+                        [1.0, 0.0],
+                    ])),
+                    e,
+                    m
+                )
+                .is_some()
+        );
+        assert!(
+            !shape
+                .overlaps_contour(
+                    &Contour::new(Polysegment::from_points(&[
+                        [0.0, 0.0],
+                        [0.0, -1.0],
+                        [1.0, -1.0],
+                        [1.0, 0.0],
+                    ])),
+                    e,
+                    m
+                )
+                .is_some()
+        );
+        assert!(
+            shape
+                .overlaps_contour(
+                    &Contour::new(Polysegment::from_points(&[
+                        [0.0, 0.0],
+                        [0.0, 0.1],
+                        [1.0, 0.1],
+                        [1.0, 0.0],
+                    ])),
+                    e,
+                    m
+                )
+                .is_some()
+        );
+        assert!(
+            shape
+                .overlaps_contour(
+                    &Contour::new(Polysegment::from_points(&[
+                        [0.0, 0.0],
+                        [0.0, 0.8],
+                        [1.0, 0.8],
+                        [1.0, 0.0],
+                    ])),
+                    e,
+                    m
+                )
+                .is_some()
+        );
+        assert!(
+            !shape
+                .overlaps_contour(
+                    &Contour::new(Polysegment::from_points(&[
+                        [0.1, 0.1],
+                        [0.1, 0.9],
+                        [0.9, 0.9],
+                        [0.9, 0.1],
+                    ])),
+                    e,
+                    m
+                )
+                .is_some()
+        );
+        assert!(
+            shape
+                .overlaps_contour(
+                    &Contour::new(Polysegment::from_points(&[
+                        [-0.1, -0.1],
+                        [-0.1, 1.1],
+                        [1.1, 1.1],
+                        [1.1, -0.1],
+                    ])),
+                    e,
+                    m
+                )
+                .is_some()
+        );
     }
 }
 
@@ -916,7 +976,7 @@ fn test_overlaps_shape() {
             [0.9, 0.1],
         ]));
         let s1 = Shape::new(vec![outer, hole]).unwrap();
-        assert!(s1.overlaps_shape(&s1, e, m));
+        assert!(s1.overlaps_shape(&s1, e, m).is_some());
 
         let outer = Contour::new(Polysegment::from_points(&[
             [-0.1, -0.1],
@@ -931,8 +991,8 @@ fn test_overlaps_shape() {
             [1.0, 0.0],
         ]));
         let s2 = Shape::new(vec![outer, hole]).unwrap();
-        assert!(!s1.overlaps_shape(&s2, e, m));
-        assert!(!s2.overlaps_shape(&s1, e, m));
+        assert!(!s1.overlaps_shape(&s2, e, m).is_some());
+        assert!(!s2.overlaps_shape(&s1, e, m).is_some());
 
         let s3 = Shape::from_outer(Contour::new(Polysegment::from_points(&[
             [0.1, 0.1],
@@ -941,8 +1001,8 @@ fn test_overlaps_shape() {
             [0.9, 0.1],
         ])))
         .unwrap();
-        assert!(!s1.overlaps_shape(&s3, e, m));
-        assert!(!s3.overlaps_shape(&s1, e, m));
+        assert!(!s1.overlaps_shape(&s3, e, m).is_some());
+        assert!(!s3.overlaps_shape(&s1, e, m).is_some());
 
         let s4 = Shape::from_outer(Contour::new(Polysegment::from_points(&[
             [0.0, 0.1],
@@ -951,7 +1011,7 @@ fn test_overlaps_shape() {
             [0.9, 0.1],
         ])))
         .unwrap();
-        assert!(s1.overlaps_shape(&s4, e, m));
-        assert!(s4.overlaps_shape(&s1, e, m));
+        assert!(s1.overlaps_shape(&s4, e, m).is_some());
+        assert!(s4.overlaps_shape(&s1, e, m).is_some());
     }
 }

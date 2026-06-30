@@ -25,10 +25,7 @@ use rayon::prelude::*;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-use crate::polysegment::{
-    LeftRightRelation, Polysegment, intersections_between_polysegment_and_segment,
-    intersections_between_polysegment_and_segment_par,
-};
+use crate::polysegment::Polysegment;
 use crate::primitive::Primitive;
 use crate::segment::{Segment, SegmentRef, arc_segment::ArcSegment, line_segment::LineSegment};
 use crate::{CentroidData, Transformation};
@@ -875,17 +872,12 @@ impl Contour {
             Segment::LineSegment(_) => {
                 if let Ok(s) = LineSegment::new(back.stop(), front.start()) {
                     self.0.push_back(s.into());
-                } else {
-                    self.0.pop_back();
                 }
             }
             Segment::ArcSegment(_) => match front {
                 Segment::LineSegment(_) => {
                     if let Ok(s) = LineSegment::new(back.stop(), front.start()) {
                         self.0.0[0] = s.into();
-                    } else {
-                        self.0.pop_front();
-                        self.0.make_contiguous();
                     }
                 }
                 Segment::ArcSegment(_) => {
@@ -896,6 +888,32 @@ impl Contour {
                 }
             },
         }
+    }
+
+    /// Additional filter on top of Polysegment::filter_intersections which
+    /// catches cases like left_seg = first segment, right_seg = last segment
+    /// and the intersection point being left_seg.start() / right_seg.stop()
+    fn filter_intersections(&self, i: &Intersection, epsilon: f64, max_relative: f64) -> bool {
+        let left_seg = &self[i.left.segment_idx];
+        let right_seg = &self[i.right.segment_idx];
+
+        // Wrapping check if left_seg and right_seg are only connected by
+        // glue segments
+        let num_segs = self.num_segments();
+        !(relative_eq!(
+            left_seg.start(),
+            right_seg.stop(),
+            epsilon = epsilon,
+            max_relative = max_relative
+        ) && ((i.right.segment_idx + 1)..(i.left.segment_idx + num_segs)).all(|i| {
+            let s = &self[i.rem_euclid(num_segs)];
+            relative_eq!(
+                s.start(),
+                s.stop(),
+                epsilon = epsilon,
+                max_relative = max_relative
+            )
+        }))
     }
 }
 
@@ -950,43 +968,16 @@ impl Composite for Contour {
         epsilon: f64,
         max_relative: f64,
     ) -> impl Iterator<Item = Intersection> + 'a {
-        let (is_identical, left_right_relation) = if std::ptr::eq(self, contour) {
-            (true, LeftRightRelation::EqualContour(self.len()))
-        } else {
-            (false, LeftRightRelation::Other)
-        };
-
+        let self_intersection = std::ptr::eq(self, contour);
         return self
             .polysegment()
-            .vec_deque()
-            .iter()
-            .enumerate()
-            .flat_map(move |(right_idx, right_seg)| {
-                intersections_between_polysegment_and_segment(
-                    contour.polysegment().vec_deque().iter(),
-                    right_idx,
-                    right_seg,
-                    left_right_relation,
-                    epsilon,
-                    max_relative,
-                )
-            })
+            .intersections_polysegment(contour.polysegment(), epsilon, max_relative)
             .filter(move |i| {
-                if is_identical
-                    && i.left.segment_idx == 0
-                    && i.right.segment_idx + 1 == self.num_segments()
-                {
-                    if let Some(start) = self.polysegment().front() {
-                        let pt = start.start();
-                        return !relative_eq!(
-                            pt,
-                            i.point,
-                            epsilon = epsilon,
-                            max_relative = max_relative
-                        );
-                    }
-                };
-                return true;
+                if self_intersection {
+                    self.filter_intersections(i, epsilon, max_relative)
+                } else {
+                    true
+                }
             });
     }
 
@@ -996,43 +987,17 @@ impl Composite for Contour {
         epsilon: f64,
         max_relative: f64,
     ) -> impl ParallelIterator<Item = Intersection> + 'a {
-        let (is_identical, left_right_relation) = if std::ptr::eq(self, contour) {
-            (true, LeftRightRelation::EqualContour(self.len()))
-        } else {
-            (false, LeftRightRelation::Other)
-        };
-
-        self.polysegment()
-            .vec_deque()
-            .par_iter()
-            .enumerate()
-            .flat_map(move |(right_idx, right_seg)| {
-                intersections_between_polysegment_and_segment_par(
-                    contour.polysegment().vec_deque().par_iter(),
-                    right_idx,
-                    right_seg,
-                    left_right_relation,
-                    epsilon,
-                    max_relative,
-                )
-            })
+        let self_intersection = std::ptr::eq(self, contour);
+        return self
+            .polysegment()
+            .intersections_polysegment_par(contour.polysegment(), epsilon, max_relative)
             .filter(move |i| {
-                if is_identical
-                    && i.left.segment_idx == 0
-                    && i.right.segment_idx + 1 == self.num_segments()
-                {
-                    if let Some(start) = self.polysegment().front() {
-                        let pt = start.start();
-                        return !relative_eq!(
-                            pt,
-                            i.point,
-                            epsilon = epsilon,
-                            max_relative = max_relative
-                        );
-                    }
-                };
-                return true;
-            })
+                if self_intersection {
+                    self.filter_intersections(i, epsilon, max_relative)
+                } else {
+                    true
+                }
+            });
     }
 
     fn intersections_shape<'a>(
@@ -1247,13 +1212,13 @@ impl Composite for Contour {
         segment: T,
         epsilon: f64,
         max_relative: f64,
-    ) -> bool {
+    ) -> Option<SegmentKey> {
         let segment: SegmentRef = segment.into();
 
         // If the segment is outside the bounding box of self, then the segment
         // and the contour surely don't overlap
         if !self.bounding_box().overlaps(&segment.bounding_box()) {
-            return false;
+            return None;
         }
 
         match segment {
@@ -1288,12 +1253,15 @@ impl Composite for Contour {
                             let mx = 0.5 * (start[0] + stop[0]);
                             let my = 0.5 * (start[1] + stop[1]);
                             if self.contains_point([mx, my], epsilon, max_relative) {
-                                return true;
+                                return Some(SegmentKey {
+                                    contour_idx: 0,
+                                    segment_idx: 0,
+                                });
                             }
                         }
                     }
                 }
-                return false;
+                return None;
             }
             SegmentRef::ArcSegment(arc_segment) => {
                 /*
@@ -1306,16 +1274,48 @@ impl Composite for Contour {
                  */
                 let c = arc_segment.center();
                 let r = arc_segment.radius();
-                let dir = if arc_segment.is_positive() { 1.0 } else { -1.0 };
                 let start_angle = arc_segment.start_angle();
+                let stop_angle = arc_segment.stop_angle();
 
                 let mut angles: Vec<f64> = self
-                    .intersections_primitive_par(&segment, epsilon, max_relative)
+                    .intersections_primitive_par(arc_segment, epsilon, max_relative)
                     .map(|i| {
-                        let mut a = (i.point[1] - c[1]).atan2(i.point[0] - c[0]);
-                        let needs_wrap = (dir * (a - start_angle) < -epsilon) as i32 as f64;
-                        a += dir * needs_wrap * TAU;
-                        a
+                        let a = (i.point[1] - c[1]).atan2(i.point[0] - c[0]);
+
+                        // Make sure a is between start_angle and stop_angle
+                        if relative_eq!(
+                            a,
+                            start_angle,
+                            epsilon = epsilon,
+                            max_relative = max_relative
+                        ) {
+                            return start_angle;
+                        }
+                        if relative_eq!(
+                            a,
+                            stop_angle,
+                            epsilon = epsilon,
+                            max_relative = max_relative
+                        ) {
+                            return stop_angle;
+                        }
+                        if arc_segment.is_positive() {
+                            if a < start_angle {
+                                a + TAU
+                            } else if a > stop_angle {
+                                a - TAU
+                            } else {
+                                a
+                            }
+                        } else {
+                            if a > start_angle {
+                                a - TAU
+                            } else if a < stop_angle {
+                                a + TAU
+                            } else {
+                                a
+                            }
+                        }
                     })
                     .collect();
                 angles.push(arc_segment.start_angle());
@@ -1330,19 +1330,32 @@ impl Composite for Contour {
                             let mx = c[0] + r * mid_angle.cos();
                             let my = c[1] + r * mid_angle.sin();
                             if self.contains_point([mx, my], epsilon, max_relative) {
-                                return true;
+                                return Some(SegmentKey {
+                                    contour_idx: 0,
+                                    segment_idx: 0,
+                                });
                             }
                         }
                     }
                 }
-                return false;
+                return None;
             }
         }
     }
 
-    fn overlaps_contour(&self, other: &Self, epsilon: f64, max_relative: f64) -> bool {
+    fn overlaps_contour(
+        &self,
+        other: &Self,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Option<SegmentKey> {
         if std::ptr::eq(self, other) {
-            return true;
+            // A contour naturally overlaps itself -> Just return the key to the
+            // first segment of self / other (any other segment would also work)
+            return Some(SegmentKey {
+                contour_idx: 0,
+                segment_idx: 0,
+            });
         }
 
         let b_self = BoundingBox::from(self);
@@ -1350,24 +1363,40 @@ impl Composite for Contour {
 
         // If the bounding boxes do not overlap, then self and other also can't overlap
         if !b_self.overlaps(&b_other) {
-            return false;
+            return None;
         }
 
         // Does any segment of self overlap other? If no segment of self
         // overlaps other, the inverse is also true (and is therefore not checked)
-        if self
+        if let Some((segment_idx, _)) = other
             .segments_par()
-            .any(|s| other.overlaps_segment(s, epsilon, max_relative))
+            .enumerate()
+            .find_any(|(_, s)| self.overlaps_segment(*s, epsilon, max_relative).is_some())
         {
-            return true;
+            return Some(SegmentKey {
+                contour_idx: 0,
+                segment_idx,
+            });
         }
 
-        // Does one of the segments cover the other one?
-        return self.covers_contour(other, epsilon, max_relative)
-            || other.covers_contour(self, epsilon, max_relative);
+        // Does one of the contours cover the other one?
+        if self.covers_contour(other, epsilon, max_relative)
+            || other.covers_contour(self, epsilon, max_relative)
+        {
+            return Some(SegmentKey {
+                contour_idx: 0,
+                segment_idx: 0,
+            });
+        }
+        return None;
     }
 
-    fn overlaps_shape(&self, shape: &crate::shape::Shape, epsilon: f64, max_relative: f64) -> bool {
+    fn overlaps_shape(
+        &self,
+        shape: &crate::shape::Shape,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Option<SegmentKey> {
         return shape.overlaps_contour(self, epsilon, max_relative);
     }
 
@@ -1376,7 +1405,7 @@ impl Composite for Contour {
         other: &'a T,
         epsilon: f64,
         max_relative: f64,
-    ) -> bool {
+    ) -> Option<SegmentKey> {
         return other.overlaps_contour(self, epsilon, max_relative);
     }
 }

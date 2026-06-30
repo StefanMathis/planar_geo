@@ -724,49 +724,61 @@ impl Composite for Shape {
         segment: T,
         epsilon: f64,
         max_relative: f64,
-    ) -> bool {
+    ) -> Option<SegmentKey> {
         let segment: SegmentRef = segment.into();
         /*
         The segment overlaps the shape if it overlaps the outer contour and is
         not contained in one of the shape's holes
          */
-        if !self
-            .contour()
-            .overlaps_segment(segment.clone(), epsilon, max_relative)
-        {
-            return false;
-        }
+        self.contour()
+            .overlaps_segment(segment.clone(), epsilon, max_relative)?;
         for hole in self.holes() {
             if hole.covers_segment(segment.clone(), epsilon, max_relative) {
-                return false;
+                return None;
             }
         }
-        return true;
+        return Some(SegmentKey {
+            contour_idx: 0,
+            segment_idx: 0,
+        });
     }
 
-    fn overlaps_contour(&self, contour: &Contour, epsilon: f64, max_relative: f64) -> bool {
+    fn overlaps_contour(
+        &self,
+        contour: &Contour,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Option<SegmentKey> {
         // If other either not overlaps the outer contour of the shape or if it
         // is completely covered by one of the holes, then there is no overlap
-
-        if !(self
+        let key = self
             .contour()
-            .overlaps_contour(contour, epsilon, max_relative))
-        {
-            return false;
-        }
+            .overlaps_contour(contour, epsilon, max_relative)?;
 
         for hole in self.holes() {
             if hole.covers_contour(contour, epsilon, max_relative) {
-                return false;
+                return None;
             }
         }
-        return true;
+        return Some(key);
     }
 
-    fn overlaps_shape(&self, other: &Self, epsilon: f64, max_relative: f64) -> bool {
-        return std::ptr::eq(self, other)
-            || (self.overlaps_contour(other.contour(), epsilon, max_relative)
-                && other.overlaps_contour(self.contour(), epsilon, max_relative));
+    fn overlaps_shape(&self, other: &Self, epsilon: f64, max_relative: f64) -> Option<SegmentKey> {
+        if std::ptr::eq(self, other) {
+            // A Shape naturally overlaps itself -> Just return the key to the
+            // first segment of self / other (any other segment would also work)
+            return Some(SegmentKey {
+                contour_idx: 0,
+                segment_idx: 0,
+            });
+        }
+        if other
+            .overlaps_contour(self.contour(), epsilon, max_relative)
+            .is_some()
+        {
+            return self.overlaps_contour(other.contour(), epsilon, max_relative);
+        }
+        return None;
     }
 
     fn overlaps_composite<'a, T: Composite>(
@@ -774,7 +786,7 @@ impl Composite for Shape {
         other: &'a T,
         epsilon: f64,
         max_relative: f64,
-    ) -> bool {
+    ) -> Option<SegmentKey> {
         return other.overlaps_shape(self, epsilon, max_relative);
     }
 }

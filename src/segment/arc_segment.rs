@@ -486,7 +486,6 @@ impl ArcSegment {
             return Err(crate::error::ErrorType::PointsIdentical.into());
         }
 
-        //
         let mut radius = radius;
         if 0.5 * distance_start_stop > radius {
             radius = 0.5 * distance_start_stop
@@ -568,10 +567,6 @@ impl ArcSegment {
     use planar_geo::segment::ArcSegment;
     use std::f64::consts::PI;
 
-    let start = [0.0, 2.0];
-    let stop = [2.0, 0.0];
-    let radius: f64 = 2.0;
-
     let arc = ArcSegment::from_start_stop_center([0.0, 2.0], [2.0, 0.0], [0.0, 0.0], true, false).expect("valid_arc");
     approx::assert_abs_diff_eq!(arc.radius(), 2.0);
     approx::assert_abs_diff_eq!(arc.sweep_angle(), 0.5 * PI, epsilon = 1e-3);
@@ -610,6 +605,92 @@ impl ArcSegment {
             positive,
             large_arc,
         );
+    }
+
+    /**
+    Creates an [`ArcSegment`] from its `start`, `stop`, `center` and `radius`.
+
+    With those input parameters, the `radius` of the arc is overdefined twice,
+    since it can be calculated both from the distance `start` - `center` and
+    `stop` - `center`. Hence, this function calculates both radii and
+    compares them to `radius`. If they are (approximately) equal, this function
+    then calculates the start and sweep angles from `start` and `stop`. Since
+    there are two possible sweep angles (a positive one and a negative one), the
+    parameter `positive` is needed to select the correct one. With the `center`,
+    `radius` `start_angle` and `sweep_angle`, this function then forwards to
+    [`ArcSegment::from_center_radius_start_sweep_angle`].
+
+    # Examples
+
+    ```
+    use planar_geo::segment::ArcSegment;
+    use std::f64::consts::PI;
+
+    let arc = ArcSegment::from_start_stop_center_radius([0.0, 2.0], [2.0, 0.0], [0.0, 0.0], 2.0, true).expect("valid_arc");
+    approx::assert_abs_diff_eq!(arc.sweep_angle(), 1.5 * PI, epsilon = 1e-3);
+
+    let arc = ArcSegment::from_start_stop_center_radius([0.0, 2.0], [2.0, 0.0], [0.0, 0.0], 2.0, false).expect("valid_arc");
+    approx::assert_abs_diff_eq!(arc.sweep_angle(), -0.5 * PI, epsilon = 1e-3);
+    ```
+     */
+    pub fn from_start_stop_center_radius(
+        start: [f64; 2],
+        stop: [f64; 2],
+        center: [f64; 2],
+        radius: f64,
+        positive: bool,
+    ) -> crate::error::Result<Self> {
+        let radius_start_center =
+            ((start[0] - center[0]).powi(2) + (start[1] - center[1]).powi(2)).sqrt();
+        let radius_stop_center =
+            ((stop[0] - center[0]).powi(2) + (stop[1] - center[1]).powi(2)).sqrt();
+
+        // Sanity checks
+        if relative_ne!(
+            radius_start_center,
+            radius_stop_center,
+            epsilon = crate::DEFAULT_EPSILON,
+            max_relative = crate::DEFAULT_MAX_RELATIVE
+        ) {
+            // We already know this will fail, we are just interested in the
+            // produced error message.
+            compare_variables!(radius_start_center == radius_stop_center)?;
+        }
+        if relative_ne!(
+            radius_start_center,
+            radius,
+            epsilon = crate::DEFAULT_EPSILON,
+            max_relative = crate::DEFAULT_MAX_RELATIVE
+        ) {
+            // We already know this will fail, we are just interested in the
+            // produced error message.
+            compare_variables!(radius_start_center == radius)?;
+        }
+        if relative_ne!(
+            radius_start_center,
+            radius,
+            epsilon = crate::DEFAULT_EPSILON,
+            max_relative = crate::DEFAULT_MAX_RELATIVE
+        ) {
+            // We already know this will fail, we are just interested in the
+            // produced error message.
+            compare_variables!(radius == radius_stop_center)?;
+        }
+
+        let start_angle = (start[1] - center[1]).atan2(start[0] - center[0]);
+        let stop_angle = (stop[1] - center[1]).atan2(stop[0] - center[0]);
+        let mut sweep_angle = stop_angle - start_angle;
+        if positive {
+            if sweep_angle < 0.0 {
+                sweep_angle += TAU;
+            }
+        } else {
+            if sweep_angle > 0.0 {
+                sweep_angle -= TAU;
+            }
+        }
+
+        Self::from_center_radius_start_sweep_angle(center, radius, start_angle, sweep_angle)
     }
 
     /**

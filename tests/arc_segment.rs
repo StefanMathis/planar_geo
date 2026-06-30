@@ -662,6 +662,39 @@ fn test_from_start_stop_radius() {
 }
 
 #[test]
+fn test_from_start_stop_center_radius() {
+    let arc =
+        ArcSegment::from_start_stop_center_radius([0.0, 2.0], [2.0, 0.0], [0.0, 0.0], 2.0, true)
+            .expect("valid_arc");
+    approx::assert_abs_diff_eq!(arc.sweep_angle(), 1.5 * PI, epsilon = 1e-3);
+
+    let arc =
+        ArcSegment::from_start_stop_center_radius([0.0, 2.0], [2.0, 0.0], [0.0, 0.0], 2.0, false)
+            .expect("valid_arc");
+    approx::assert_abs_diff_eq!(arc.sweep_angle(), -0.5 * PI, epsilon = 1e-3);
+
+    let arc =
+        ArcSegment::from_start_stop_center_radius([0.0, -2.0], [2.0, 0.0], [0.0, 0.0], 2.0, true)
+            .expect("valid_arc");
+    approx::assert_abs_diff_eq!(arc.sweep_angle(), 0.5 * PI, epsilon = 1e-3);
+
+    let arc =
+        ArcSegment::from_start_stop_center_radius([0.0, -2.0], [2.0, 0.0], [0.0, 0.0], 2.0, false)
+            .expect("valid_arc");
+    approx::assert_abs_diff_eq!(arc.sweep_angle(), -1.5 * PI, epsilon = 1e-3);
+
+    let arc =
+        ArcSegment::from_start_stop_center_radius([0.0, -2.0], [-2.0, 0.0], [0.0, 0.0], 2.0, true)
+            .expect("valid_arc");
+    approx::assert_abs_diff_eq!(arc.sweep_angle(), 1.5 * PI, epsilon = 1e-3);
+
+    let arc =
+        ArcSegment::from_start_stop_center_radius([0.0, -2.0], [-2.0, 0.0], [0.0, 0.0], 2.0, false)
+            .expect("valid_arc");
+    approx::assert_abs_diff_eq!(arc.sweep_angle(), -0.5 * PI, epsilon = 1e-3);
+}
+
+#[test]
 fn test_fillet_construction() {
     {
         let prev: [f64; 2] = [0.0, 1.0];
@@ -686,6 +719,20 @@ fn test_fillet_construction() {
             epsilon = 1e-6
         );
         assert_abs_diff_eq!(arc.stop(), &[1.0, 0.5], epsilon = 1e-6);
+        assert_abs_diff_eq!(arc.sweep_angle(), FRAC_PI_2, epsilon = 1e-6);
+    }
+    {
+        let prev: [f64; 2] = [0.0, 1.0];
+        let curr: [f64; 2] = [0.0, 0.0];
+        let next: [f64; 2] = [-1.0, 0.0];
+        let arc = ArcSegment::fillet(prev, curr, next, 0.5).unwrap();
+        assert_abs_diff_eq!(arc.start(), &[0.0, 0.5]);
+        assert_abs_diff_eq!(
+            arc.segment_point(0.5),
+            [-0.5 + 0.5 / 2.0_f64.sqrt(), 0.5 - 0.5 / 2.0_f64.sqrt()]
+        );
+        assert_abs_diff_eq!(arc.stop(), &[-0.5, 0.0]);
+        assert_abs_diff_eq!(arc.sweep_angle(), -FRAC_PI_2, epsilon = 1e-6);
     }
     {
         let prev: [f64; 2] = [1.0, 2.0];

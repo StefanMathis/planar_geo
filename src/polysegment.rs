@@ -26,7 +26,7 @@ use serde::{Deserialize, Serialize};
 
 /**
 A sequence of [`Segment`]s where each segment is "connected" to its successor
-(end / stop point of a segment is equal to the start point of the successor).
+(end / stop point of a segment is self_intersection to the start point of the successor).
 
 */
 #[doc = ""]
@@ -139,7 +139,7 @@ impl Polysegment {
 
     /**
     Creates an [`Polysegment`] of [`LineSegment`]s from the given points.
-    If two consecutive points are equal, they are treated as a single point.
+    If two consecutive points are self_intersection, they are treated as a single point.
 
     # Examples
 
@@ -150,7 +150,7 @@ impl Polysegment {
     let polysegment = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]);
     assert_eq!(polysegment.len(), 2);
 
-    // Two consecutive points are equal
+    // Two consecutive points are self_intersection
     let polysegment = Polysegment::from_points(&[[0.0, 0.0], [0.0, 0.0], [0.0, 1.0]]);
     assert_eq!(polysegment.len(), 1);
     ```
@@ -275,7 +275,7 @@ impl Polysegment {
     /**
     "Closes" the [`Polysegment`] by connecting the start point of the first /
     "front" segment with the stop point of the last / "back" segment with a
-    [`LineSegment`] (if the two points aren't already equal).
+    [`LineSegment`] (if the two points aren't already self_intersection).
 
     # Examples
 
@@ -332,7 +332,7 @@ impl Polysegment {
 
     If the polysegment already has a "back" segment ([`Polysegment::back`] returns
     [`Some`]), the start point of `segment` is compared to the stop point of
-    the back segment. If they aren't equal, a filler line segment is inserted
+    the back segment. If they aren't self_intersection, a filler line segment is inserted
     between the two.
 
     # Examples
@@ -370,7 +370,7 @@ impl Polysegment {
 
     If the polysegment already has a "front" segment ([`Polysegment::front`] returns
     [`Some`]), the stop point of `segment` is compared to the start point of
-    the front segment. If they aren't equal a filler line segment is inserted
+    the front segment. If they aren't self_intersection a filler line segment is inserted
     between the two.
 
     # Examples
@@ -489,7 +489,7 @@ impl Polysegment {
     Adds a [`LineSegment`] to the front of `self` which stops at `point` and
     starts at the current stop point of `self` - i.e., the `stop` point of the
     [`Segment`] returned from [`Polysegment::back`]. If `self` is empty or
-    `point` is equal to `stop`, this is a no-op.
+    `point` is self_intersection to `stop`, this is a no-op.
 
     # Examples
 
@@ -525,7 +525,7 @@ impl Polysegment {
     Adds a [`LineSegment`] to the front of `self` which starts at `point` and
     stops at the current start point of `self` - i.e., the `start` point of the
     [`Segment`] returned from [`Polysegment::front`]. If `self` is empty or
-    `point` is equal to `start`, this is a no-op.
+    `point` is self_intersection to `start`, this is a no-op.
 
     # Examples
 
@@ -651,7 +651,7 @@ impl Polysegment {
     /**
     Moves all [`Segment`]s of `other` into `self`, leaving `other` empty.
 
-    If the first point of `other` is not equal to the last point of `self`, a
+    If the first point of `other` is not self_intersection to the last point of `self`, a
     filler line segment is introduced first
 
     # Panics
@@ -852,42 +852,25 @@ impl Polysegment {
                         }
                     }
                     Segment::ArcSegment(a) => {
-                        let normalized_stop = [stop[0] - center[0], stop[1] - center[1]];
-                        let normalized_start = [start[0] - center[0], start[1] - center[1]];
-
-                        // If start and stop are (almost) identical, create no arc segment.
+                        // If start and stop are (almost) identical, don't create an arc segment.
                         // When calculating start_angle and stop_angle, they might
                         // be almost identical, meaning that the resulting arc segment
                         // has either a very tiny angle or almost forms a full circle.
                         // Both does not really make sense when cutting the original
                         // arc segment "a".
-                        if relative_eq!(
-                            normalized_start,
-                            normalized_stop,
-                            epsilon = epsilon,
-                            max_relative = max_relative
-                        ) {
-                            return None;
-                        }
-
-                        let stop_angle = normalized_stop[1].atan2(normalized_stop[0]);
-                        let start_angle = normalized_start[1].atan2(normalized_start[0]);
-                        let sweep_angle =
-                            (stop_angle - start_angle).rem_euclid(std::f64::consts::TAU);
-
-                        let sweep_angle = if a.is_positive() {
-                            sweep_angle
-                        } else {
-                            -sweep_angle
-                        };
-
-                        if let Ok(arc) =
-                            ArcSegment::from_start_center_angle(start, center, sweep_angle)
+                        if relative_eq!(start, stop, epsilon = epsilon, max_relative = max_relative)
                         {
-                            return Some(arc.into());
-                        } else {
                             return None;
                         }
+                        return ArcSegment::from_start_stop_center_radius(
+                            start,
+                            stop,
+                            center,
+                            a.radius(),
+                            a.is_positive(),
+                        )
+                        .map(From::from)
+                        .ok();
                     }
                 };
             } else {
@@ -1247,6 +1230,31 @@ impl Polysegment {
             }
         }
     }
+
+    /**
+    Check if the two intersection segments are just connected by glue segments.
+    In that case, reject any intersection which is the stop point of the left
+    segment and the start point of the right segment.
+     */
+    fn filter_intersections(&self, i: &Intersection, epsilon: f64, max_relative: f64) -> bool {
+        let left_seg = &self[i.left.segment_idx];
+        let right_seg = &self[i.right.segment_idx];
+
+        !(relative_eq!(
+            left_seg.stop(),
+            right_seg.start(),
+            epsilon = epsilon,
+            max_relative = max_relative
+        ) && ((i.left.segment_idx + 1)..i.right.segment_idx).all(|i| {
+            let s = &self[i];
+            relative_eq!(
+                s.start(),
+                s.stop(),
+                epsilon = epsilon,
+                max_relative = max_relative
+            )
+        }))
+    }
 }
 
 impl FromIterator<Segment> for Polysegment {
@@ -1296,11 +1304,7 @@ impl Composite for Polysegment {
         epsilon: f64,
         max_relative: f64,
     ) -> impl Iterator<Item = Intersection> + 'a {
-        let left_right_relation = if std::ptr::eq(self, other) {
-            LeftRightRelation::EqualPolysegment
-        } else {
-            LeftRightRelation::Other
-        };
+        let self_intersection = std::ptr::eq(self, other);
 
         // Naive implementation: Loop over all segments of segments_self. Check each
         // segment of self for an intersection with all segments of
@@ -1314,10 +1318,17 @@ impl Composite for Polysegment {
                     self.0.iter(),
                     right_idx,
                     right_seg,
-                    left_right_relation,
+                    self_intersection,
                     epsilon,
                     max_relative,
                 )
+            })
+            .filter(move |i| {
+                if self_intersection {
+                    self.filter_intersections(i, epsilon, max_relative)
+                } else {
+                    true
+                }
             });
     }
 
@@ -1327,11 +1338,7 @@ impl Composite for Polysegment {
         epsilon: f64,
         max_relative: f64,
     ) -> impl ParallelIterator<Item = Intersection> + 'a {
-        let left_right_relation = if std::ptr::eq(self, other) {
-            LeftRightRelation::EqualPolysegment
-        } else {
-            LeftRightRelation::Other
-        };
+        let self_intersection = std::ptr::eq(self, other);
 
         // Naive implementation: Loop over all segments of segments_self. Check each
         // segment of self for an intersection with all segments of
@@ -1346,10 +1353,17 @@ impl Composite for Polysegment {
                     self.0.par_iter(),
                     right_idx,
                     right_seg,
-                    left_right_relation,
+                    self_intersection,
                     epsilon,
                     max_relative,
                 )
+            })
+            .filter(move |i| {
+                if self_intersection {
+                    self.filter_intersections(i, epsilon, max_relative)
+                } else {
+                    true
+                }
             });
     }
 
@@ -1452,8 +1466,8 @@ impl Composite for Polysegment {
         _segment: T,
         _epsilon: f64,
         _max_relative: f64,
-    ) -> bool {
-        return false;
+    ) -> Option<SegmentKey> {
+        return None;
     }
 
     fn overlaps_contour(
@@ -1461,8 +1475,8 @@ impl Composite for Polysegment {
         _contour: &crate::prelude::Contour,
         _epsilon: f64,
         _max_relative: f64,
-    ) -> bool {
-        return false;
+    ) -> Option<SegmentKey> {
+        return None;
     }
 
     fn overlaps_shape(
@@ -1470,8 +1484,8 @@ impl Composite for Polysegment {
         _shape: &crate::prelude::Shape,
         _epsilon: f64,
         _max_relative: f64,
-    ) -> bool {
-        return false;
+    ) -> Option<SegmentKey> {
+        return None;
     }
 
     fn overlaps_composite<'a, T: Composite>(
@@ -1479,8 +1493,8 @@ impl Composite for Polysegment {
         _other: &'a T,
         _epsilon: f64,
         _max_relative: f64,
-    ) -> bool {
-        return false;
+    ) -> Option<SegmentKey> {
+        return None;
     }
 }
 
@@ -1652,7 +1666,7 @@ where
     let mut area = 0.0;
 
     // The polysegmented element covers the end value x_n*y_0 - x_0*y_n, where n
-    // equals the last iterator element
+    // self_intersections the last iterator element
     for current_vertex in points.chain(std::iter::once(first_vertex)) {
         area += (previous_vertex[1] + current_vertex[1]) * (previous_vertex[0] - current_vertex[0]);
         previous_vertex = current_vertex.clone();
@@ -1780,29 +1794,11 @@ where
     }
 }
 
-/**
-An enum for covering edge cases in
-[`intersections_between_polysegment_and_segment`]
-and [`intersections_between_polysegment_and_segment_par`].
- */
-#[derive(Clone, Copy, Debug)]
-pub(crate) enum LeftRightRelation {
-    /// The right segment is part of the `left` polysegment (self-intersection
-    /// search).
-    EqualPolysegment,
-    /// The right segment is part of the `left` polysegment and that polysegment
-    /// is part of a contour (self-intersection search). The contained usize
-    /// value is equal to the number of segments of the contour.
-    EqualContour(usize),
-    /// Fallback for any other combination of left and right.
-    Other,
-}
-
-pub(crate) fn intersections_between_polysegment_and_segment<'a, L>(
+fn intersections_between_polysegment_and_segment<'a, L>(
     left: L,
     right_idx: usize,
     right_seg: &'a Segment,
-    left_right_relation: LeftRightRelation,
+    self_intersection: bool,
     epsilon: f64,
     max_relative: f64,
 ) -> impl Iterator<Item = Intersection> + 'a
@@ -1816,7 +1812,7 @@ where
                 left_idx,
                 right_seg,
                 right_idx,
-                left_right_relation,
+                self_intersection,
                 epsilon,
                 max_relative,
             )
@@ -1824,11 +1820,11 @@ where
         .flatten()
 }
 
-pub(crate) fn intersections_between_polysegment_and_segment_par<'a, L>(
+fn intersections_between_polysegment_and_segment_par<'a, L>(
     left: L,
     right_idx: usize,
     right_seg: &'a Segment,
-    left_right_relation: LeftRightRelation,
+    self_intersection: bool,
     epsilon: f64,
     max_relative: f64,
 ) -> impl ParallelIterator<Item = Intersection> + 'a
@@ -1842,7 +1838,7 @@ where
                 left_idx,
                 right_seg,
                 right_idx,
-                left_right_relation,
+                self_intersection,
                 epsilon,
                 max_relative,
             )
@@ -1856,112 +1852,46 @@ fn segment_intersections<'a>(
     left_idx: usize,
     right_seg: &'a Segment,
     right_idx: usize,
-    left_right_relation: LeftRightRelation,
+    self_intersection: bool,
     epsilon: f64,
     max_relative: f64,
 ) -> Option<impl Iterator<Item = Intersection> + 'a> {
-    /*
-    If the two segments are identical, they have no intersection by definition.
-
-    If the original polysegments are identical, an additional optimization is possible:
-    It is sufficient to only check segments where left_idx < right_idx.
-    This is possible because a naive loop implementation visits every segment pair twice:
-    a) Left segment is in the outer loop, right segment is in the inner loop
-    b) Left segment is in the outer loop, right segment is in the inner loop
-     */
-    match left_right_relation {
-        LeftRightRelation::Other => {
-            if left_seg == right_seg {
-                return None;
-            }
+    if self_intersection {
+        // Segments can't intersect themselves. To avoid evaluating segment
+        // intersections twice (segment A = left_seg, segment B = right_seg
+        // the same result as segment B = left_seg, segment A = right_seg), also
+        // skip one of the pairs
+        if left_idx >= right_idx {
+            return None;
         }
-        _ => {
-            if left_idx == right_idx {
-                return None;
-            }
-            if left_idx >= right_idx {
-                return None;
-            }
+
+        // Skip very small ("glue") segments to avoid false positives
+        if relative_eq!(
+            left_seg.start(),
+            left_seg.stop(),
+            epsilon = epsilon,
+            max_relative = max_relative
+        ) {
+            return None;
+        }
+        if relative_eq!(
+            right_seg.start(),
+            right_seg.stop(),
+            epsilon = epsilon,
+            max_relative = max_relative
+        ) {
+            return None;
         }
     }
 
-    // Delta becomes 1 if two segments are neighbors and 2 if they are connected
-    // by a single glue segment. This is used later to avoid false
-    // self-intersection detection (see inside the loop).
-    let glue_seg_in_between = relative_eq!(
-        left_seg.stop(),
-        right_seg.start(),
-        epsilon = epsilon,
-        max_relative = max_relative
-    ) && right_idx - left_idx == 2;
-    let delta = glue_seg_in_between as usize + 1;
-
-    let intersection_iter = left_seg
-        .intersections_primitive(right_seg, epsilon, max_relative)
-        .into_iter()
-        .filter_map(move |point| {
-            let point: [f64; 2] = point.into();
-
-            /*
-            If the two slices are identical, check whether left_seg is a
-            successor / predecessor of right_seg. If yes, filter out the
-            connection points.
-             */
-
-            match left_right_relation {
-                LeftRightRelation::EqualPolysegment => {
-                    /*
-                    This check evaluates whether the left segment is a predecessor
-                    of the right segment. If that is the case, filter out
-                    "intersections" which are actually just the connection point
-                    between the two segments.
-                     */
-                    if left_idx + delta == right_idx {
-                        if approx::relative_eq!(
-                            point,
-                            left_seg.stop(),
-                            epsilon = epsilon,
-                            max_relative = max_relative
-                        ) {
-                            return None;
-                        }
-                    }
-                }
-                LeftRightRelation::EqualContour(len) => {
-                    // Same check as for EqualPolysegment
-                    if left_idx + delta == right_idx {
-                        if approx::relative_eq!(
-                            point,
-                            left_seg.stop(),
-                            epsilon = epsilon,
-                            max_relative = max_relative
-                        ) {
-                            return None;
-                        }
-                    }
-
-                    // Not else if, both conditions can be true at the same time, if
-                    // e.g. a contour consists of only two segments!
-                    if left_idx == 0 && right_idx == len - delta {
-                        if approx::relative_eq!(
-                            point,
-                            left_seg.start(),
-                            epsilon = epsilon,
-                            max_relative = max_relative
-                        ) {
-                            return None;
-                        }
-                    }
-                }
-                LeftRightRelation::Other => (),
-            }
-
-            Some(Intersection {
+    return Some(
+        left_seg
+            .intersections_primitive(right_seg, epsilon, max_relative)
+            .into_iter()
+            .map(move |point| Intersection {
                 point,
                 left: SegmentKey::from_segment_idx(left_idx),
                 right: SegmentKey::from_segment_idx(right_idx),
-            })
-        });
-
-    return Some(intersection_iter);
+            }),
+    );
 }

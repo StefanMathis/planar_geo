@@ -265,7 +265,12 @@ entity if all points of the latter are within it or on its boundaries.
 
 A composite "overlaps" another geometric entity if at least one of the points
 of the latter is contained within the composite. Therefore, a polysegment
-cannot overlap with anything, see section [Containment](#containment).
+cannot overlap with anything, see section [Containment](#containment). The
+`overlaps_` methods return an [`Option<SegmentKey>`](SegmentKey). If the option
+contains a key, the corresponding segment of the other geometric entitiy is
+overlapping (see the docstrings of the individual functions for details). If
+there are multiple overlapping segments, one of them is arbitrarily chosen. If
+the option is [`None`], there is no overlap between the two entities.
 
 # Intersection
 
@@ -1143,7 +1148,8 @@ pub trait Composite: private::Sealed + Sync {
     described by `self` and not on one of the boundary segments. This is
     identical to the definition of [`Composite::contains_point`], hence this
     method just forwards to `contains_point`. It exists mainly for symmetry
-    reasons.
+    reasons. The returned [`SegmentKey`] is always the first segment of `self`
+    ([`SegmentKey::contour_idx`] and [`SegmentKey::segment_idx`] are 0).
 
     # Examples
 
@@ -1159,27 +1165,41 @@ pub trait Composite: private::Sealed + Sync {
     let pt = [0.5, 0.9];
 
     // A polysegment cannot overlap a point ...
-    assert!(!contour.polysegment().overlaps_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(contour.polysegment().overlaps_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_none());
 
     // ... but the outer contour does overlap the point
-    assert!(contour.overlaps_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(contour.overlaps_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_some());
 
     // The point is not overlapped by the hole contour, because it is on the boundary segments
-    assert!(!hole.overlaps_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(hole.overlaps_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_none());
 
     // The point is not overlapped by the shape, because it is on the hole boundary
-    assert!(!shape.overlaps_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(shape.overlaps_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_none());
     ```
      */
-    fn overlaps_point(&self, point: [f64; 2], epsilon: f64, max_relative: f64) -> bool {
-        self.contains_point(point, epsilon, max_relative)
+    fn overlaps_point(
+        &self,
+        point: [f64; 2],
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Option<SegmentKey> {
+        if self.contains_point(point, epsilon, max_relative) {
+            return Some(SegmentKey {
+                contour_idx: 0,
+                segment_idx: 0,
+            });
+        }
+        return None;
     }
 
     /**
     Returns whether `self` overlaps the given [`SegmentRef`].
 
     A segment is overlapped if at least one of its points is contained within
-    `self` according to the definition in [`Composite::contains_point`].
+    `self` according to the definition in [`Composite::contains_point`]. The
+    fields [`SegmentKey::contour_idx`] and [`SegmentKey::segment_idx`] of the
+    returned [`SegmentKey`] are both zero (since `segment`) is only a single
+    segment.
 
     # Examples
 
@@ -1194,14 +1214,14 @@ pub trait Composite: private::Sealed + Sync {
 
     let ls = LineSegment::new([0.1, 0.1], [0.9, 0.1]).unwrap();
 
-    assert!(contour.overlaps_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(contour.overlaps_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_some());
 
     // Hole does not overlap the segment, because it is right on its boundary
-    assert!(!hole.overlaps_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(hole.overlaps_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_none());
 
     // Shape does not overlap line segment (because it is completely covered by
     // the hole and therefore none of its points are contained in the shape.
-    assert!(!shape.overlaps_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(shape.overlaps_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_none());
     ```
      */
     fn overlaps_segment<'a, T: Into<SegmentRef<'a>>>(
@@ -1209,13 +1229,14 @@ pub trait Composite: private::Sealed + Sync {
         segment: T,
         epsilon: f64,
         max_relative: f64,
-    ) -> bool;
+    ) -> Option<SegmentKey>;
 
     /**
     Returns whether `self` overlaps the given [`Polysegment`].
 
     This function applies [`Composite::overlaps_segment`] to all segments of
-    `polysegment`.
+    `polysegment`. The returned [`SegmentKey`] points to one of the segments of
+    `polysegment` which overlaps with `self`.
 
     # Examples
 
@@ -1230,14 +1251,14 @@ pub trait Composite: private::Sealed + Sync {
 
     let ps = Polysegment::from_points(&[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9]]);
 
-    assert!(contour.overlaps_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(contour.overlaps_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_some());
 
     // Hole does not overlap the segment, because it is right on its boundary
-    assert!(!hole.overlaps_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(hole.overlaps_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_none());
 
     // Similar to overlaps_segment, all of the points of ps are covered by the
     // hole, hence it does not overlap with the shape.
-    assert!(!shape.overlaps_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(shape.overlaps_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_none());
     ```
      */
     fn overlaps_polysegment(
@@ -1245,17 +1266,23 @@ pub trait Composite: private::Sealed + Sync {
         polysegment: &Polysegment,
         epsilon: f64,
         max_relative: f64,
-    ) -> bool {
-        polysegment
+    ) -> Option<SegmentKey> {
+        return polysegment
             .segments_par()
-            .any(|s| self.overlaps_segment(s, epsilon, max_relative))
+            .enumerate()
+            .find_any(|(_, s)| self.overlaps_segment(*s, epsilon, max_relative).is_some())
+            .map(|(segment_idx, _)| SegmentKey {
+                contour_idx: 0,
+                segment_idx,
+            });
     }
 
     /**
     Returns whether `self` overlaps the given [`Contour`].
 
     The `contour` overlaps with `self` if at least one of the points contained
-    within it is also contained within `self`.
+    within it is also contained within `self`. The returned [`SegmentKey`]
+    points to one of the segments of `contour` which overlaps with `self`.
 
     # Examples
 
@@ -1270,18 +1297,24 @@ pub trait Composite: private::Sealed + Sync {
 
     let c: Contour = Polysegment::from_points(&[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9]]).into();
 
-    assert!(contour.overlaps_contour(&c, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
-    assert!(hole.overlaps_contour(&c, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
-    assert!(!shape.overlaps_contour(&c, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(contour.overlaps_contour(&c, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_some());
+    assert!(hole.overlaps_contour(&c, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_some());
+    assert!(shape.overlaps_contour(&c, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_none());
     ```
      */
-    fn overlaps_contour(&self, contour: &Contour, epsilon: f64, max_relative: f64) -> bool;
+    fn overlaps_contour(
+        &self,
+        contour: &Contour,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Option<SegmentKey>;
 
     /**
     Returns whether `self` overlaps the given [`Shape`].
 
     The `shape` overlaps with `self` if at least one of the points contained
-    within it is also contained within `self`.
+    within it is also contained within `self`. The returned [`SegmentKey`]
+    points to one of the segments of `shape` which overlaps with `self`.
 
     # Examples
 
@@ -1296,24 +1329,26 @@ pub trait Composite: private::Sealed + Sync {
 
     let s = Shape::from_outer(Polysegment::from_points(&[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9]]).into()).unwrap();
 
-    assert!(contour.overlaps_shape(&s, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
-    assert!(hole.overlaps_shape(&s, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
-    assert!(!shape.overlaps_shape(&s, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(contour.overlaps_shape(&s, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_some());
+    assert!(hole.overlaps_shape(&s, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_some());
+    assert!(shape.overlaps_shape(&s, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_none());
     ```
      */
-    fn overlaps_shape(&self, shape: &Shape, epsilon: f64, max_relative: f64) -> bool;
+    fn overlaps_shape(&self, shape: &Shape, epsilon: f64, max_relative: f64) -> Option<SegmentKey>;
 
     /**
     Returns whether `self` overlaps the given [`Composite`].
 
     This is a generalized interface to all specialized `overlaps_` functions.
+    The returned [`SegmentKey`] points to one of the segments of `other` whic
+    overlaps with `self`.
      */
     fn overlaps_composite<'a, T: Composite>(
         &'a self,
         other: &'a T,
         epsilon: f64,
         max_relative: f64,
-    ) -> bool;
+    ) -> Option<SegmentKey>;
 }
 
 /**
