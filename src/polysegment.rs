@@ -1417,11 +1417,68 @@ impl Composite for Polysegment {
             .map(Intersection::switch);
     }
 
-    fn covers_point(&self, point: [f64; 2], epsilon: f64, max_relative: f64) -> bool {
-        return self
+    fn contains_point(&self, _point: [f64; 2], _: f64, _: f64) -> Result<Contained, NotContained> {
+        return Err(NotContained::NoSurfaceArea);
+    }
+
+    fn contains_segment<'a, T: Into<SegmentRef<'a>>>(
+        &self,
+        _segment: T,
+        _: f64,
+        _: f64,
+    ) -> Result<Contained, NotContained> {
+        return Err(NotContained::NoSurfaceArea);
+    }
+
+    fn contains_polysegment(
+        &self,
+        _polysegment: &Polysegment,
+        _: f64,
+        _: f64,
+    ) -> Result<Contained, NotContained> {
+        return Err(NotContained::NoSurfaceArea);
+    }
+
+    fn contains_contour(
+        &self,
+        _contour: &crate::contour::Contour,
+        _: f64,
+        _: f64,
+    ) -> Result<Contained, NotContained> {
+        return Err(NotContained::NoSurfaceArea);
+    }
+
+    fn contains_shape(
+        &self,
+        _shape: &crate::shape::Shape,
+        _: f64,
+        _: f64,
+    ) -> Result<Contained, NotContained> {
+        return Err(NotContained::NoSurfaceArea);
+    }
+
+    fn contains_composite<'a, T: Composite>(
+        &'a self,
+        _other: &'a T,
+        _: f64,
+        _: f64,
+    ) -> Result<Contained, NotContained> {
+        return Err(NotContained::NoSurfaceArea);
+    }
+
+    fn covers_point(
+        &self,
+        point: [f64; 2],
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Result<Covered, NotCovered> {
+        match self
             .intersections_primitive(&point, epsilon, max_relative)
             .next()
-            .is_some();
+        {
+            Some(i) => Ok(Covered::OnBoundary(i.left)),
+            None => Err(NotCovered::OutsideContour),
+        }
     }
 
     fn covers_segment<'a, T: Into<SegmentRef<'a>>>(
@@ -1429,18 +1486,9 @@ impl Composite for Polysegment {
         segment: T,
         epsilon: f64,
         max_relative: f64,
-    ) -> bool {
+    ) -> Result<Covered, NotCovered> {
         let segment: SegmentRef = segment.into();
         return covers_segment(self.0.iter(), segment, epsilon, max_relative);
-    }
-
-    fn contains_point(&self, _: [f64; 2], _: f64, _: f64) -> bool {
-        // A polysegment has no surface area and therefore cannot contain a point.
-        return false;
-    }
-
-    fn contains_segment<'a, T: Into<SegmentRef<'a>>>(&self, _: T, _: f64, _: f64) -> bool {
-        return false;
     }
 
     fn covers_composite<'a, T: Composite>(
@@ -1448,53 +1496,44 @@ impl Composite for Polysegment {
         other: &'a T,
         epsilon: f64,
         max_relative: f64,
-    ) -> bool {
+    ) -> Result<Covered, NotCovered> {
         return other.covers_polysegment(self, epsilon, max_relative);
     }
 
-    fn contains_composite<'a, T: Composite>(
-        &'a self,
-        other: &'a T,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> bool {
-        return other.contains_polysegment(self, epsilon, max_relative);
-    }
-
-    fn overlaps_segment<'a, T: Into<SegmentRef<'a>>>(
+    fn contains_any_segment<'a, T: Into<SegmentRef<'a>>>(
         &self,
         _segment: T,
         _epsilon: f64,
         _max_relative: f64,
-    ) -> Option<SegmentKey> {
-        return None;
+    ) -> Result<Overlap, NoOverlap> {
+        return Err(NoOverlap::NoSurfaceArea);
     }
 
-    fn overlaps_contour(
+    fn contains_any_contour(
         &self,
         _contour: &crate::prelude::Contour,
         _epsilon: f64,
         _max_relative: f64,
-    ) -> Option<SegmentKey> {
-        return None;
+    ) -> Result<Overlap, NoOverlap> {
+        return Err(NoOverlap::NoSurfaceArea);
     }
 
-    fn overlaps_shape(
+    fn contains_any_shape(
         &self,
         _shape: &crate::prelude::Shape,
         _epsilon: f64,
         _max_relative: f64,
-    ) -> Option<SegmentKey> {
-        return None;
+    ) -> Result<Overlap, NoOverlap> {
+        return Err(NoOverlap::NoSurfaceArea);
     }
 
-    fn overlaps_composite<'a, T: Composite>(
+    fn contains_any_composite<'a, T: Composite>(
         &'a self,
         _other: &'a T,
         _epsilon: f64,
         _max_relative: f64,
-    ) -> Option<SegmentKey> {
-        return None;
+    ) -> Result<Overlap, NoOverlap> {
+        return Err(NoOverlap::NoSurfaceArea);
     }
 }
 
@@ -1680,7 +1719,7 @@ pub(crate) fn covers_segment<'a, 'b, I>(
     segment: SegmentRef<'b>,
     epsilon: f64,
     max_relative: f64,
-) -> bool
+) -> Result<Covered, NotCovered>
 where
     I: Iterator<Item = &'a Segment>,
 {
@@ -1690,7 +1729,7 @@ where
             // one if they form a single line segment (i.e. their angles are
             // identical)
             let mut combined: Option<LineSegment> = None;
-            for seg in iterator {
+            for (idx, seg) in iterator.enumerate() {
                 if let Segment::LineSegment(sl) = seg {
                     combined = match combined {
                         Some(c) => {
@@ -1704,7 +1743,9 @@ where
                                 // "combined"
                                 if let Ok(new_combined) = LineSegment::new(c.start(), sl.stop()) {
                                     if new_combined.covers(line_segment, epsilon, max_relative) {
-                                        return true;
+                                        return Ok(Covered::OnBoundary(
+                                            SegmentKey::from_segment_idx(idx),
+                                        ));
                                     }
                                     Some(new_combined)
                                 } else {
@@ -1713,14 +1754,16 @@ where
                             } else {
                                 // Replace the old combined segment with the new line segment
                                 if sl.covers(line_segment, epsilon, max_relative) {
-                                    return true;
+                                    return Ok(Covered::OnBoundary(SegmentKey::from_segment_idx(
+                                        idx,
+                                    )));
                                 }
                                 Some(sl.clone())
                             }
                         }
                         None => {
                             if sl.covers(line_segment, epsilon, max_relative) {
-                                return true;
+                                return Ok(Covered::OnBoundary(SegmentKey::from_segment_idx(idx)));
                             }
                             Some(sl.clone())
                         }
@@ -1730,14 +1773,14 @@ where
                     combined = None;
                 }
             }
-            return false;
+            return Err(NotCovered::OutsideContour);
         }
         SegmentRef::ArcSegment(arc_segment) => {
             // Multiple subsequent arc segments are combined into a single
             // one if they form a single arc segment
             // (i.e. their radius and center are identical).
             let mut combined: Option<ArcSegment> = None;
-            for seg in iterator {
+            for (idx, seg) in iterator.enumerate() {
                 if let Segment::ArcSegment(sa) = seg {
                     combined = match combined {
                         Some(c) => {
@@ -1763,7 +1806,9 @@ where
                                     )
                                 {
                                     if new_combined.covers(arc_segment, epsilon, max_relative) {
-                                        return true;
+                                        return Ok(Covered::OnBoundary(
+                                            SegmentKey::from_segment_idx(idx),
+                                        ));
                                     }
                                     Some(new_combined)
                                 } else {
@@ -1772,14 +1817,16 @@ where
                             } else {
                                 // Replace the old combined segment with the new line segment
                                 if sa.covers(arc_segment, epsilon, max_relative) {
-                                    return true;
+                                    return Ok(Covered::OnBoundary(SegmentKey::from_segment_idx(
+                                        idx,
+                                    )));
                                 }
                                 Some(sa.clone())
                             }
                         }
                         None => {
                             if sa.covers(arc_segment, epsilon, max_relative) {
-                                return true;
+                                return Ok(Covered::OnBoundary(SegmentKey::from_segment_idx(idx)));
                             }
                             Some(sa.clone())
                         }
@@ -1789,7 +1836,7 @@ where
                     combined = None;
                 }
             }
-            return false;
+            return Err(NotCovered::OutsideContour);
         }
     }
 }

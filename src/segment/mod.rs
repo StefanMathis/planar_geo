@@ -872,7 +872,28 @@ impl<'a> ToBoundingBox for SegmentRef<'a> {
     }
 }
 
+impl<'a> From<SegmentRef<'a>> for Segment {
+    fn from(value: SegmentRef<'a>) -> Self {
+        value.into_owned()
+    }
+}
+
+impl<'a> From<&SegmentRef<'a>> for Segment {
+    fn from(value: &SegmentRef<'a>) -> Self {
+        value.into_owned()
+    }
+}
+
 impl<'a> SegmentRef<'a> {
+    /// Converts `self` into a [`Segment`] by cloning the underlying segment
+    /// variant.
+    pub fn into_owned(&self) -> Segment {
+        match self {
+            SegmentRef::LineSegment(v) => (*v).clone().into(),
+            SegmentRef::ArcSegment(v) => (*v).clone().into(),
+        }
+    }
+
     /**
     Returns the start point of the underlying segment variant.
      */

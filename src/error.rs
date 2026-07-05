@@ -41,6 +41,8 @@ pub enum ShapeConstructorError<T> {
         /// Argument used in the failed function call, can be used for further
         /// inspection.
         input: T,
+        /// Reason why the hole is outside the outer contour.
+        reason: crate::composite::NotContained,
         /// If `input` was a collection (i.e. a [`Vec<Contour>`]), this value
         /// is the index of the hole outside the outer contour.
         idx: usize,
@@ -54,6 +56,8 @@ pub enum ShapeConstructorError<T> {
         /// Argument used in the failed function call, can be used for further
         /// inspection.
         input: T,
+        /// Reason why the hole is is inside the other hole.
+        reason: crate::composite::Contained,
         /// Index of the outer / containing hole
         outer_hole_idx: usize,
         /// Index of the inner / contained hole
@@ -83,21 +87,26 @@ impl<T> std::fmt::Display for ShapeConstructorError<T> {
             ShapeConstructorError::EmptyContour { input: _, idx } => {
                 write!(f, "contour {} is empty", idx)
             }
-            ShapeConstructorError::HoleOutsideContour { input: _, idx } => {
+            ShapeConstructorError::HoleOutsideContour {
+                input: _,
+                idx,
+                reason,
+            } => {
                 write!(
                     f,
-                    "hole contour {} is outside the outer contour of the shape",
-                    idx
+                    "hole contour {} is outside the outer contour of the shape. Reason: {}",
+                    idx, reason
                 )
             }
             ShapeConstructorError::HoleInsideHole {
                 input: _,
+                reason,
                 outer_hole_idx,
                 inner_hole_idx,
             } => write!(
                 f,
-                "hole contour {} contains the hole at index {}",
-                outer_hole_idx, inner_hole_idx
+                "hole contour {} contains the hole at index {}. Reason: {}",
+                outer_hole_idx, inner_hole_idx, reason
             ),
             ShapeConstructorError::Intersection {
                 input: _,

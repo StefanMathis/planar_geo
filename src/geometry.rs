@@ -615,7 +615,10 @@ impl<'a> GeometryRef<'a> {
     ) -> Vec<Intersection> {
         match self {
             GeometryRef::Point(point) => {
-                if other.covers_point((*point).clone(), epsilon, max_relative) {
+                if other
+                    .covers_point((*point).clone(), epsilon, max_relative)
+                    .is_ok()
+                {
                     return vec![(**point).into()];
                 } else {
                     return Vec::new();
@@ -659,7 +662,10 @@ impl<'a> GeometryRef<'a> {
     ) -> Vec<Intersection> {
         match self {
             GeometryRef::Point(point) => {
-                if other.covers_point((*point).clone(), epsilon, max_relative) {
+                if other
+                    .covers_point((*point).clone(), epsilon, max_relative)
+                    .is_ok()
+                {
                     return vec![(**point).into()];
                 } else {
                     return Vec::new();

@@ -699,22 +699,22 @@ fn test_straight_line_polysegment() {
     let polysegment = Polysegment::from_points(&vertices);
 
     // Points which are covered in the first segment
-    assert!(polysegment.covers_point([0.5, 0.0], 0.0, 0.0));
-    assert!(!polysegment.covers_point([0.5, 0.1], 0.0, 0.0));
-    assert!(polysegment.covers_point([0.5, 0.1], 0.11, 0.0));
-    assert!(!polysegment.covers_point([0.5, 0.2], 0.11, 0.0));
+    assert!(polysegment.covers_point([0.5, 0.0], 0.0, 0.0).is_ok());
+    assert!(polysegment.covers_point([0.5, 0.1], 0.0, 0.0).is_err());
+    assert!(polysegment.covers_point([0.5, 0.1], 0.11, 0.0).is_ok());
+    assert!(polysegment.covers_point([0.5, 0.2], 0.11, 0.0).is_err());
 
     // Points which are covered in the second segment
-    assert!(polysegment.covers_point([1.0, 0.5], 0.0, 0.0));
-    assert!(!polysegment.covers_point([1.1, 0.5], 0.0, 0.0));
-    assert!(polysegment.covers_point([1.1, 0.5], 0.11, 0.0));
-    assert!(!polysegment.covers_point([1.2, 0.5], 0.11, 0.0));
+    assert!(polysegment.covers_point([1.0, 0.5], 0.0, 0.0).is_ok());
+    assert!(polysegment.covers_point([1.1, 0.5], 0.0, 0.0).is_err());
+    assert!(polysegment.covers_point([1.1, 0.5], 0.11, 0.0).is_ok());
+    assert!(polysegment.covers_point([1.2, 0.5], 0.11, 0.0).is_err());
 
     // Points which are covered in both segments
-    assert!(polysegment.covers_point([1.0, 0.0], 0.0, 0.0));
-    assert!(!polysegment.covers_point([0.98, 0.02], 0.0, 0.0));
-    assert!(polysegment.covers_point([0.98, 0.02], 0.11, 0.0));
-    assert!(!polysegment.covers_point([1.1, -0.1], 0.11, 0.0));
+    assert!(polysegment.covers_point([1.0, 0.0], 0.0, 0.0).is_ok());
+    assert!(polysegment.covers_point([0.98, 0.02], 0.0, 0.0).is_err());
+    assert!(polysegment.covers_point([0.98, 0.02], 0.11, 0.0).is_ok());
+    assert!(polysegment.covers_point([1.1, -0.1], 0.11, 0.0).is_err());
 }
 
 #[test]
@@ -810,37 +810,93 @@ fn covers_segment() {
 
     {
         // Contains line segment
-        assert!(polyseg.covers_segment(&LineSegment::new([1.0, 0.0], [2.0, 0.0]).unwrap(), e, m));
-        assert!(polyseg.covers_segment(&LineSegment::new([2.0, 0.0], [1.0, 0.0]).unwrap(), e, m));
+        assert!(
+            polyseg
+                .covers_segment(&LineSegment::new([1.0, 0.0], [2.0, 0.0]).unwrap(), e, m)
+                .is_ok()
+        );
+        assert!(
+            polyseg
+                .covers_segment(&LineSegment::new([2.0, 0.0], [1.0, 0.0]).unwrap(), e, m)
+                .is_ok()
+        );
 
-        assert!(polyseg.covers_segment(&LineSegment::new([1.5, 0.0], [2.5, 0.0]).unwrap(), e, m));
-        assert!(polyseg.covers_segment(&LineSegment::new([2.5, 0.0], [1.5, 0.0]).unwrap(), e, m));
+        assert!(
+            polyseg
+                .covers_segment(&LineSegment::new([1.5, 0.0], [2.5, 0.0]).unwrap(), e, m)
+                .is_ok()
+        );
+        assert!(
+            polyseg
+                .covers_segment(&LineSegment::new([2.5, 0.0], [1.5, 0.0]).unwrap(), e, m)
+                .is_ok()
+        );
 
-        assert!(polyseg.covers_segment(&LineSegment::new([1.0, 0.0], [4.0, 0.0]).unwrap(), e, m));
-        assert!(polyseg.covers_segment(&LineSegment::new([4.0, 0.0], [1.0, 0.0]).unwrap(), e, m));
+        assert!(
+            polyseg
+                .covers_segment(&LineSegment::new([1.0, 0.0], [4.0, 0.0]).unwrap(), e, m)
+                .is_ok()
+        );
+        assert!(
+            polyseg
+                .covers_segment(&LineSegment::new([4.0, 0.0], [1.0, 0.0]).unwrap(), e, m)
+                .is_ok()
+        );
 
-        assert!(polyseg.covers_segment(&LineSegment::new([2.1, 0.0], [3.9, 0.0]).unwrap(), e, m));
-        assert!(polyseg.covers_segment(&LineSegment::new([3.9, 0.0], [2.1, 0.0]).unwrap(), e, m));
+        assert!(
+            polyseg
+                .covers_segment(&LineSegment::new([2.1, 0.0], [3.9, 0.0]).unwrap(), e, m)
+                .is_ok()
+        );
+        assert!(
+            polyseg
+                .covers_segment(&LineSegment::new([3.9, 0.0], [2.1, 0.0]).unwrap(), e, m)
+                .is_ok()
+        );
 
-        assert!(!polyseg.covers_segment(&LineSegment::new([1.0, 0.2], [2.0, 0.0]).unwrap(), e, m));
-        assert!(!polyseg.covers_segment(&LineSegment::new([1.0, 0.2], [2.0, 0.2]).unwrap(), e, m));
+        assert!(
+            polyseg
+                .covers_segment(&LineSegment::new([1.0, 0.2], [2.0, 0.0]).unwrap(), e, m)
+                .is_err()
+        );
+        assert!(
+            polyseg
+                .covers_segment(&LineSegment::new([1.0, 0.2], [2.0, 0.2]).unwrap(), e, m)
+                .is_err()
+        );
 
-        assert!(polyseg.covers_segment(&LineSegment::new([4.0, 4.0], [4.0, 0.0]).unwrap(), e, m));
-        assert!(polyseg.covers_segment(&LineSegment::new([4.0, 0.0], [4.0, 4.0]).unwrap(), e, m));
+        assert!(
+            polyseg
+                .covers_segment(&LineSegment::new([4.0, 4.0], [4.0, 0.0]).unwrap(), e, m)
+                .is_ok()
+        );
+        assert!(
+            polyseg
+                .covers_segment(&LineSegment::new([4.0, 0.0], [4.0, 4.0]).unwrap(), e, m)
+                .is_ok()
+        );
 
-        assert!(polyseg.covers_segment(&LineSegment::new([4.0, 4.0], [4.0, 3.0]).unwrap(), e, m));
-        assert!(polyseg.covers_segment(&LineSegment::new([4.0, 3.0], [4.0, 4.0]).unwrap(), e, m));
+        assert!(
+            polyseg
+                .covers_segment(&LineSegment::new([4.0, 4.0], [4.0, 3.0]).unwrap(), e, m)
+                .is_ok()
+        );
+        assert!(
+            polyseg
+                .covers_segment(&LineSegment::new([4.0, 3.0], [4.0, 4.0]).unwrap(), e, m)
+                .is_ok()
+        );
     }
     {
         // Contains arc segment
         let quarter_arc =
             ArcSegment::from_start_center_angle([-1.0, 0.0], [0.0, 0.0], 0.5 * -PI).unwrap();
-        assert!(polyseg.covers_segment(&quarter_arc, e, m));
+        assert!(polyseg.covers_segment(&quarter_arc, e, m).is_ok());
 
         let quarter_arc_shifted =
             ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 1.0, 0.75 * PI, -0.5 * PI)
                 .unwrap();
-        assert!(polyseg.covers_segment(&quarter_arc_shifted, e, m));
+        assert!(polyseg.covers_segment(&quarter_arc_shifted, e, m).is_ok());
     }
 }
 
@@ -853,23 +909,23 @@ fn covers_segment_circle() {
     let polyseg = Polysegment::from(circle);
 
     let arc = ArcSegment::from_start_center_angle([-1.0, 0.0], [0.0, 0.0], 0.5 * -PI).unwrap();
-    assert!(polyseg.covers_segment(&arc, e, m));
+    assert!(polyseg.covers_segment(&arc, e, m).is_ok());
 
     let arc = ArcSegment::from_start_center_angle([1.0, 0.0], [0.0, 0.0], 1.5 * -PI).unwrap();
-    assert!(polyseg.covers_segment(&arc, e, m));
+    assert!(polyseg.covers_segment(&arc, e, m).is_ok());
 
     let arc = ArcSegment::from_start_center_angle([1.0, 0.0], [0.0, 0.0], 1.5 * PI).unwrap();
-    assert!(polyseg.covers_segment(&arc, e, m));
+    assert!(polyseg.covers_segment(&arc, e, m).is_ok());
 
     let arc = ArcSegment::from_center_radius_start_stop_angle([0.0, 0.0], 1.0, -1.0, 1.0).unwrap();
-    assert!(polyseg.covers_segment(&arc, e, m));
+    assert!(polyseg.covers_segment(&arc, e, m).is_ok());
 
     let arc = ArcSegment::from_center_radius_start_stop_angle([0.0, 0.0], 1.0, 1.0, -1.0).unwrap();
-    assert!(polyseg.covers_segment(&arc, e, m));
+    assert!(polyseg.covers_segment(&arc, e, m).is_ok());
 
     let arc = ArcSegment::from_center_radius_start_stop_angle([0.0, 0.0], 2.0, 1.0, -1.0).unwrap();
-    assert!(!polyseg.covers_segment(&arc, e, m));
+    assert!(polyseg.covers_segment(&arc, e, m).is_err());
 
     let arc = ArcSegment::from_center_radius_start_stop_angle([0.5, 0.0], 1.0, 1.0, -1.0).unwrap();
-    assert!(!polyseg.covers_segment(&arc, e, m));
+    assert!(polyseg.covers_segment(&arc, e, m).is_err());
 }

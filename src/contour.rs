@@ -25,11 +25,11 @@ use rayon::prelude::*;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
+use crate::composite::*;
 use crate::polysegment::Polysegment;
 use crate::primitive::Primitive;
 use crate::segment::{Segment, SegmentRef, arc_segment::ArcSegment, line_segment::LineSegment};
 use crate::{CentroidData, Transformation};
-use crate::{DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE, composite::*};
 
 use bounding_box::{BoundingBox, ToBoundingBox};
 
@@ -725,27 +725,23 @@ impl Contour {
         point: [f64; 2],
         epsilon: f64,
         max_relative: f64,
-    ) -> bool {
+    ) -> Result<Covered, NotCovered> {
         // First coarse, but fast test: Check if the point is inside the bounding box
         let bb = BoundingBox::from(self);
         if COVERS {
             if !bb.approx_covers_point(point, epsilon) {
-                return false;
+                return Err(NotCovered::OutsideBoundingBox);
             }
         } else {
             if !bb.contains_point(point) {
-                return false;
+                return Err(NotCovered::OutsideBoundingBox);
             }
         }
 
         // Check if the point is located on the edge of the polysegment
-        for segment in self.segments() {
+        for (idx, segment) in self.segments().enumerate() {
             if segment.covers_point(point, epsilon, max_relative) {
-                if COVERS {
-                    return true;
-                } else {
-                    return false;
-                }
+                return Ok(Covered::OnBoundary(SegmentKey::from_segment_idx(idx)));
             }
         }
 
@@ -766,12 +762,7 @@ impl Contour {
                     let [x2, y2] = segment.stop();
 
                     // Skip horizontal line segments
-                    if relative_eq!(
-                        y1,
-                        y2,
-                        epsilon = DEFAULT_EPSILON,
-                        max_relative = DEFAULT_MAX_RELATIVE
-                    ) {
+                    if relative_eq!(y1, y2, epsilon = epsilon, max_relative = max_relative) {
                         if y_stashed.is_none() {
                             y_stashed = Some(y1);
                         }
@@ -848,7 +839,11 @@ impl Contour {
             }
         }
 
-        return inside;
+        if inside {
+            return Ok(Covered::Inside);
+        } else {
+            return Err(NotCovered::OutsideContour);
+        }
     }
 
     /**
@@ -1050,7 +1045,70 @@ impl Composite for Contour {
             .map(Intersection::switch);
     }
 
-    fn covers_point(&self, point: [f64; 2], epsilon: f64, max_relative: f64) -> bool {
+    fn contains_point(
+        &self,
+        point: [f64; 2],
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Result<Contained, NotContained> {
+        match self.covers_or_contains_point::<false>(point, epsilon, max_relative) {
+            Ok(c) => match c {
+                Covered::Inside => Ok(Contained::Inside),
+                Covered::OnBoundary(segment_key) => Err(NotContained::OnBoundary(segment_key)),
+            },
+            Err(n) => match n {
+                NotCovered::Intersection(intersection) => {
+                    Err(NotContained::Intersection(intersection))
+                }
+                NotCovered::OutsideBoundingBox => Err(NotContained::OutsideBoundingBox),
+                _ => Err(NotContained::PointOutside(point.into())),
+            },
+        }
+    }
+
+    fn contains_segment<'a, T: Into<crate::prelude::SegmentRef<'a>>>(
+        &self,
+        segment: T,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Result<Contained, NotContained> {
+        let segment: SegmentRef = segment.into();
+
+        // If the segment is outside the bounding box of self, then it is surely
+        // not covered.
+        if !self.bounding_box().contains(&segment.bounding_box()) {
+            return Err(NotContained::OutsideBoundingBox);
+        }
+
+        // Are the start or stop point outside self?
+        self.contains_point(segment.start(), epsilon, max_relative)?;
+        self.contains_point(segment.stop(), epsilon, max_relative)?;
+
+        if let Some(i) = self
+            .intersections_primitive(&segment, epsilon, max_relative)
+            .next()
+        {
+            return Err(NotContained::Intersection(i));
+        }
+
+        return Ok(Contained::Inside);
+    }
+
+    fn contains_composite<'a, T: Composite>(
+        &'a self,
+        other: &'a T,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Result<Contained, NotContained> {
+        return other.contains_contour(self, epsilon, max_relative);
+    }
+
+    fn covers_point(
+        &self,
+        point: [f64; 2],
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Result<Covered, NotCovered> {
         return self.covers_or_contains_point::<true>(point, epsilon, max_relative);
     }
 
@@ -1059,7 +1117,7 @@ impl Composite for Contour {
         segment: T,
         epsilon: f64,
         max_relative: f64,
-    ) -> bool {
+    ) -> Result<Covered, NotCovered> {
         let segment: SegmentRef = segment.into();
         // If the segment is outside the bounding box of self, then it is surely
         // not covered.
@@ -1067,15 +1125,12 @@ impl Composite for Contour {
             .bounding_box()
             .approx_covers(&segment.bounding_box(), epsilon)
         {
-            return false;
+            return Err(NotCovered::OutsideBoundingBox);
         }
 
         // Are the start or stop point outside self?
-        if !self.covers_point(segment.start(), epsilon, max_relative)
-            || !self.covers_point(segment.stop(), epsilon, max_relative)
-        {
-            return false;
-        }
+        self.covers_point(segment.start(), epsilon, max_relative)?;
+        self.covers_point(segment.stop(), epsilon, max_relative)?;
 
         match segment {
             SegmentRef::LineSegment(line_segment) => {
@@ -1086,15 +1141,16 @@ impl Composite for Contour {
                 parts are all covered by self, then the entire line segment is
                 also covered by self.
                  */
-                let mut intersections: Vec<[f64; 2]> = self
+                let mut intersections: Vec<Intersection> = self
                     .intersections_primitive_par(&segment, epsilon, max_relative)
-                    .map(|i| i.point)
                     .collect();
 
                 // Sort the intersections in ascending order by their distance
                 // to line_segment.start().
                 let s = line_segment.start();
                 intersections.sort_unstable_by(|a, b| {
+                    let a = a.point;
+                    let b = b.point;
                     ((a[0] - s[0]).powi(2) + (a[1] - s[1]).powi(2))
                         .total_cmp(&((b[0] - s[0]).powi(2) + (b[1] - s[1]).powi(2)))
                 });
@@ -1104,15 +1160,20 @@ impl Composite for Contour {
                 for w in intersections.windows(2) {
                     if let Some(start) = w.get(0) {
                         if let Some(stop) = w.get(1) {
-                            let mx = 0.5 * (start[0] + stop[0]);
-                            let my = 0.5 * (start[1] + stop[1]);
-                            if !self.covers_point([mx, my], epsilon, max_relative) {
-                                return false;
+                            let mx = 0.5 * (start.point[0] + stop.point[0]);
+                            let my = 0.5 * (start.point[1] + stop.point[1]);
+                            if let Err(err) = self.covers_point([mx, my], epsilon, max_relative) {
+                                match err {
+                                    NotCovered::Intersection(_) => {
+                                        return Err(NotCovered::Intersection(start.clone()));
+                                    }
+                                    _ => return Err(err),
+                                }
                             }
                         }
                     }
                 }
-                return true;
+                return Ok(Covered::Inside);
             }
             SegmentRef::ArcSegment(arc_segment) => {
                 /*
@@ -1128,65 +1189,38 @@ impl Composite for Contour {
                 let dir = if arc_segment.is_positive() { 1.0 } else { -1.0 };
                 let start_angle = arc_segment.start_angle();
 
-                let mut angles: Vec<f64> = self
+                let mut angles: Vec<(f64, Intersection)> = self
                     .intersections_primitive_par(&segment, epsilon, max_relative)
                     .map(|i| {
                         let mut a = (i.point[1] - c[1]).atan2(i.point[0] - c[0]);
                         let needs_wrap = (dir * (a - start_angle) < -epsilon) as i32 as f64;
                         a += dir * needs_wrap * TAU;
-                        a
+                        (a, i)
                     })
                     .collect();
 
-                angles.sort_unstable_by(f64::total_cmp);
+                angles.sort_unstable_by(|a, b| a.0.total_cmp(&b.0));
 
                 for w in angles.windows(2) {
                     if let Some(start) = w.get(0) {
                         if let Some(stop) = w.get(1) {
-                            let mid_angle = 0.5 * (stop + start);
+                            let mid_angle = 0.5 * (stop.0 + start.0);
                             let mx = c[0] + r * mid_angle.cos();
                             let my = c[1] + r * mid_angle.sin();
-                            if !self.covers_point([mx, my], epsilon, max_relative) {
-                                return false;
+                            if let Err(err) = self.covers_point([mx, my], epsilon, max_relative) {
+                                match err {
+                                    NotCovered::Intersection(_) => {
+                                        return Err(NotCovered::Intersection(start.1.clone()));
+                                    }
+                                    _ => return Err(err),
+                                }
                             }
                         }
                     }
                 }
-                return true;
+                return Ok(Covered::Inside);
             }
         }
-    }
-
-    fn contains_point(&self, point: [f64; 2], epsilon: f64, max_relative: f64) -> bool {
-        return self.covers_or_contains_point::<false>(point, epsilon, max_relative);
-    }
-
-    fn contains_segment<'a, T: Into<crate::prelude::SegmentRef<'a>>>(
-        &self,
-        segment: T,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> bool {
-        let segment: SegmentRef = segment.into();
-
-        // If the segment is outside the bounding box of self, then it is surely
-        // not covered.
-        if !self.bounding_box().contains(&segment.bounding_box()) {
-            return false;
-        }
-
-        // Are the start or stop point outside self?
-        if !self.contains_point(segment.start(), epsilon, max_relative)
-            || !self.contains_point(segment.stop(), epsilon, max_relative)
-        {
-            return false;
-        }
-
-        return self
-            .intersections_primitive(&segment, epsilon, max_relative)
-            .map(|i| i.point)
-            .count()
-            == 0;
     }
 
     fn covers_composite<'a, T: Composite>(
@@ -1194,31 +1228,22 @@ impl Composite for Contour {
         other: &'a T,
         epsilon: f64,
         max_relative: f64,
-    ) -> bool {
+    ) -> Result<Covered, NotCovered> {
         return other.covers_contour(self, epsilon, max_relative);
     }
 
-    fn contains_composite<'a, T: Composite>(
-        &'a self,
-        other: &'a T,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> bool {
-        return other.contains_contour(self, epsilon, max_relative);
-    }
-
-    fn overlaps_segment<'a, T: Into<SegmentRef<'a>>>(
+    fn contains_any_segment<'a, T: Into<SegmentRef<'a>>>(
         &self,
         segment: T,
         epsilon: f64,
         max_relative: f64,
-    ) -> Option<SegmentKey> {
+    ) -> Result<Overlap, NoOverlap> {
         let segment: SegmentRef = segment.into();
 
         // If the segment is outside the bounding box of self, then the segment
         // and the contour surely don't overlap
         if !self.bounding_box().overlaps(&segment.bounding_box()) {
-            return None;
+            return Err(NoOverlap::DisjointBoundingBoxes);
         }
 
         match segment {
@@ -1252,16 +1277,13 @@ impl Composite for Contour {
                         if let Some(stop) = w.get(1) {
                             let mx = 0.5 * (start[0] + stop[0]);
                             let my = 0.5 * (start[1] + stop[1]);
-                            if self.contains_point([mx, my], epsilon, max_relative) {
-                                return Some(SegmentKey {
-                                    contour_idx: 0,
-                                    segment_idx: 0,
-                                });
+                            if self.contains_point([mx, my], epsilon, max_relative).is_ok() {
+                                return Ok(Overlap::Point([mx, my]));
                             }
                         }
                     }
                 }
-                return None;
+                return Err(NoOverlap::NoPointContained);
             }
             SegmentRef::ArcSegment(arc_segment) => {
                 /*
@@ -1329,33 +1351,26 @@ impl Composite for Contour {
                             let mid_angle = 0.5 * (stop + start);
                             let mx = c[0] + r * mid_angle.cos();
                             let my = c[1] + r * mid_angle.sin();
-                            if self.contains_point([mx, my], epsilon, max_relative) {
-                                return Some(SegmentKey {
-                                    contour_idx: 0,
-                                    segment_idx: 0,
-                                });
+                            if self.contains_point([mx, my], epsilon, max_relative).is_ok() {
+                                return Ok(Overlap::Point([mx, my]));
                             }
                         }
                     }
                 }
-                return None;
+                return Err(NoOverlap::NoPointContained);
             }
         }
     }
 
-    fn overlaps_contour(
+    fn contains_any_contour(
         &self,
         other: &Self,
         epsilon: f64,
         max_relative: f64,
-    ) -> Option<SegmentKey> {
+    ) -> Result<Overlap, NoOverlap> {
         if std::ptr::eq(self, other) {
-            // A contour naturally overlaps itself -> Just return the key to the
-            // first segment of self / other (any other segment would also work)
-            return Some(SegmentKey {
-                contour_idx: 0,
-                segment_idx: 0,
-            });
+            // A contour naturally overlaps itself
+            return Ok(Overlap::Identical);
         }
 
         let b_self = BoundingBox::from(self);
@@ -1363,50 +1378,61 @@ impl Composite for Contour {
 
         // If the bounding boxes do not overlap, then self and other also can't overlap
         if !b_self.overlaps(&b_other) {
-            return None;
+            return Err(NoOverlap::DisjointBoundingBoxes);
         }
 
         // Does any segment of self overlap other? If no segment of self
         // overlaps other, the inverse is also true (and is therefore not checked)
-        if let Some((segment_idx, _)) = other
+        if let Some(o) = other
             .segments_par()
             .enumerate()
-            .find_any(|(_, s)| self.overlaps_segment(*s, epsilon, max_relative).is_some())
+            .find_map_any(|(segment_idx, s)| {
+                // Returns a segment of `polysegment` that overlaps with `self`.
+                // Therefore, `segment_of_self` is false.
+                if self.contains_any_segment(s, epsilon, max_relative).is_ok() {
+                    return Some(Overlap::Segment {
+                        key: SegmentKey::from_segment_idx(segment_idx),
+                        key_of_self: false,
+                    });
+                } else {
+                    return None;
+                }
+            })
         {
-            return Some(SegmentKey {
-                contour_idx: 0,
-                segment_idx,
-            });
+            return Ok(o);
         }
 
         // Does one of the contours cover the other one?
-        if self.covers_contour(other, epsilon, max_relative)
-            || other.covers_contour(self, epsilon, max_relative)
-        {
-            return Some(SegmentKey {
-                contour_idx: 0,
-                segment_idx: 0,
+
+        if self.covers_contour(other, epsilon, max_relative).is_ok() {
+            return Ok(Overlap::Covers {
+                self_covers_other: true,
             });
         }
-        return None;
+        if other.covers_contour(self, epsilon, max_relative).is_ok() {
+            return Ok(Overlap::Covers {
+                self_covers_other: false,
+            });
+        }
+        return Err(NoOverlap::NoPointContained);
     }
 
-    fn overlaps_shape(
+    fn contains_any_shape(
         &self,
         shape: &crate::shape::Shape,
         epsilon: f64,
         max_relative: f64,
-    ) -> Option<SegmentKey> {
-        return shape.overlaps_contour(self, epsilon, max_relative);
+    ) -> Result<Overlap, NoOverlap> {
+        return shape.contains_any_contour(self, epsilon, max_relative);
     }
 
-    fn overlaps_composite<'a, T: Composite>(
+    fn contains_any_composite<'a, T: Composite>(
         &'a self,
         other: &'a T,
         epsilon: f64,
         max_relative: f64,
-    ) -> Option<SegmentKey> {
-        return other.overlaps_contour(self, epsilon, max_relative);
+    ) -> Result<Overlap, NoOverlap> {
+        return other.contains_any_contour(self, epsilon, max_relative);
     }
 }
 

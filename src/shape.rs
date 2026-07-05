@@ -12,7 +12,7 @@ usage.
  */
 
 use crate::CentroidData;
-use crate::composite::{Composite, Intersection, SegmentKey};
+use crate::composite::*;
 use crate::error::ShapeConstructorError;
 use crate::polysegment::Polysegment;
 use crate::segment::SegmentRef;
@@ -147,9 +147,12 @@ impl Shape {
 
         let outer = this.contour();
         for (first_hole_idx, first_hole) in this.holes().iter().enumerate() {
-            if !outer.contains_contour(&first_hole, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE) {
+            if let Err(e) =
+                outer.contains_contour(&first_hole, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+            {
                 return Err(ShapeConstructorError::HoleOutsideContour {
                     input: this.0,
+                    reason: e,
                     idx: first_hole_idx + 1, // First element of this.0 is the outer contour.
                 });
             }
@@ -157,16 +160,23 @@ impl Shape {
             for (second_hole_idx, second_hole) in
                 this.holes()[(first_hole_idx + 1)..].iter().enumerate()
             {
-                if first_hole.contains_contour(second_hole, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE) {
+                if let Ok(reason) =
+                    first_hole.contains_contour(&second_hole, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+                {
                     return Err(ShapeConstructorError::HoleInsideHole {
                         input: this.0,
+                        reason,
                         outer_hole_idx: first_hole_idx,
                         inner_hole_idx: second_hole_idx,
                     });
                 }
-                if second_hole.contains_contour(first_hole, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE) {
+
+                if let Ok(reason) =
+                    second_hole.contains_contour(&first_hole, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+                {
                     return Err(ShapeConstructorError::HoleInsideHole {
                         input: this.0,
+                        reason,
                         outer_hole_idx: second_hole_idx,
                         inner_hole_idx: first_hole_idx,
                     });
@@ -361,24 +371,33 @@ impl Shape {
         }
 
         let outer = self.contour();
-        if !outer.contains_contour(&hole, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE) {
+
+        if let Err(e) = outer.contains_contour(&hole, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE) {
             return Err(ShapeConstructorError::HoleOutsideContour {
                 input: hole,
+                reason: e,
                 idx: 0, // Dummy value
             });
         }
 
         for (shape_hole_idx, shape_hole) in self.holes().iter().enumerate() {
-            if hole.contains_contour(shape_hole, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE) {
+            if let Ok(reason) =
+                hole.contains_contour(shape_hole, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+            {
                 return Err(ShapeConstructorError::HoleInsideHole {
                     input: hole,
+                    reason,
                     outer_hole_idx: shape_hole_idx,
                     inner_hole_idx: 0,
                 });
             }
-            if shape_hole.contains_contour(&hole, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE) {
+
+            if let Ok(reason) =
+                shape_hole.contains_contour(&hole, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+            {
                 return Err(ShapeConstructorError::HoleInsideHole {
                     input: hole,
+                    reason,
                     outer_hole_idx: 0,
                     inner_hole_idx: shape_hole_idx,
                 });
@@ -639,43 +658,40 @@ impl Composite for Shape {
             .map(Intersection::switch);
     }
 
-    fn covers_point(&self, point: [f64; 2], epsilon: f64, max_relative: f64) -> bool {
-        self.contours().par_iter().enumerate().all(|(i, c)| {
-            if i == 0 {
-                // Special handling of outer contour
-                c.covers_point(point, epsilon, max_relative)
-            } else {
-                !c.contains_point(point, epsilon, max_relative)
-            }
-        })
-    }
-
-    fn covers_segment<'a, T: Into<SegmentRef<'a>>>(
+    fn contains_point(
         &self,
-        segment: T,
+        point: [f64; 2],
         epsilon: f64,
         max_relative: f64,
-    ) -> bool {
-        let segment: SegmentRef = segment.into();
-        self.contours().par_iter().enumerate().all(|(i, c)| {
-            if i == 0 {
-                // Special handling of outer contour
-                c.covers_segment(segment.clone(), epsilon, max_relative)
-            } else {
-                !c.contains_segment(segment.clone(), epsilon, max_relative)
-            }
-        })
-    }
-
-    fn contains_point(&self, point: [f64; 2], epsilon: f64, max_relative: f64) -> bool {
-        self.contours().par_iter().enumerate().all(|(i, c)| {
-            if i == 0 {
-                // Special handling of outer contour
-                c.contains_point(point, epsilon, max_relative)
-            } else {
-                !c.covers_point(point, epsilon, max_relative)
-            }
-        })
+    ) -> Result<Contained, NotContained> {
+        match self
+            .contours()
+            .par_iter()
+            .enumerate()
+            .find_map_any(|(i, c)| {
+                if i == 0 {
+                    // Special handling of outer contour
+                    if let Err(noc) = c.contains_point(point, epsilon, max_relative) {
+                        return Some(noc);
+                    }
+                } else {
+                    if let Ok(con) = c.covers_point(point, epsilon, max_relative) {
+                        match con {
+                            Covered::Inside => return Some(NotContained::InsideHole(i)),
+                            Covered::OnBoundary(segment_key) => {
+                                return Some(NotContained::OnBoundary(SegmentKey {
+                                    contour_idx: i,
+                                    segment_idx: segment_key.segment_idx,
+                                }));
+                            }
+                        }
+                    }
+                }
+                return None;
+            }) {
+            Some(n) => Err(n),
+            None => Ok(Contained::Inside),
+        }
     }
 
     fn contains_segment<'a, T: Into<crate::prelude::SegmentRef<'a>>>(
@@ -683,28 +699,28 @@ impl Composite for Shape {
         segment: T,
         epsilon: f64,
         max_relative: f64,
-    ) -> bool {
+    ) -> Result<Contained, NotContained> {
         let segment: SegmentRef = segment.into();
-        self.contours().par_iter().enumerate().all(|(i, c)| {
-            if i == 0 {
-                // Special handling of outer contour
-                c.contains_segment(segment.clone(), epsilon, max_relative)
-            } else {
-                !c.covers_segment(segment.clone(), epsilon, max_relative)
-            }
-        })
-    }
-
-    fn covers_composite<'a, T: Composite>(
-        &'a self,
-        other: &'a T,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> bool
-    where
-        Self: Sized,
-    {
-        return other.covers_shape(self, epsilon, max_relative);
+        match self
+            .contours()
+            .par_iter()
+            .enumerate()
+            .find_map_any(|(i, c)| {
+                if i == 0 {
+                    // Special handling of outer contour
+                    if let Err(noc) = c.contains_segment(segment.clone(), epsilon, max_relative) {
+                        return Some(noc);
+                    }
+                } else {
+                    if let Ok(_) = c.covers_segment(segment.clone(), epsilon, max_relative) {
+                        return Some(NotContained::InsideHole(i));
+                    }
+                }
+                return None;
+            }) {
+            Some(n) => Err(n),
+            None => Ok(Contained::Inside),
+        }
     }
 
     fn contains_composite<'a, T: Composite>(
@@ -712,82 +728,177 @@ impl Composite for Shape {
         other: &'a T,
         epsilon: f64,
         max_relative: f64,
-    ) -> bool
+    ) -> Result<Contained, NotContained>
     where
         Self: Sized,
     {
         return other.contains_shape(self, epsilon, max_relative);
     }
 
-    fn overlaps_segment<'a, T: Into<SegmentRef<'a>>>(
+    fn covers_composite<'a, T: Composite>(
+        &'a self,
+        other: &'a T,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Result<Covered, NotCovered>
+    where
+        Self: Sized,
+    {
+        return other.covers_shape(self, epsilon, max_relative);
+    }
+
+    fn covers_point(
+        &self,
+        point: [f64; 2],
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Result<Covered, NotCovered> {
+        match self
+            .contours()
+            .par_iter()
+            .enumerate()
+            .find_map_any(|(i, c)| {
+                if i == 0 {
+                    // Special handling of outer contour
+                    if let Err(noc) = c.covers_point(point, epsilon, max_relative) {
+                        return Some(noc);
+                    }
+                } else {
+                    if let Ok(_) = c.contains_point(point, epsilon, max_relative) {
+                        return Some(NotCovered::InsideHole(i));
+                    }
+                }
+                return None;
+            }) {
+            Some(n) => Err(n),
+            None => Ok(Covered::Inside),
+        }
+    }
+
+    fn covers_segment<'a, T: Into<SegmentRef<'a>>>(
         &self,
         segment: T,
         epsilon: f64,
         max_relative: f64,
-    ) -> Option<SegmentKey> {
+    ) -> Result<Covered, NotCovered> {
+        let segment: SegmentRef = segment.into();
+
+        match self
+            .contours()
+            .par_iter()
+            .enumerate()
+            .find_map_any(|(i, c)| {
+                if i == 0 {
+                    // Special handling of outer contour
+                    if let Err(noc) = c.covers_segment(segment.clone(), epsilon, max_relative) {
+                        return Some(noc);
+                    }
+                } else {
+                    if let Ok(_) = c.contains_segment(segment.clone(), epsilon, max_relative) {
+                        return Some(NotCovered::InsideHole(i));
+                    }
+                }
+                return None;
+            }) {
+            Some(n) => Err(n),
+            None => Ok(Covered::Inside),
+        }
+    }
+
+    fn contains_any_segment<'a, T: Into<SegmentRef<'a>>>(
+        &self,
+        segment: T,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Result<Overlap, NoOverlap> {
         let segment: SegmentRef = segment.into();
         /*
         The segment overlaps the shape if it overlaps the outer contour and is
         not contained in one of the shape's holes
          */
-        self.contour()
-            .overlaps_segment(segment.clone(), epsilon, max_relative)?;
-        for hole in self.holes() {
-            if hole.covers_segment(segment.clone(), epsilon, max_relative) {
+        let overlaps =
+            self.contour()
+                .contains_any_segment(segment.clone(), epsilon, max_relative)?;
+
+        if let Some(i) = self
+            .holes()
+            .par_iter()
+            .enumerate()
+            .find_map_any(|(i, hole)| {
+                if hole
+                    .covers_segment(segment.clone(), epsilon, max_relative)
+                    .is_ok()
+                {
+                    return Some(i);
+                }
                 return None;
-            }
+            })
+        {
+            return Err(NoOverlap::InsideHole(i));
         }
-        return Some(SegmentKey {
-            contour_idx: 0,
-            segment_idx: 0,
-        });
+
+        return Ok(overlaps);
     }
 
-    fn overlaps_contour(
+    fn contains_any_contour(
         &self,
         contour: &Contour,
         epsilon: f64,
         max_relative: f64,
-    ) -> Option<SegmentKey> {
+    ) -> Result<Overlap, NoOverlap> {
         // If other either not overlaps the outer contour of the shape or if it
         // is completely covered by one of the holes, then there is no overlap
-        let key = self
+        let overlaps = self
             .contour()
-            .overlaps_contour(contour, epsilon, max_relative)?;
+            .contains_any_contour(contour, epsilon, max_relative)?;
 
-        for hole in self.holes() {
-            if hole.covers_contour(contour, epsilon, max_relative) {
+        if let Some(i) = self
+            .holes()
+            .par_iter()
+            .enumerate()
+            .find_map_any(|(i, hole)| {
+                if hole.covers_contour(contour, epsilon, max_relative).is_ok() {
+                    return Some(i);
+                }
                 return None;
-            }
+            })
+        {
+            return Err(NoOverlap::InsideHole(i));
         }
-        return Some(key);
+
+        return Ok(overlaps);
     }
 
-    fn overlaps_shape(&self, other: &Self, epsilon: f64, max_relative: f64) -> Option<SegmentKey> {
+    fn contains_any_shape(
+        &self,
+        other: &Self,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Result<Overlap, NoOverlap> {
         if std::ptr::eq(self, other) {
             // A Shape naturally overlaps itself -> Just return the key to the
             // first segment of self / other (any other segment would also work)
-            return Some(SegmentKey {
-                contour_idx: 0,
-                segment_idx: 0,
-            });
+            return Ok(Overlap::Identical);
         }
+
         if other
-            .overlaps_contour(self.contour(), epsilon, max_relative)
-            .is_some()
+            .contains_any_contour(self.contour(), epsilon, max_relative)
+            .is_ok()
         {
-            return self.overlaps_contour(other.contour(), epsilon, max_relative);
+            return self.contains_any_contour(other.contour(), epsilon, max_relative);
         }
-        return None;
+        return Err(NoOverlap::NoPointContained);
     }
 
-    fn overlaps_composite<'a, T: Composite>(
+    fn contains_any_composite<'a, T: Composite>(
         &'a self,
         other: &'a T,
         epsilon: f64,
         max_relative: f64,
-    ) -> Option<SegmentKey> {
-        return other.overlaps_shape(self, epsilon, max_relative);
+    ) -> Result<Overlap, NoOverlap> {
+        return other
+            .contains_any_shape(self, epsilon, max_relative)
+            .map(Overlap::switch);
     }
 }
 

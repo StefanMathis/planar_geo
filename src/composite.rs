@@ -231,6 +231,232 @@ pub(crate) mod private {
     pub trait Sealed {}
 }
 
+// =============================================================================
+
+/// All points of `other` are contained within `self`. See docstring of
+/// [`Composite`] for more information.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Contained {
+    /// `other` is contained in `self`.
+    Inside,
+}
+
+impl std::fmt::Display for Contained {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "inside self")
+    }
+}
+
+/// Not all points of `other` are contained within `self`. See docstring of
+/// [`Composite`] for more information.
+#[derive(Clone, Debug, PartialEq)]
+pub enum NotContained {
+    /// A segment of `other` intersects a boundary of `self` at the given
+    /// intersection.
+    Intersection(Intersection),
+    /// `other` is within the nth hole of `self`, where n is given as the
+    /// anonymous field of the variant. Can only be created if `self` is a
+    /// [`Shape`].
+    InsideHole(usize),
+    /// The [`BoundingBox`](bounding_box::BoundingBox) of `other` is not
+    /// contained inside the [`BoundingBox`](bounding_box::BoundingBox) of
+    /// `self`, therefore `other` cannot be contained in `self`.
+    OutsideBoundingBox,
+    /// `other` is not contained inside the contour of `self`. This is a generic
+    /// fallback variant if no more specific reason is available.
+    OutsideContour,
+    /// `self` is a [`Polysegment`] which has no surface area and therefore
+    /// cannot contain anything.
+    NoSurfaceArea,
+    /// A [`Segment`] of `other` lies on the boundary of `self`. The segment can
+    /// be retrieved from `other` via the given [`SegmentKey`].
+    OnBoundary(SegmentKey),
+    /// The given point of `other` is outside `self`.
+    PointOutside([f64; 2]),
+}
+
+impl std::fmt::Display for NotContained {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            NotContained::Intersection(intersection) => {
+                write!(f, "self and other intersect at {:?}", intersection)
+            }
+            NotContained::InsideHole(i) => write!(f, "other inside hole {i} of the self"),
+            NotContained::OutsideBoundingBox => write!(f, "outside bounding box of self"),
+            NotContained::OutsideContour => write!(f, "outside contour of self"),
+            NotContained::OnBoundary(segment_key) => {
+                write!(f, "other on boundary segment {:?} of self", segment_key)
+            }
+            NotContained::PointOutside(pt) => write!(f, "point {:?} of other outside self", pt),
+            NotContained::NoSurfaceArea => write!(
+                f,
+                "self has no surface area and can therefore not contain other"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for NotContained {}
+
+/// All points of `other` are covered by `self`. See docstring of
+/// [`Composite`] for more information.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Covered {
+    /// `other` is covered by `self`.
+    Inside,
+    /// `other` lies on a boundary [`Segment`] of `self`, the segment can be
+    /// retrieved by the given [`SegmentKey`].
+    OnBoundary(SegmentKey),
+}
+
+impl std::fmt::Display for Covered {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Covered::Inside => write!(f, "inside"),
+            Covered::OnBoundary(segment_key) => {
+                write!(f, "other on boundary segment {:?} of self", segment_key)
+            }
+        }
+    }
+}
+
+/// Not all points of `other` are covered by `self`. See docstring of
+/// [`Composite`] for more information.
+#[derive(Clone, Debug, PartialEq)]
+pub enum NotCovered {
+    /// `other` is within the nth hole of `self`, where n is given as the
+    /// anonymous field of the variant. Can only be created if `self` is a
+    /// [`Shape`].
+    InsideHole(usize),
+    /// A segment of `other` intersects a boundary of `self` at the given
+    /// intersection and is at least partially outside `self`.
+    Intersection(Intersection),
+    /// `other` is not covered by `self`. This is a generic/ fallback variant if
+    /// no more specific reason is available.
+    OutsideContour,
+    /// The [`BoundingBox`](bounding_box::BoundingBox) of `other` is not
+    /// covered by the [`BoundingBox`](bounding_box::BoundingBox) of `self`,
+    /// therefore `other` cannot be covered by `self`.
+    OutsideBoundingBox,
+}
+
+impl std::fmt::Display for NotCovered {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            NotCovered::InsideHole(i) => write!(f, "other inside hole {i} of self"),
+            NotCovered::Intersection(intersection) => write!(
+                f,
+                "other partially not covered by self, intersect at {:?}",
+                intersection
+            ),
+            NotCovered::OutsideContour => write!(f, "outside contour of self"),
+            NotCovered::OutsideBoundingBox => write!(f, "outside bounding box"),
+        }
+    }
+}
+
+impl std::error::Error for NotCovered {}
+
+/// `self` contains at least one point of `other`. See docstring of
+/// [`Composite`] for more information.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Overlap {
+    /// The given point of `other` is contained in `self`.
+    Point([f64; 2]),
+    /// `self` and `other` are identical (and therefore overlap by definition).
+    Identical,
+    /// The [`Segment`] specified by `key` of `self` overlaps `other`, of
+    /// `key_of_self` is true. Otherwhise, the `key` specifies a segment of
+    /// `other` which overlaps with `self`.
+    Segment {
+        /// Key of the [`Segment`] which overlaps.
+        key: SegmentKey,
+        /// Whether the `key` points to a [`Segment`] of `self` or `other`.
+        key_of_self: bool,
+    },
+    /// Depending on the value of `self_covers_other`, either `self` covers
+    /// `other` or `other` covers `self`.
+    Covers {
+        /// Whether `self` covers `other` or `other` covers `self`.
+        self_covers_other: bool,
+    },
+}
+
+impl std::fmt::Display for Overlap {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Overlap::Point(pt) => write!(f, "point {:?} inside contour", pt),
+            Overlap::Identical => write!(f, "self and other are identical"),
+            Overlap::Segment { key, key_of_self } => {
+                if *key_of_self {
+                    write!(f, "segment {:?} of self overlaps with other", key)
+                } else {
+                    write!(f, "segment {:?} of other overlaps with self", key)
+                }
+            }
+            Overlap::Covers { self_covers_other } => {
+                if *self_covers_other {
+                    write!(f, "self covers other")
+                } else {
+                    write!(f, "other covers self")
+                }
+            }
+        }
+    }
+}
+
+impl Overlap {
+    pub(crate) fn switch(self) -> Self {
+        match self {
+            Overlap::Segment { key, key_of_self } => Overlap::Segment {
+                key,
+                key_of_self: !key_of_self,
+            },
+            Overlap::Covers { self_covers_other } => Overlap::Covers {
+                self_covers_other: !self_covers_other,
+            },
+            _ => return self,
+        }
+    }
+}
+
+/// `self` contains not a single point of `other`. See docstring of
+/// [`Composite`] for more information.
+#[derive(Clone, Debug, PartialEq)]
+pub enum NoOverlap {
+    /// `self` is a [`Polysegment`] which has no surface area and therefore
+    /// cannot contain anything.
+    NoSurfaceArea,
+    /// The [`BoundingBox`](bounding_box::BoundingBox)es of `self` and `other`
+    /// do not overlap, hence `self` and `other` cannot overlap either.
+    DisjointBoundingBoxes,
+    /// No point of `other` is contained in `self`. This is a generic fallback
+    /// in case no more specific reason has been found.
+    NoPointContained,
+    /// `other` is within the nth hole of `self`, where n is given as the
+    /// anonymous field of the variant. Can only be created if `self` is a
+    /// [`Shape`].
+    InsideHole(usize),
+}
+
+impl std::fmt::Display for NoOverlap {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            NoOverlap::NoSurfaceArea => write!(
+                f,
+                "self has no surface area and can therefore not contain any point of other"
+            ),
+            NoOverlap::DisjointBoundingBoxes => write!(f, "bounding boxes do not overlap"),
+            NoOverlap::NoPointContained => write!(f, "no point of other is contained within self"),
+            NoOverlap::InsideHole(i) => write!(f, "other inside hole {i} of self"),
+        }
+    }
+}
+
+impl std::error::Error for NoOverlap {}
+
+// =============================================================================
+
 /**
 A trait for types composed of multiple [`Segment`]s:
 [`Polysegment`]s, [`Contour`]s and [`Shape`]s.
@@ -249,28 +475,52 @@ The following methods are available:
 - [`Composite::segment`] for retrieving a reference to a particular segment with
 a [`SegmentKey`].
 
-# Containment
+# Containment and coverage
+
+This trait provides a variety of methods to check if `self` contains, covers or
+partially contains another geometric object such as a point, a [`Segment`] or
+another [`Composite`]. These methods start with `contains_`, `contains_any` or
+`covers_` followed by the type name of the second object (e.g.
+[`Composite::contains_contour`]). They return a `Result<OkEnum, ErrEnum>` with
+the `Ok` variant signalling that the check succeded (e.g. in case of
+[`Composite::contains_contour`] the contour is in fact contained within `self`)
+and `Err` obviously indicating that the check failed. The enums contain the
+first reason the algorithm found which unambiguously proves the result. In fact,
+there might often be multiple reasons. For example, when a [`Contour`] is not
+contained in `self`, this might be due to the bounding boxes being disjoint and
+due to a particular point not being contained. In this case, the algorithm would
+first check the bounding boxes and return that reason
+[`NotContained::OutsideBoundingBox`] wrappend in `Err`.
+
+## Containment
+
+**Return types**: [`Contained`]` and `[`NotContained`]`
+
+**Function names**: `contains_` + type name
 
 A composite "contains" another geometric entity if if all points of the latter
 are within it (and in contrast to the concept of "covers", not on its
 boundaries). This means that a [`Polysegment`] cannot contain anything, since
 it has no surface area and only consists of its boundary.
 
-# Coverage
+## Partial containment
+
+**Return types**: [`Overlap`]` and `[`NoOverlap`]`
+
+**Function names**: `contains_any` + type name
+
+A composite "contains any" part of another geometric entity if at least one
+point of the latter lies within the composite's interior (excluding
+boundaries).
+
+## Coverage
+
+**Return types**: [`Covered`]` and `[`NotCovered`]`
+
+**Function names**: `covers_` + type name
 
 Similar to the [`Primitive`] trait, a composite "covers" another geometric
 entity if all points of the latter are within it or on its boundaries.
-
-# Overlap
-
-A composite "overlaps" another geometric entity if at least one of the points
-of the latter is contained within the composite. Therefore, a polysegment
-cannot overlap with anything, see section [Containment](#containment). The
-`overlaps_` methods return an [`Option<SegmentKey>`](SegmentKey). If the option
-contains a key, the corresponding segment of the other geometric entitiy is
-overlapping (see the docstrings of the individual functions for details). If
-there are multiple overlapping segments, one of them is arbitrarily chosen. If
-the option is [`None`], there is no overlap between the two entities.
 
 # Intersection
 
@@ -466,19 +716,24 @@ pub trait Composite: private::Sealed + Sync {
     let pt = [0.5, 0.9];
 
     // A polysegment cannot contain a point ...
-    assert!(!contour.polysegment().contains_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(contour.polysegment().contains_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_err());
 
     // ... but the outer contour does contain the point
-    assert!(contour.contains_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(contour.contains_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_ok());
 
     // The point is not contained by the hole contour, because it is on the boundary segments
-    assert!(!hole.contains_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(hole.contains_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_err());
 
     // The point is not contained by the shape, because it is on the hole boundary
-    assert!(!shape.contains_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(shape.contains_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_err());
     ```
      */
-    fn contains_point(&self, point: [f64; 2], epsilon: f64, max_relative: f64) -> bool;
+    fn contains_point(
+        &self,
+        point: [f64; 2],
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Result<Contained, NotContained>;
 
     /**
     Returns whether `self` contains the given [`SegmentRef`].
@@ -500,13 +755,13 @@ pub trait Composite: private::Sealed + Sync {
     let ls = LineSegment::new([0.1, 0.1], [0.9, 0.1]).unwrap();
 
     // Contour contains line segment
-    assert!(contour.contains_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(contour.contains_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_ok());
 
     // Hole does not contains line segment
-    assert!(!hole.contains_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(hole.contains_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_err());
 
     // Shape does not contains line segment
-    assert!(!shape.contains_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(shape.contains_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_err());
     ```
      */
     fn contains_segment<'a, T: Into<SegmentRef<'a>>>(
@@ -514,7 +769,7 @@ pub trait Composite: private::Sealed + Sync {
         segment: T,
         epsilon: f64,
         max_relative: f64,
-    ) -> bool;
+    ) -> Result<Contained, NotContained>;
 
     /**
     Returns whether `self` contains the given [`Polysegment`].
@@ -536,13 +791,13 @@ pub trait Composite: private::Sealed + Sync {
     let ps = Polysegment::from_points(&[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9]]);
 
     // Contour contains polysegment
-    assert!(contour.contains_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(contour.contains_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_ok());
 
     // Hole does not contains polysegment
-    assert!(!hole.contains_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(hole.contains_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_err());
 
     // Shape does not contains polysegment
-    assert!(!shape.contains_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(shape.contains_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_err());
     ```
      */
     fn contains_polysegment(
@@ -550,10 +805,23 @@ pub trait Composite: private::Sealed + Sync {
         polysegment: &Polysegment,
         epsilon: f64,
         max_relative: f64,
-    ) -> bool {
-        return polysegment
+    ) -> Result<Contained, NotContained> {
+        let first_contain = polysegment
+            .front()
+            .ok_or(NotContained::OutsideBoundingBox)
+            .map(|s| self.contains_segment(s, epsilon, max_relative))?;
+
+        // Skip the first element, because we already tested it. If all other
+        // segments are contained as well, return the result of the first
+        //segment.
+        if polysegment
             .segments_par()
-            .all(|s| self.contains_segment(s, epsilon, max_relative));
+            .skip(1)
+            .all(|s| self.contains_segment(s, epsilon, max_relative).is_ok())
+        {
+            return first_contain;
+        }
+        return Err(NotContained::OutsideContour);
     }
 
     /**
@@ -562,7 +830,12 @@ pub trait Composite: private::Sealed + Sync {
     This function just calls [`Composite::contains_polysegment`] on
     `contour.polysegment()`.
     */
-    fn contains_contour(&self, contour: &Contour, epsilon: f64, max_relative: f64) -> bool {
+    fn contains_contour(
+        &self,
+        contour: &Contour,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Result<Contained, NotContained> {
         return self.contains_polysegment(contour.polysegment(), epsilon, max_relative);
     }
 
@@ -571,7 +844,12 @@ pub trait Composite: private::Sealed + Sync {
 
     A shape is contained within `self` if its outer `contour` is contained.
     */
-    fn contains_shape(&self, shape: &Shape, epsilon: f64, max_relative: f64) -> bool {
+    fn contains_shape(
+        &self,
+        shape: &Shape,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Result<Contained, NotContained> {
         return self.contains_contour(shape.contour(), epsilon, max_relative);
     }
 
@@ -585,7 +863,170 @@ pub trait Composite: private::Sealed + Sync {
         other: &'a T,
         epsilon: f64,
         max_relative: f64,
-    ) -> bool;
+    ) -> Result<Contained, NotContained>;
+
+    /**
+    Returns whether `self` overlaps the given [`SegmentRef`].
+
+    A segment is overlapped if at least one of its points is contained within
+    `self` according to the definition in [`Composite::contains_point`].
+
+    # Examples
+
+    ```
+    use planar_geo::prelude::*;
+
+    let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
+    let contour = Contour::new(Polysegment::from_points(vertices));
+    let vertices = &[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
+    let hole = Contour::new(Polysegment::from_points(vertices));
+    let shape = Shape::new(vec![contour.clone(), hole.clone()]).expect("valid inputs");
+
+    let ls = LineSegment::new([0.1, 0.1], [0.9, 0.1]).unwrap();
+
+    assert!(contour.contains_any_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_ok());
+
+    // Hole does not overlap the segment, because it is right on its boundary
+    assert!(hole.contains_any_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_err());
+
+    // Shape does not overlap line segment (because it is completely covered by
+    // the hole and therefore none of its points are contained in the shape.
+    assert!(shape.contains_any_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_err());
+    ```
+     */
+    fn contains_any_segment<'a, T: Into<SegmentRef<'a>>>(
+        &self,
+        segment: T,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Result<Overlap, NoOverlap>;
+
+    /**
+    Returns whether `self` overlaps the given [`Polysegment`].
+
+    This function applies [`Composite::contains_any_segment`] to all segments of
+    `polysegment`.
+
+    # Examples
+
+    ```
+    use planar_geo::prelude::*;
+
+    let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
+    let contour = Contour::new(Polysegment::from_points(vertices));
+    let vertices = &[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
+    let hole = Contour::new(Polysegment::from_points(vertices));
+    let shape = Shape::new(vec![contour.clone(), hole.clone()]).expect("valid inputs");
+
+    let ps = Polysegment::from_points(&[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9]]);
+
+    assert!(contour.contains_any_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_ok());
+
+    // Hole does not overlap the segment, because it is right on its boundary
+    assert!(hole.contains_any_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_err());
+
+    // Similar to contains_any_segment, all of the points of ps are covered by the
+    // hole, hence it does not overlap with the shape.
+    assert!(shape.contains_any_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_err());
+    ```
+     */
+    fn contains_any_polysegment(
+        &self,
+        polysegment: &Polysegment,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Result<Overlap, NoOverlap> {
+        let hit = polysegment
+            .segments_par()
+            .enumerate()
+            .find_map_any(|(segment_idx, s)| {
+                // Returns a segment of `polysegment` that overlaps with `self`.
+                // Therefore, `segment_of_self` is false.
+                match self.contains_any_segment(s, epsilon, max_relative) {
+                    Ok(_) => Some(Overlap::Segment {
+                        key: SegmentKey::from_segment_idx(segment_idx),
+                        key_of_self: false,
+                    }),
+                    Err(_) => None,
+                }
+            });
+
+        return hit.ok_or(NoOverlap::NoPointContained);
+    }
+
+    /**
+    Returns whether `self` overlaps the given [`Contour`].
+
+    The `contour` overlaps with `self` if at least one of the points contained
+    within it is also contained within `self`.
+
+    # Examples
+
+    ```
+    use planar_geo::prelude::*;
+
+    let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
+    let contour = Contour::new(Polysegment::from_points(vertices));
+    let vertices = &[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
+    let hole = Contour::new(Polysegment::from_points(vertices));
+    let shape = Shape::new(vec![contour.clone(), hole.clone()]).expect("valid inputs");
+
+    let c: Contour = Polysegment::from_points(&[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9]]).into();
+
+    assert!(contour.contains_any_contour(&c, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_ok());
+    assert!(hole.contains_any_contour(&c, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_ok());
+    assert!(shape.contains_any_contour(&c, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_err());
+    ```
+     */
+    fn contains_any_contour(
+        &self,
+        contour: &Contour,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Result<Overlap, NoOverlap>;
+
+    /**
+    Returns whether `self` overlaps the given [`Shape`].
+
+    The `shape` overlaps with `self` if at least one of the points contained
+    within it is also contained within `self`.
+
+    # Examples
+
+    ```
+    use planar_geo::prelude::*;
+
+    let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
+    let contour = Contour::new(Polysegment::from_points(vertices));
+    let vertices = &[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
+    let hole = Contour::new(Polysegment::from_points(vertices));
+    let shape = Shape::new(vec![contour.clone(), hole.clone()]).expect("valid inputs");
+
+    let s = Shape::from_outer(Polysegment::from_points(&[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9]]).into()).unwrap();
+
+    assert!(contour.contains_any_shape(&s, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_ok());
+    assert!(hole.contains_any_shape(&s, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_ok());
+    assert!(shape.contains_any_shape(&s, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_err());
+    ```
+     */
+    fn contains_any_shape(
+        &self,
+        shape: &Shape,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Result<Overlap, NoOverlap>;
+
+    /**
+    Returns whether `self` overlaps the given [`Composite`].
+
+    This is a generalized interface to all specialized `overlaps_` functions.
+     */
+    fn contains_any_composite<'a, T: Composite>(
+        &'a self,
+        other: &'a T,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Result<Overlap, NoOverlap>;
 
     /**
     Returns whether `self` covers the given point.
@@ -607,19 +1048,24 @@ pub trait Composite: private::Sealed + Sync {
     let pt = [0.5, 0.9];
 
     // Polysegment does not cover the point ...
-    assert!(!contour.polysegment().covers_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(contour.polysegment().covers_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_err());
 
     // ... but the outer contour does cover the point
-    assert!(contour.covers_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(contour.covers_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_ok());
 
     // The point is covered by the hole contour, because it is on the boundary segments
-    assert!(hole.covers_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(hole.covers_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_ok());
 
     // The point is covered by the shape, because it is on the hole boundary
-    assert!(shape.covers_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(shape.covers_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_ok());
     ```
      */
-    fn covers_point(&self, point: [f64; 2], epsilon: f64, max_relative: f64) -> bool;
+    fn covers_point(
+        &self,
+        point: [f64; 2],
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Result<Covered, NotCovered>;
 
     /**
     Returns whether `self` covers the given [`SegmentRef`].
@@ -641,13 +1087,13 @@ pub trait Composite: private::Sealed + Sync {
     let ls = LineSegment::new([0.1, 0.1], [0.9, 0.1]).unwrap();
 
     // Contour covers line segment
-    assert!(contour.covers_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(contour.covers_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_ok());
 
     // Hole covers line segment
-    assert!(hole.covers_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(hole.covers_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_ok());
 
     // Shape covers line segment
-    assert!(shape.covers_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(shape.covers_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_ok());
     ```
      */
     fn covers_segment<'a, T: Into<SegmentRef<'a>>>(
@@ -655,7 +1101,7 @@ pub trait Composite: private::Sealed + Sync {
         segment: T,
         epsilon: f64,
         max_relative: f64,
-    ) -> bool;
+    ) -> Result<Covered, NotCovered>;
 
     /**
     Returns whether `self` covers the given [`Polysegment`].
@@ -677,13 +1123,13 @@ pub trait Composite: private::Sealed + Sync {
     let ps = Polysegment::from_points(&[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9]]);
 
     // Contour covers polysegment
-    assert!(contour.covers_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(contour.covers_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_ok());
 
     // Hole covers polysegment
-    assert!(hole.covers_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(hole.covers_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_ok());
 
     // Shape covers polysegment
-    assert!(shape.covers_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(shape.covers_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_ok());
     ```
      */
     fn covers_polysegment(
@@ -691,10 +1137,23 @@ pub trait Composite: private::Sealed + Sync {
         polysegment: &Polysegment,
         epsilon: f64,
         max_relative: f64,
-    ) -> bool {
-        return polysegment
+    ) -> Result<Covered, NotCovered> {
+        let first_cover = polysegment
+            .front()
+            .ok_or(NotCovered::OutsideContour)
+            .map(|s| self.covers_segment(s, epsilon, max_relative))?;
+
+        // Skip the first element, because we already tested it. If all other
+        // segments are covered as well, return the result of the first
+        // segment.
+        if polysegment
             .segments_par()
-            .all(|s| self.covers_segment(s, epsilon, max_relative));
+            .skip(1)
+            .all(|s| self.covers_segment(s, epsilon, max_relative).is_ok())
+        {
+            return first_cover;
+        }
+        return Err(NotCovered::OutsideContour);
     }
 
     /**
@@ -703,7 +1162,12 @@ pub trait Composite: private::Sealed + Sync {
     This function just calls [`Composite::covers_polysegment`] on
     `contour.polysegment()`.
     */
-    fn covers_contour(&self, contour: &Contour, epsilon: f64, max_relative: f64) -> bool {
+    fn covers_contour(
+        &self,
+        contour: &Contour,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Result<Covered, NotCovered> {
         return self.covers_polysegment(contour.polysegment(), epsilon, max_relative);
     }
 
@@ -712,7 +1176,12 @@ pub trait Composite: private::Sealed + Sync {
 
     A shape is covered by `self` if its outer `contour` is covered.
     */
-    fn covers_shape(&self, shape: &Shape, epsilon: f64, max_relative: f64) -> bool {
+    fn covers_shape(
+        &self,
+        shape: &Shape,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Result<Covered, NotCovered> {
         return self.covers_contour(shape.contour(), epsilon, max_relative);
     }
 
@@ -726,7 +1195,7 @@ pub trait Composite: private::Sealed + Sync {
         other: &'a T,
         epsilon: f64,
         max_relative: f64,
-    ) -> bool;
+    ) -> Result<Covered, NotCovered>;
 
     /**
     Returns an iterator over all intersections of `self` with the `primitive`.
@@ -1140,215 +1609,6 @@ pub trait Composite: private::Sealed + Sync {
         let geo_ref: crate::geometry::GeometryRef = other.into();
         return geo_ref.intersections_composite_par(self, epsilon, max_relative);
     }
-
-    /**
-    Return whether `self` overlaps the given point.
-
-    A point is overlapped by `self` if it is inside the enclosed surface
-    described by `self` and not on one of the boundary segments. This is
-    identical to the definition of [`Composite::contains_point`], hence this
-    method just forwards to `contains_point`. It exists mainly for symmetry
-    reasons. The returned [`SegmentKey`] is always the first segment of `self`
-    ([`SegmentKey::contour_idx`] and [`SegmentKey::segment_idx`] are 0).
-
-    # Examples
-
-    ```
-    use planar_geo::prelude::*;
-
-    let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
-    let contour = Contour::new(Polysegment::from_points(vertices));
-    let vertices = &[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
-    let hole = Contour::new(Polysegment::from_points(vertices));
-    let shape = Shape::new(vec![contour.clone(), hole.clone()]).expect("valid inputs");
-
-    let pt = [0.5, 0.9];
-
-    // A polysegment cannot overlap a point ...
-    assert!(contour.polysegment().overlaps_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_none());
-
-    // ... but the outer contour does overlap the point
-    assert!(contour.overlaps_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_some());
-
-    // The point is not overlapped by the hole contour, because it is on the boundary segments
-    assert!(hole.overlaps_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_none());
-
-    // The point is not overlapped by the shape, because it is on the hole boundary
-    assert!(shape.overlaps_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_none());
-    ```
-     */
-    fn overlaps_point(
-        &self,
-        point: [f64; 2],
-        epsilon: f64,
-        max_relative: f64,
-    ) -> Option<SegmentKey> {
-        if self.contains_point(point, epsilon, max_relative) {
-            return Some(SegmentKey {
-                contour_idx: 0,
-                segment_idx: 0,
-            });
-        }
-        return None;
-    }
-
-    /**
-    Returns whether `self` overlaps the given [`SegmentRef`].
-
-    A segment is overlapped if at least one of its points is contained within
-    `self` according to the definition in [`Composite::contains_point`]. The
-    fields [`SegmentKey::contour_idx`] and [`SegmentKey::segment_idx`] of the
-    returned [`SegmentKey`] are both zero (since `segment`) is only a single
-    segment.
-
-    # Examples
-
-    ```
-    use planar_geo::prelude::*;
-
-    let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
-    let contour = Contour::new(Polysegment::from_points(vertices));
-    let vertices = &[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
-    let hole = Contour::new(Polysegment::from_points(vertices));
-    let shape = Shape::new(vec![contour.clone(), hole.clone()]).expect("valid inputs");
-
-    let ls = LineSegment::new([0.1, 0.1], [0.9, 0.1]).unwrap();
-
-    assert!(contour.overlaps_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_some());
-
-    // Hole does not overlap the segment, because it is right on its boundary
-    assert!(hole.overlaps_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_none());
-
-    // Shape does not overlap line segment (because it is completely covered by
-    // the hole and therefore none of its points are contained in the shape.
-    assert!(shape.overlaps_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_none());
-    ```
-     */
-    fn overlaps_segment<'a, T: Into<SegmentRef<'a>>>(
-        &self,
-        segment: T,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> Option<SegmentKey>;
-
-    /**
-    Returns whether `self` overlaps the given [`Polysegment`].
-
-    This function applies [`Composite::overlaps_segment`] to all segments of
-    `polysegment`. The returned [`SegmentKey`] points to one of the segments of
-    `polysegment` which overlaps with `self`.
-
-    # Examples
-
-    ```
-    use planar_geo::prelude::*;
-
-    let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
-    let contour = Contour::new(Polysegment::from_points(vertices));
-    let vertices = &[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
-    let hole = Contour::new(Polysegment::from_points(vertices));
-    let shape = Shape::new(vec![contour.clone(), hole.clone()]).expect("valid inputs");
-
-    let ps = Polysegment::from_points(&[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9]]);
-
-    assert!(contour.overlaps_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_some());
-
-    // Hole does not overlap the segment, because it is right on its boundary
-    assert!(hole.overlaps_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_none());
-
-    // Similar to overlaps_segment, all of the points of ps are covered by the
-    // hole, hence it does not overlap with the shape.
-    assert!(shape.overlaps_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_none());
-    ```
-     */
-    fn overlaps_polysegment(
-        &self,
-        polysegment: &Polysegment,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> Option<SegmentKey> {
-        return polysegment
-            .segments_par()
-            .enumerate()
-            .find_any(|(_, s)| self.overlaps_segment(*s, epsilon, max_relative).is_some())
-            .map(|(segment_idx, _)| SegmentKey {
-                contour_idx: 0,
-                segment_idx,
-            });
-    }
-
-    /**
-    Returns whether `self` overlaps the given [`Contour`].
-
-    The `contour` overlaps with `self` if at least one of the points contained
-    within it is also contained within `self`. The returned [`SegmentKey`]
-    points to one of the segments of `contour` which overlaps with `self`.
-
-    # Examples
-
-    ```
-    use planar_geo::prelude::*;
-
-    let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
-    let contour = Contour::new(Polysegment::from_points(vertices));
-    let vertices = &[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
-    let hole = Contour::new(Polysegment::from_points(vertices));
-    let shape = Shape::new(vec![contour.clone(), hole.clone()]).expect("valid inputs");
-
-    let c: Contour = Polysegment::from_points(&[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9]]).into();
-
-    assert!(contour.overlaps_contour(&c, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_some());
-    assert!(hole.overlaps_contour(&c, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_some());
-    assert!(shape.overlaps_contour(&c, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_none());
-    ```
-     */
-    fn overlaps_contour(
-        &self,
-        contour: &Contour,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> Option<SegmentKey>;
-
-    /**
-    Returns whether `self` overlaps the given [`Shape`].
-
-    The `shape` overlaps with `self` if at least one of the points contained
-    within it is also contained within `self`. The returned [`SegmentKey`]
-    points to one of the segments of `shape` which overlaps with `self`.
-
-    # Examples
-
-    ```
-    use planar_geo::prelude::*;
-
-    let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
-    let contour = Contour::new(Polysegment::from_points(vertices));
-    let vertices = &[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
-    let hole = Contour::new(Polysegment::from_points(vertices));
-    let shape = Shape::new(vec![contour.clone(), hole.clone()]).expect("valid inputs");
-
-    let s = Shape::from_outer(Polysegment::from_points(&[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9]]).into()).unwrap();
-
-    assert!(contour.overlaps_shape(&s, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_some());
-    assert!(hole.overlaps_shape(&s, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_some());
-    assert!(shape.overlaps_shape(&s, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_none());
-    ```
-     */
-    fn overlaps_shape(&self, shape: &Shape, epsilon: f64, max_relative: f64) -> Option<SegmentKey>;
-
-    /**
-    Returns whether `self` overlaps the given [`Composite`].
-
-    This is a generalized interface to all specialized `overlaps_` functions.
-    The returned [`SegmentKey`] points to one of the segments of `other` whic
-    overlaps with `self`.
-     */
-    fn overlaps_composite<'a, T: Composite>(
-        &'a self,
-        other: &'a T,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> Option<SegmentKey>;
 }
 
 /**
