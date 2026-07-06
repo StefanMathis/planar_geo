@@ -842,7 +842,7 @@ impl Contour {
         if inside {
             return Ok(Covered::Inside);
         } else {
-            return Err(NotCovered::OutsideContour);
+            return Err(NotCovered::Outside);
         }
     }
 
@@ -1119,6 +1119,7 @@ impl Composite for Contour {
         max_relative: f64,
     ) -> Result<Covered, NotCovered> {
         let segment: SegmentRef = segment.into();
+
         // If the segment is outside the bounding box of self, then it is surely
         // not covered.
         if !self
@@ -1129,8 +1130,8 @@ impl Composite for Contour {
         }
 
         // Are the start or stop point outside self?
-        self.covers_point(segment.start(), epsilon, max_relative)?;
-        self.covers_point(segment.stop(), epsilon, max_relative)?;
+        let start_covered = self.covers_point(segment.start(), epsilon, max_relative)?;
+        let stop_covered = self.covers_point(segment.stop(), epsilon, max_relative)?;
 
         match segment {
             SegmentRef::LineSegment(line_segment) => {
@@ -1186,37 +1187,112 @@ impl Composite for Contour {
                  */
                 let c = arc_segment.center();
                 let r = arc_segment.radius();
-                let dir = if arc_segment.is_positive() { 1.0 } else { -1.0 };
                 let start_angle = arc_segment.start_angle();
+                let stop_angle = arc_segment.stop_angle();
 
                 let mut angles: Vec<(f64, Intersection)> = self
-                    .intersections_primitive_par(&segment, epsilon, max_relative)
+                    .intersections_primitive_par(arc_segment, epsilon, max_relative)
                     .map(|i| {
-                        let mut a = (i.point[1] - c[1]).atan2(i.point[0] - c[0]);
-                        let needs_wrap = (dir * (a - start_angle) < -epsilon) as i32 as f64;
-                        a += dir * needs_wrap * TAU;
-                        (a, i)
+                        let a = (i.point[1] - c[1]).atan2(i.point[0] - c[0]);
+
+                        // Make sure a is between start_angle and stop_angle
+                        if relative_eq!(
+                            a,
+                            start_angle,
+                            epsilon = epsilon,
+                            max_relative = max_relative
+                        ) {
+                            return (start_angle, i);
+                        }
+                        if relative_eq!(
+                            a,
+                            stop_angle,
+                            epsilon = epsilon,
+                            max_relative = max_relative
+                        ) {
+                            return (stop_angle, i);
+                        }
+                        let angle = if arc_segment.is_positive() {
+                            if a < start_angle {
+                                a + TAU
+                            } else if a > stop_angle {
+                                a - TAU
+                            } else {
+                                a
+                            }
+                        } else {
+                            if a > start_angle {
+                                a - TAU
+                            } else if a < stop_angle {
+                                a + TAU
+                            } else {
+                                a
+                            }
+                        };
+                        return (angle, i);
                     })
                     .collect();
 
+                /*
+                Make sure that the start and the stop angle are always included.
+                This is done because there might be rare cases where start and
+                stop points are just on the boundary of the contour, but the
+                intersection algorithm fails to find the intersection. If the
+                intersection has in fact been found before, it gets added again,
+                but this is not a problem for the algorithm. If the intersection
+                would be missing however, the algorithm may find false
+                positives!)
+                 */
+                let left = match start_covered {
+                    Covered::OnBoundary(segment_key) => segment_key,
+                    _ => SegmentKey::default(), // Dummy intersection
+                };
+                angles.push((
+                    start_angle,
+                    Intersection {
+                        point: arc_segment.start(),
+                        left,
+                        right: SegmentKey::default(),
+                    },
+                ));
+
+                let left = match stop_covered {
+                    Covered::OnBoundary(segment_key) => segment_key,
+                    _ => SegmentKey::default(), // Dummy intersection
+                };
+                angles.push((
+                    stop_angle,
+                    Intersection {
+                        point: arc_segment.stop(),
+                        left,
+                        right: SegmentKey::default(),
+                    },
+                ));
+
                 angles.sort_unstable_by(|a, b| a.0.total_cmp(&b.0));
 
+                let mut covered = None;
                 for w in angles.windows(2) {
                     if let Some(start) = w.get(0) {
                         if let Some(stop) = w.get(1) {
-                            let mid_angle = 0.5 * (stop.0 + start.0);
+                            let mid_angle = 0.5 * (start.0 + stop.0);
                             let mx = c[0] + r * mid_angle.cos();
                             let my = c[1] + r * mid_angle.sin();
-                            if let Err(err) = self.covers_point([mx, my], epsilon, max_relative) {
-                                match err {
+
+                            match self.covers_point([mx, my], epsilon, max_relative) {
+                                Ok(ok) => covered = Some(ok),
+                                Err(err) => match err {
                                     NotCovered::Intersection(_) => {
                                         return Err(NotCovered::Intersection(start.1.clone()));
                                     }
                                     _ => return Err(err),
-                                }
+                                },
                             }
                         }
                     }
+                }
+                if let Some(ok) = covered {
+                    return Ok(ok);
                 }
                 return Ok(Covered::Inside);
             }
@@ -1340,6 +1416,17 @@ impl Composite for Contour {
                         }
                     })
                     .collect();
+
+                /*
+                Make sure that the start and the stop angle are always included.
+                This is done because there might be rare cases where start and
+                stop points are just on the boundary of the contour, but the
+                intersection algorithm fails to find the intersection. If the
+                intersection has in fact been found before, it gets added again,
+                but this is not a problem for the algorithm. If the intersection
+                would be missing however, the algorithm may find false
+                positives!)
+                 */
                 angles.push(arc_segment.start_angle());
                 angles.push(arc_segment.stop_angle());
 
@@ -1403,7 +1490,6 @@ impl Composite for Contour {
         }
 
         // Does one of the contours cover the other one?
-
         if self.covers_contour(other, epsilon, max_relative).is_ok() {
             return Ok(Overlap::Covers {
                 self_covers_other: true,
@@ -1423,7 +1509,10 @@ impl Composite for Contour {
         epsilon: f64,
         max_relative: f64,
     ) -> Result<Overlap, NoOverlap> {
-        return shape.contains_any_contour(self, epsilon, max_relative);
+        // NoOverlap has no switch method
+        return shape
+            .contains_any_contour(self, epsilon, max_relative)
+            .map(Overlap::switch);
     }
 
     fn contains_any_composite<'a, T: Composite>(
@@ -1432,7 +1521,10 @@ impl Composite for Contour {
         epsilon: f64,
         max_relative: f64,
     ) -> Result<Overlap, NoOverlap> {
-        return other.contains_any_contour(self, epsilon, max_relative);
+        // NoOverlap has no switch method
+        return other
+            .contains_any_contour(self, epsilon, max_relative)
+            .map(Overlap::switch);
     }
 }
 

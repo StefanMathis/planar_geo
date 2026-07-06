@@ -783,26 +783,19 @@ impl Composite for Shape {
     ) -> Result<Covered, NotCovered> {
         let segment: SegmentRef = segment.into();
 
-        match self
-            .contours()
-            .par_iter()
-            .enumerate()
-            .find_map_any(|(i, c)| {
-                if i == 0 {
-                    // Special handling of outer contour
-                    if let Err(noc) = c.covers_segment(segment.clone(), epsilon, max_relative) {
-                        return Some(noc);
-                    }
-                } else {
-                    if let Ok(_) = c.contains_segment(segment.clone(), epsilon, max_relative) {
-                        return Some(NotCovered::InsideHole(i));
-                    }
-                }
-                return None;
-            }) {
-            Some(n) => Err(n),
-            None => Ok(Covered::Inside),
+        let result = self
+            .contour()
+            .covers_segment(segment.clone(), epsilon, max_relative)?;
+
+        for (i, hole) in self.holes().iter().enumerate() {
+            if hole
+                .contains_any_segment(segment.clone(), epsilon, max_relative)
+                .is_ok()
+            {
+                return Err(NotCovered::InsideHole(i));
+            }
         }
+        return Ok(result);
     }
 
     fn contains_any_segment<'a, T: Into<SegmentRef<'a>>>(
@@ -896,6 +889,7 @@ impl Composite for Shape {
         epsilon: f64,
         max_relative: f64,
     ) -> Result<Overlap, NoOverlap> {
+        // NoOverlap has no switch method
         return other
             .contains_any_shape(self, epsilon, max_relative)
             .map(Overlap::switch);

@@ -1023,3 +1023,89 @@ fn test_overlaps_shape() {
         assert!(s4.contains_any_shape(&s1, e, m).is_ok());
     }
 }
+
+#[test]
+fn test_overlaps_various_elements() {
+    let e = DEFAULT_EPSILON;
+    let m = DEFAULT_MAX_RELATIVE;
+
+    let contour = Contour::new(Polysegment::from_points(&[
+        [-2.0, -2.0],
+        [2.0, -2.0],
+        [2.0, 2.0],
+        [-2.0, 2.0],
+    ]));
+    let hole = ArcSegment::circle([0.0, 0.0], 1.0).unwrap();
+    let outer = Shape::new(vec![contour, hole.into()]).unwrap();
+
+    // Trial geometry elements
+    let mut arc =
+        ArcSegment::from_center_radius_start_stop_angle([0.0, 0.0], 1.0, 0.0, FRAC_PI_2).unwrap();
+    let mut line_1 = LineSegment::new([0.0, 1.0], [0.0, 0.0]).unwrap();
+    let mut line_2 = LineSegment::new([0.0, 0.0], [1.0, 0.0]).unwrap();
+    let mut polysegment = Polysegment::new();
+    polysegment.push_back(arc.clone().into());
+    polysegment.push_back(line_1.clone().into());
+    polysegment.push_back(line_2.clone().into());
+    let mut contour = Contour::new(polysegment.clone());
+    let mut shape = Shape::try_from(contour.clone()).unwrap();
+
+    let mut count = 0.0;
+    let max_counter = 200.0;
+    let delta_angle = 1.0 / max_counter * std::f64::consts::TAU;
+
+    while count < max_counter {
+        if let Ok(e) = outer.contains_any_segment(&arc, e, m) {
+            panic!(
+                "arc overlaps for angle {}, reason: {}",
+                delta_angle * count,
+                e
+            );
+        }
+        if let Ok(e) = outer.contains_any_segment(&line_1, e, m) {
+            panic!(
+                "line_1 overlaps for angle {}, reason: {}",
+                delta_angle * count,
+                e
+            );
+        }
+        if let Ok(e) = outer.contains_any_segment(&line_2, e, m) {
+            panic!(
+                "line_2 overlaps for angle {}, reason: {}",
+                delta_angle * count,
+                e
+            );
+        }
+        if let Ok(e) = outer.contains_any_composite(&polysegment, e, m) {
+            panic!(
+                "polysegment overlaps for angle {}, reason: {}",
+                delta_angle * count,
+                e
+            );
+        }
+        if let Ok(e) = outer.contains_any_composite(&contour, e, m) {
+            panic!(
+                "contour overlaps for angle {}, reason: {}",
+                delta_angle * count,
+                e
+            );
+        }
+        if let Ok(e) = outer.contains_any_composite(&shape, e, m) {
+            panic!(
+                "shape overlaps for angle {}, reason: {}",
+                delta_angle * count,
+                e
+            );
+        }
+
+        // Rotate the elements
+        arc.rotate([0.0, 0.0], delta_angle);
+        line_1.rotate([0.0, 0.0], delta_angle);
+        line_2.rotate([0.0, 0.0], delta_angle);
+        polysegment.rotate([0.0, 0.0], delta_angle);
+        contour.rotate([0.0, 0.0], delta_angle);
+        shape.rotate([0.0, 0.0], delta_angle);
+
+        count += 1.0;
+    }
+}

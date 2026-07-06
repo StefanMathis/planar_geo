@@ -203,8 +203,6 @@ fn test_fillet_chain() {
         assert_eq!(iter.next(), None);
     }
     {
-        println!("\n");
-
         // Small radius
         let mut iter = Segment::fillet_chain(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]], &[0.5]);
         approx::assert_abs_diff_eq!(

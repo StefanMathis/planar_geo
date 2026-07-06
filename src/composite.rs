@@ -333,7 +333,9 @@ pub enum NotCovered {
     Intersection(Intersection),
     /// `other` is not covered by `self`. This is a generic/ fallback variant if
     /// no more specific reason is available.
-    OutsideContour,
+    Outside,
+    /// The specified segment of `other` is not covered by `self`.
+    SegmentNotCovered(SegmentKey),
     /// The [`BoundingBox`](bounding_box::BoundingBox) of `other` is not
     /// covered by the [`BoundingBox`](bounding_box::BoundingBox) of `self`,
     /// therefore `other` cannot be covered by `self`.
@@ -349,8 +351,13 @@ impl std::fmt::Display for NotCovered {
                 "other partially not covered by self, intersect at {:?}",
                 intersection
             ),
-            NotCovered::OutsideContour => write!(f, "outside contour of self"),
+            NotCovered::Outside => write!(f, "outside of self"),
             NotCovered::OutsideBoundingBox => write!(f, "outside bounding box"),
+            NotCovered::SegmentNotCovered(segment_key) => write!(
+                f,
+                "segment {:?} of other is not covered by self",
+                segment_key
+            ),
         }
     }
 }
@@ -1138,22 +1145,29 @@ pub trait Composite: private::Sealed + Sync {
         epsilon: f64,
         max_relative: f64,
     ) -> Result<Covered, NotCovered> {
-        let first_cover = polysegment
-            .front()
-            .ok_or(NotCovered::OutsideContour)
-            .map(|s| self.covers_segment(s, epsilon, max_relative))?;
+        let first_seg = polysegment.front().ok_or(NotCovered::Outside)?;
+        let first_cover = self.covers_segment(first_seg, epsilon, max_relative)?;
 
         // Skip the first element, because we already tested it. If all other
         // segments are covered as well, return the result of the first
         // segment.
-        if polysegment
+        match polysegment
             .segments_par()
+            .enumerate()
             .skip(1)
-            .all(|s| self.covers_segment(s, epsilon, max_relative).is_ok())
-        {
-            return first_cover;
+            .find_map_any(
+                |(i, s)| match self.covers_segment(s, epsilon, max_relative) {
+                    Ok(_) => None,
+                    Err(_) => Some(i),
+                },
+            ) {
+            Some(i) => {
+                return Err(NotCovered::SegmentNotCovered(SegmentKey::from_segment_idx(
+                    i,
+                )));
+            }
+            None => return Ok(first_cover),
         }
-        return Err(NotCovered::OutsideContour);
     }
 
     /**

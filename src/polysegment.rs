@@ -1477,7 +1477,7 @@ impl Composite for Polysegment {
             .next()
         {
             Some(i) => Ok(Covered::OnBoundary(i.left)),
-            None => Err(NotCovered::OutsideContour),
+            None => Err(NotCovered::Outside),
         }
     }
 
@@ -1773,7 +1773,7 @@ where
                     combined = None;
                 }
             }
-            return Err(NotCovered::OutsideContour);
+            return Err(NotCovered::Outside);
         }
         SegmentRef::ArcSegment(arc_segment) => {
             // Multiple subsequent arc segments are combined into a single
@@ -1836,7 +1836,7 @@ where
                     combined = None;
                 }
             }
-            return Err(NotCovered::OutsideContour);
+            return Err(NotCovered::Outside);
         }
     }
 }
