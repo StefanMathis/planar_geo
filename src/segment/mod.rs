@@ -604,15 +604,37 @@ impl From<&Segment> for CentroidData {
     }
 }
 
+impl From<ArcSegment> for Segment {
+    fn from(value: ArcSegment) -> Self {
+        return Self::ArcSegment(value);
+    }
+}
+
 impl From<LineSegment> for Segment {
     fn from(value: LineSegment) -> Self {
         return Self::LineSegment(value);
     }
 }
 
-impl From<ArcSegment> for Segment {
-    fn from(value: ArcSegment) -> Self {
-        return Self::ArcSegment(value);
+impl TryFrom<Segment> for ArcSegment {
+    type Error = Segment;
+
+    fn try_from(value: Segment) -> Result<Self, Self::Error> {
+        match value {
+            Segment::ArcSegment(s) => Ok(s),
+            Segment::LineSegment(_) => Err(value),
+        }
+    }
+}
+
+impl TryFrom<Segment> for LineSegment {
+    type Error = Segment;
+
+    fn try_from(value: Segment) -> Result<Self, Self::Error> {
+        match value {
+            Segment::ArcSegment(_) => Err(value),
+            Segment::LineSegment(s) => Ok(s),
+        }
     }
 }
 

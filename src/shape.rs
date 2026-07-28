@@ -370,6 +370,21 @@ impl Shape {
             });
         }
 
+        // Is the hole self-intersecting?
+        if let Some(i) = hole
+            .intersections_contour_par(&hole, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+            .find_map_any(|v| Some(v))
+        {
+            return Err(ShapeConstructorError::Intersection {
+                input: hole,
+                intersection: Intersection {
+                    point: i.point,
+                    left: i.left,
+                    right: i.right,
+                },
+            });
+        }
+
         let outer = self.contour();
 
         if let Err(e) = outer.contains_contour(&hole, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE) {
