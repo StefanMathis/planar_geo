@@ -1439,17 +1439,11 @@ impl ArcSegment {
     ///
     /// Each point of a y-monotonic segment has a unique y-value.
     pub(crate) fn split_y_monotonic(&self) -> [Option<ArcSegment>; 3] {
-        // Cover special case of a circle
-        let start_angle = if self.is_circle() {
-            -FRAC_PI_2
-        } else {
-            self.start_angle()
-        };
-
+        let start_angle = self.start_angle();
         let mut angles = [Some(start_angle), None, None, None];
         let mut free_slot = 1;
         if self.is_positive() {
-            if self.start_angle() > FRAC_PI_2 {
+            if start_angle > FRAC_PI_2 {
                 if self.covers_angle(3.0 * FRAC_PI_2) {
                     angles[free_slot] = Some(3.0 * FRAC_PI_2);
                     free_slot += 1;
@@ -1469,7 +1463,7 @@ impl ArcSegment {
                 }
             }
         } else {
-            if self.start_angle() < FRAC_PI_2 {
+            if start_angle < FRAC_PI_2 {
                 if self.covers_angle(3.0 * FRAC_PI_2) {
                     angles[free_slot] = Some(3.0 * FRAC_PI_2);
                     free_slot += 1;
@@ -1489,9 +1483,7 @@ impl ArcSegment {
                 }
             }
         }
-        if self.start_angle().rem_euclid(TAU) != self.stop_angle().rem_euclid(TAU) {
-            angles[free_slot] = Some(self.stop_angle().rem_euclid(TAU));
-        }
+        angles[free_slot] = Some(self.stop_angle().rem_euclid(TAU));
 
         let mut arcs = [None, None, None];
         free_slot = 0;

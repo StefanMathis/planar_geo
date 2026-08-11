@@ -355,6 +355,22 @@ fn test_contains_point() {
     let e = DEFAULT_EPSILON;
     let m = DEFAULT_MAX_RELATIVE;
     {
+        // Bug found in the test_inner_and_outer_rotor test of the stem_magnet crate
+        let c = Contour::from(ArcSegment::circle([0.0, 0.0], 1.1 * 0.08).expect("radius larger 0"));
+        assert!(
+            c.contains_point([0.08, -1.959434878635765e-17], e, m)
+                .is_ok()
+        );
+    }
+    {
+        // Bug found in the test_plot_inner_assembly test of the stem_magnet crate
+        let c = Contour::from(ArcSegment::circle([0.0, 0.0], 0.025).expect("radius larger 0"));
+        assert!(
+            c.contains_point([0.01, -2.4492935982947064e-18], e, m)
+                .is_ok()
+        );
+    }
+    {
         // Bug found in the test_polygon_air_gap_builder test of the stem_core crate
         let polygon = Contour::from(Polysegment::from_points(&[
             [0.08, 0.0],
@@ -1476,6 +1492,19 @@ fn test_covers_arc_segment() {
             .is_ok()
         );
     }
+}
+
+#[test]
+fn test_circle_contains_circle() {
+    // Bug found in the test_inner_and_outer_rotor test of the stem_magnet crate
+    let r = 0.08;
+    let c1 = Contour::from(ArcSegment::circle([0.0, 0.0], r).expect("radius larger 0"));
+    let c2 = Contour::from(ArcSegment::circle([0.0, 0.0], 1.1 * r).expect("radius larger 0"));
+
+    assert!(
+        c2.contains_contour(&c1, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+            .is_ok()
+    );
 }
 
 #[test]
