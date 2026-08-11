@@ -112,6 +112,15 @@ fn test_from_points() {
     let vertices = vec![[0.0, 0.0], [0.0, 0.0], [0.0, 0.0]];
     let empty_polysegment = Polysegment::from_points(&vertices);
     assert_eq!(empty_polysegment.num_segments(), 0);
+
+    let ps = Polysegment::from_points(&[
+        [0.08, 0.0],
+        [0.0692820323027551, 0.04],
+        [-0.08, 0.0],
+        [0.08000000000000003, -8.326672684688674e-17],
+        [0.08, 0.0],
+    ]);
+    assert_eq!(ps.num_segments(), 4);
 }
 
 #[test]

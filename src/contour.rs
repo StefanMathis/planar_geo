@@ -762,7 +762,7 @@ impl Contour {
                     let [x2, y2] = segment.stop();
 
                     // Skip horizontal line segments
-                    if relative_eq!(y1, y2, epsilon = epsilon, max_relative = max_relative) {
+                    if y1 == y2 {
                         if y_stashed.is_none() {
                             y_stashed = Some(y1);
                         }

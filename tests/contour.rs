@@ -19,15 +19,28 @@ fn test_from_segments() {
 
 #[test]
 fn test_from_points() {
-    // Triangle
-    let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]];
-    let polygon: Contour = Polysegment::from_points(vertices).into();
-    let vertices: Vec<[f64; 2]> = polygon.points().collect();
+    {
+        // Triangle
+        let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]];
+        let polygon: Contour = Polysegment::from_points(vertices).into();
+        let vertices: Vec<[f64; 2]> = polygon.points().collect();
 
-    assert_eq!(vertices.len(), 3);
-    assert_eq!(vertices[0], [0.0, 0.0]);
-    assert_eq!(vertices[1], [1.0, 0.0]);
-    assert_eq!(vertices[2], [1.0, 1.0]);
+        assert_eq!(vertices.len(), 3);
+        assert_eq!(vertices[0], [0.0, 0.0]);
+        assert_eq!(vertices[1], [1.0, 0.0]);
+        assert_eq!(vertices[2], [1.0, 1.0]);
+    }
+    {
+        let c: Contour = Polysegment::from_points(&[
+            [0.08, 0.0],
+            [0.0692820323027551, 0.04],
+            [-0.08, 0.0],
+            [0.08000000000000003, -8.326672684688674e-17],
+            [0.08, 0.0],
+        ])
+        .into();
+        assert_eq!(c.num_segments(), 4);
+    }
 }
 
 #[test]
@@ -341,6 +354,34 @@ fn test_area() {
 fn test_contains_point() {
     let e = DEFAULT_EPSILON;
     let m = DEFAULT_MAX_RELATIVE;
+    {
+        // Bug found in the test_polygon_air_gap_builder test of the stem_core crate
+        let polygon = Contour::from(Polysegment::from_points(&[
+            [0.08, 0.0],
+            [0.0692820323027551, 0.04],
+            [0.04000000000000003, 0.0692820323027551],
+            [0.04000000000000001, 0.06928203230275509],
+            [1.3877787807814457e-17, 0.08000000000000002],
+            [-0.039999999999999994, 0.06928203230275512],
+            [-0.03999999999999998, 0.06928203230275509],
+            [-0.08000000000000002, 3.469446951953614e-17],
+            [-0.08, 9.797174393178826e-18],
+            [-0.0692820323027551, -0.039999999999999994],
+            [-0.040000000000000036, -0.0692820323027551],
+            [-0.040000000000000036, -0.06928203230275508],
+            [-4.163336342344337e-17, -0.08000000000000002],
+            [0.03999999999999996, -0.06928203230275515],
+            [0.039999999999999945, -0.06928203230275512],
+            [0.06928203230275506, -0.04000000000000006],
+            [0.08000000000000003, -8.326672684688674e-17],
+            [0.08, 0.0],
+        ]));
+        assert!(
+            polygon
+                .contains_point([0.06, -1.4695761589768237e-17], e, m)
+                .is_ok()
+        );
+    }
     {
         let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
         let contour = Contour::new(Polysegment::from_points(vertices));
@@ -1435,6 +1476,41 @@ fn test_covers_arc_segment() {
             .is_ok()
         );
     }
+}
+
+#[test]
+fn test_polygon_contains_circle() {
+    // Bug found in the test_polygon_air_gap_builder test of the stem_core crate
+    let polygon = Contour::from(Polysegment::from_points(&[
+        [0.08, 0.0],
+        [0.0692820323027551, 0.04],
+        [0.04000000000000003, 0.0692820323027551],
+        [0.04000000000000001, 0.06928203230275509],
+        [1.3877787807814457e-17, 0.08000000000000002],
+        [-0.039999999999999994, 0.06928203230275512],
+        [-0.03999999999999998, 0.06928203230275509],
+        [-0.08000000000000002, 3.469446951953614e-17],
+        [-0.08, 9.797174393178826e-18],
+        [-0.0692820323027551, -0.039999999999999994],
+        [-0.040000000000000036, -0.0692820323027551],
+        [-0.040000000000000036, -0.06928203230275508],
+        [-4.163336342344337e-17, -0.08000000000000002],
+        [0.03999999999999996, -0.06928203230275515],
+        [0.039999999999999945, -0.06928203230275512],
+        [0.06928203230275506, -0.04000000000000006],
+        [0.08000000000000003, -8.326672684688674e-17],
+        [0.08, 0.0],
+    ]));
+
+    let circle = Contour::from(ArcSegment::circle([0.0, 0.0], 0.06).expect("radius larger 0"));
+    polygon
+        .contains_contour(&circle, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+        .unwrap();
+    assert!(
+        polygon
+            .contains_contour(&circle, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+            .is_ok()
+    );
 }
 
 #[test]

@@ -813,22 +813,15 @@ pub trait Composite: private::Sealed + Sync {
         epsilon: f64,
         max_relative: f64,
     ) -> Result<Contained, NotContained> {
-        let first_contain = polysegment
-            .front()
-            .ok_or(NotContained::OutsideBoundingBox)
-            .map(|s| self.contains_segment(s, epsilon, max_relative))?;
-
-        // Skip the first element, because we already tested it. If all other
-        // segments are contained as well, return the result of the first
-        //segment.
-        if polysegment
-            .segments_par()
-            .skip(1)
-            .all(|s| self.contains_segment(s, epsilon, max_relative).is_ok())
-        {
-            return first_contain;
+        if let Some(err) = polysegment.segments_par().find_map_any(|s| {
+            match self.contains_segment(s, epsilon, max_relative) {
+                Ok(_) => None,
+                Err(err) => Some(err),
+            }
+        }) {
+            return Err(err);
         }
-        return Err(NotContained::OutsideContour);
+        return Ok(Contained::Inside);
     }
 
     /**
