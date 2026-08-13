@@ -62,79 +62,131 @@ pub mod draw;
 /**
 A reasonable default value for the absolute tolerance.
 
-
-
-This constant and [`DEFAULT_MAX_RELATIVE`] provide sane defaults which will work
-well in most cases and are recommeded to be used in the various functions
-requiring an `epsilon` and a `max_relative` argument. The reason they need to be
-provided as explicit arguments and are not simply used by default is that expert
-users can modify the comparison behaviour of e.g. the intersection algorithms
-if required for a particular use case.
+Various methods within this crate (such as the `contains_` or `intersections_`
+methods from the [`Primitive`] and [`Composite`] traits) perform floating point
+comparisons using the [`relative_eq`](approx::relative_eq) macro from the
+[`approxim`](approx), which requires specifying an absolute tolerance `epsilon`
+and a relative tolerance `max_relative`. If those tolerances aren't explicitly
+provided via a [`ToleranceContext`], this constant is used for `epsilon` (
+and [`DEFAULT_MAX_RELATIVE`] for `max_relative`). These defaults have been
+chosen to provide "intuitive" behaviour of the aforementioned methods. See
+[`ToleranceContext`] for more information.
 
 The value of this constant is the square root of the machine precision
 (`f64::EPSILON.sqrt()`).
 */
 pub const DEFAULT_EPSILON: f64 = 0.000000014901161193847656_f64;
 
-/// A reasonable default value for the relative tolerance.
-///
-/// A lot of functions in this crate require the specification of both an
-/// absolute tolerance `epsilon` and a relative tolerance `max_relative`. See
-/// the docstring of [`DEFAULT_EPSILON`] for details.
-pub const DEFAULT_MAX_RELATIVE: f64 = 1e-8;
 /**
-Comparing floating-point numbers is often necessary within this crate, e.g.
-when deciding whether two geometries intersect or not. Since floating point
-numbers do not have arbitrary precision, most real numbers cannot be represented
-exactly (e.g. 0.1). Hence, comparisons within this crate are done using the
-[`relative_eq`](approx::relative_eq) macro from the [`approxim`](approx)
-crate, which requires specifying an absolute tolerance `epsilon` and a relative
-tolerance `max_relative`. The former is mainly relevant when comparing
-numbers close to zero, while the latter gets important with (absolute) big
-numbers.
+A reasonable default value for the relative tolerance.
 
-The following links taken directly from the [`approxim`](approx) crate contain
-more information regarding the behaviour of floating point numbers, particulary
-when comparing them:
+Various methods within this crate (such as the `contains_` or `intersections_`
+methods from the [`Primitive`] and [`Composite`] traits) perform floating point
+comparisons using the [`relative_eq`](approx::relative_eq) macro from the
+[`approxim`](approx), which requires specifying an absolute tolerance `epsilon`
+and a relative tolerance `max_relative`. If those tolerances aren't explicitly
+provided via a [`ToleranceContext`], this constant is used for `max_relative` (
+and [`DEFAULT_EPSILON`] for `epsilon`). These defaults have been
+chosen to provide "intuitive" behaviour of the aforementioned methods. See
+[`ToleranceContext`] for more information.
+ */
+pub const DEFAULT_MAX_RELATIVE: f64 = 1e-8;
+
+/**
+A tolerance context wrapper around a geometric object that allows specifying
+custom tolerances for geometric operations such as intersection calculation.
+Tolerance contexts are usually created with the `with_tolerance` method.
+
+Various methods within this crate (such as the `covers_` or `intersections_`
+methods from the [`Primitive`](crate::primitive::Primitive) and [`Composite`](crate::composite::Composite) traits) perform floating point comparisons.
+Floating point numbers have finite precision and use a binary representation.
+Consequently, many decimal numbers (such as `0.1`) cannot be represented exactly
+as an `f64`, and arithmetic involving them can produce results that differ
+slightly from the mathematically exact result:
+For example, `assert_eq!(0.1 + 0.2, 0.3)` will panic!
+
+Therefore, the aforementioned methods use the
+[`relative_eq`](approx::relative_eq) macro from the [`approxim`](approx) crate
+when comparing floats, which requires specifying an absolute tolerance `epsilon`
+and a relative tolerance `max_relative`. These default to [`DEFAULT_EPSILON`]
+and [`DEFAULT_MAX_RELATIVE`], but can be overwritten by using a
+[`ToleranceContext`], which can be created by the `with_tolerance` methods of
+the geometric objects:
+
+```
+use planar_geo::prelude::*;
+
+let line_segment = LineSegment::new([0.0, 0.0], [1.0, 0.0]).expect("start and end point are different");
+
+// From intuition, the point [0.5, 0.5] is not covered by the line segment:
+assert!(!line_segment.covers_point(&[0.5, 0.5]));
+
+// However, if the tolerance becomes sufficiently large, it is covered by the line segment:
+assert!(line_segment.with_tolerance(1.0, DEFAULT_MAX_RELATIVE).covers_point(&[0.5, 0.5]));
+```
+
+The presented
+[`LineSegment::with_tolerance`](crate::segment::LineSegment::with_tolerance)
+method creates a [`ToleranceContext<LineSegment>`] which can be used for one-off
+calculations as shown above, but can also be reused across multiple operations:
+
+```
+use planar_geo::prelude::*;
+
+let line_segment = LineSegment::new([0.0, 0.0], [1.0, 0.0]).expect("start and end point are different");
+
+let tol_context = line_segment.with_tolerance(1.0, DEFAULT_MAX_RELATIVE);
+assert!(tol_context.covers_point(&[0.5, 0.5]));
+assert!(tol_context.covers_point(&[0.5, -0.5]));
+assert!(!tol_context.covers_point(&[0.5, 1.5])); // This point is still not covered
+```
+
+The default values for [`DEFAULT_EPSILON`] and [`DEFAULT_MAX_RELATIVE`]
+have been chosen to provide intuitive behaviour without making the tolerances
+unnecessarily large. The following example demonstrates why simply using a zero
+tolerance can lead to strange results:
+
+```
+use planar_geo::prelude::*;
+
+// ArcSegment::same_circle checks if center and radius of two ArcSegments are
+// identical (i.e., if they lay on the same underlying circle).
+
+let as1 = ArcSegment::new([0.1, 0.1], 0.1, 0.0, 1.0).expect("valid inputs");
+let as2 = ArcSegment::from_start_middle_stop([0.2, 0.1], [0.1, 0.2], [0.0, 0.1]).expect("valid inputs");
+
+// Intuitively, both arc segments are on the same circle with center [0.1, 0.1]
+// and radius 0.1. With the default tolerances, this is indeed the case.
+assert!(as1.same_circle(&as2));
+
+// Using zero tolerances runs into the problem that 0.1 is not exactly
+// representable in f64. Since the center of as2 needs to be calculated from
+// three points, this leads to slight differences:
+assert!(!as1.with_tolerance(0.0, 0.0).same_circle(&as2));
+```
+
+Unless there is a specific reason for customizing the tolerances, it is
+recommended to simply use the default tolerances (which happens automatically
+unless `with_tolerance` is inserted between the geometric object and the
+method).
+
+As stated in the [`approxim`](approx) documentation: "Floating point is hard!".
+The following links, taken directly from the [`approxim`](approx) crate
+documentation, provide more informatio regarding the behaviour of floating point
+numbers, particularly when comparing them:
 - [Comparing Floating Point Inners, 2012 Edition](https://randomascii.wordpress.com/2012/02/25/comparing-floating-point-numbers-2012-edition/)
 - [The Floating Point Guide - Comparison](https://floating-point-gui.de/errors/comparison/)
 - [What Every Computer Scientist Should Know About Floating-Point Arithmetic](https://docs.oracle.com/cd/E19957-01/806-3568/ncg_goldberg.html)
- */
-
-/*
-A tolerance context wrapper around a [`Primitive`] or [`Composite`] that allows
-specifying custom tolerances for geometric operations such as intersection
-calculation. Tolerance contexts are usually created with the `with_tolerance`
-method.
-
-
-
-Default tolerance:
-
-polysegment.intersections_line(&line)
-
-One-off custom tolerance:
-
-polysegment
-    .with_tolerance(epsilon, max_relative)
-    .intersections_line(&line)
-    .collect()
-
-Reusable custom tolerance:
-
-let ctx = polysegment.with_tolerance(epsilon, max_relative);
-
-ctx.intersections_line(&line);
-ctx.contains_point(&point);
-ctx.covers_line(&other);
-
-The reason why [`DEFAULT_EPSILON`] and [`DEFAULT_MAX_RELATIVE`] instead of 0:
-- Default behaviour without explicit `with_tolerance` should be reasonable and
-yield expected results. This wouldn't be the case for a zero-tolerance!
 */
 pub struct ToleranceContext<'p, T> {
+    /// A reference to the geometric object to which this context applies.
+    ///
+    /// Usually, the context is created by calling `with_tolerance` on this
+    /// object.
     pub inner: &'p T,
+    /// The absolute tolerance used within the context.
     pub epsilon: f64,
+    /// The relative tolerance used within the context.
     pub max_relative: f64,
 }
 
