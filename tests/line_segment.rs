@@ -212,11 +212,14 @@ fn test_polygonize_segment_length() {
 #[test]
 fn test_euclidian_distance_to_point() {
     let line = LineSegment::new([0.0, 0.0], [1.0, 0.0]).unwrap();
-    assert_eq!(1.0, line.euclidian_distance_to_point([0.0, 1.0]));
-    approx::assert_abs_diff_eq!(1.0, line.euclidian_distance_to_point([0.5, 1.0]));
-    approx::assert_abs_diff_eq!(1.25f64.sqrt(), line.euclidian_distance_to_point([1.5, 1.0]));
+    assert_eq!(1.0, line.euclidian_distance_to_point(&[0.0, 1.0]));
+    approx::assert_abs_diff_eq!(1.0, line.euclidian_distance_to_point(&[0.5, 1.0]));
+    approx::assert_abs_diff_eq!(
+        1.25f64.sqrt(),
+        line.euclidian_distance_to_point(&[1.5, 1.0])
+    );
 
-    approx::assert_abs_diff_eq!(0.0, line.euclidian_distance_to_point([0.5, 0.0]));
+    approx::assert_abs_diff_eq!(0.0, line.euclidian_distance_to_point(&[0.5, 0.0]));
 }
 
 #[test]
@@ -250,29 +253,23 @@ fn test_angle_infinite() {
 fn test_covers_point() {
     {
         let line = LineSegment::new([1.0, 1.0], [0.0, 1.0]).unwrap();
-        assert!(line.covers_point([0.5, 1.0], DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
-        assert!(line.covers(&[0.5, 1.0], DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+        assert!(line.covers_point(&[0.5, 1.0]));
     }
     {
         let line: Segment = LineSegment::new([1.0, 1.0], [0.0, 1.0]).unwrap().into();
-        assert!(line.covers_point([0.5, 1.0], DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
-        assert!(line.covers(&[0.5, 1.0], DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+        assert!(line.covers_point(&[0.5, 1.0]));
     }
     {
         let line: Segment = LineSegment::new([0.0, 0.0], [1.0, 0.0]).unwrap().into();
-        assert!(line.covers_point([0.5, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+        assert!(line.covers_point(&[0.5, 0.0]));
     }
     {
         let line: Segment = LineSegment::new([0.0, 0.0], [1.0, 0.0]).unwrap().into();
-        assert!(line.covers_point([0.5, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+        assert!(line.covers_point(&[0.5, 0.0]));
     }
     {
         let line: Segment = LineSegment::new([0.5, 1.0], [1.0, 0.0]).unwrap().into();
-        assert!(line.covers_point(
-            [0.9000000000000001, 0.19999999999999984],
-            DEFAULT_EPSILON,
-            DEFAULT_MAX_RELATIVE
-        ));
+        assert!(line.covers_point(&[0.9000000000000001, 0.19999999999999984],));
     }
 }
 
@@ -281,41 +278,40 @@ fn test_line_segments_intersection() {
     {
         let line = Line::from_point_angle([0.11, 0.11], 0.0);
         let line_segment = LineSegment::new([0.1, 0.9], [0.1, 0.1]).unwrap();
-        assert_eq!(
-            line.intersections_line_segment(&line_segment, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
-                .len(),
-            1
-        );
-        assert_eq!(
-            line_segment
-                .intersections_line(&line, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
-                .len(),
-            1
-        );
+        assert_eq!(line.intersections_line_segment(&line_segment).len(), 1);
+        assert_eq!(line_segment.intersections_line(&line).len(), 1);
     }
     {
         // These two segments intersect
         let line1 = LineSegment::new([0.0, 0.0], [1.0, 1.0]).unwrap();
         let line2 = LineSegment::new([1.0, 0.0], [0.0, 1.0]).unwrap();
-        let intersections = line1.intersections_line_segment(&line2, 0.0, 0.0);
+        let intersections = line1
+            .with_tolerance(0.0, 0.0)
+            .intersections_line_segment(&line2);
         assert_eq!(intersections.len(), 1);
         approx::assert_relative_eq!(PrimitiveIntersections::One([0.5, 0.5]), intersections);
 
         // This segment doesn't intersect with line1 because it is parallel to it
         let line3 = LineSegment::new([0.0, 1.0], [1.0, 2.0]).unwrap();
-        let intersections = line1.intersections_line_segment(&line3, 0.0, 0.0);
+        let intersections = line1
+            .with_tolerance(0.0, 0.0)
+            .intersections_line_segment(&line3);
         assert_eq!(intersections.len(), 0);
 
         // This segment doesn't intersect with line1 even though it is not parallel
         let line4 = LineSegment::new([0.0, 1.0], [1.0, 3.0]).unwrap();
-        let intersection = line1.intersections_line_segment(&line4, 0.0, 0.0);
+        let intersection = line1
+            .with_tolerance(0.0, 0.0)
+            .intersections_line_segment(&line4);
         assert_eq!(intersection.len(), 0);
     }
     {
         // Segment intersects other segment at the end
         let line1 = LineSegment::new([0.0, 0.0], [0.5, 0.0]).unwrap();
         let line2 = LineSegment::new([0.5, -0.5], [0.5, 1.5]).unwrap();
-        let intersections = line1.intersections_line_segment(&line2, 0.0, 0.0);
+        let intersections = line1
+            .with_tolerance(0.0, 0.0)
+            .intersections_line_segment(&line2);
         assert_eq!(intersections.len(), 1);
         approx::assert_relative_eq!(PrimitiveIntersections::One([0.5, 0.0]), intersections);
     }
@@ -323,7 +319,9 @@ fn test_line_segments_intersection() {
         // One segment which is included in the other segment
         let line1 = LineSegment::new([0.0, 1.0], [0.0, 2.0]).unwrap();
         let line2 = LineSegment::new([0.0, 0.0], [0.0, 3.0]).unwrap();
-        let intersections = line1.intersections_line_segment(&line2, 0.0, 0.0);
+        let intersections = line1
+            .with_tolerance(0.0, 0.0)
+            .intersections_line_segment(&line2);
         assert_eq!(intersections.len(), 2);
         approx::assert_relative_eq!(
             PrimitiveIntersections::Two([[0.0, 1.0], [0.0, 2.0]]),
@@ -334,7 +332,9 @@ fn test_line_segments_intersection() {
         // Overlapping segments
         let line1 = LineSegment::new([0.0, 0.0], [0.0, 2.0]).unwrap();
         let line2 = LineSegment::new([0.0, 1.0], [0.0, 3.0]).unwrap();
-        let intersection = line1.intersections_line_segment(&line2, 0.0, 0.0);
+        let intersection = line1
+            .with_tolerance(0.0, 0.0)
+            .intersections_line_segment(&line2);
         assert_eq!(intersection.len(), 2);
         approx::assert_relative_eq!(
             PrimitiveIntersections::Two([[0.0, 1.0], [0.0, 2.0]]),
@@ -345,7 +345,9 @@ fn test_line_segments_intersection() {
         // Touching segments
         let line1 = LineSegment::new([0.0, 0.0], [0.0, 1.0]).unwrap();
         let line2 = LineSegment::new([0.0, 1.0], [0.0, 2.0]).unwrap();
-        let intersections = line1.intersections_line_segment(&line2, 0.0, 0.0);
+        let intersections = line1
+            .with_tolerance(0.0, 0.0)
+            .intersections_line_segment(&line2);
         assert_eq!(intersections.len(), 1);
         approx::assert_relative_eq!(PrimitiveIntersections::One([0.0, 1.0]), intersections);
     }
@@ -354,7 +356,9 @@ fn test_line_segments_intersection() {
         let line_1: Segment = LineSegment::new([0.0, 0.0], [0.5, 0.0]).unwrap().into();
         let line_2: Segment = LineSegment::new([0.5, -0.5], [0.5, 0.5]).unwrap().into();
 
-        let intersections = line_1.intersections_primitive(&line_2, 0.0, 0.0);
+        let intersections = line_1
+            .with_tolerance(0.0, 0.0)
+            .intersections_segment(&line_2);
         assert_eq!(intersections.len(), 1);
         approx::assert_relative_eq!(PrimitiveIntersections::One([0.5, 0.0]), intersections);
     }
@@ -363,7 +367,9 @@ fn test_line_segments_intersection() {
         let line_1: Segment = LineSegment::new([0.0, 0.0], [0.5, 0.0]).unwrap().into();
         let line_2: Segment = LineSegment::new([0.5, -1.5], [0.5, -0.5]).unwrap().into();
 
-        let results = line_1.intersections_primitive(&line_2, 0.0, 0.0);
+        let results = line_1
+            .with_tolerance(0.0, 0.0)
+            .intersections_segment(&line_2);
         assert_eq!(results.len(), 0);
     }
     {
@@ -371,7 +377,9 @@ fn test_line_segments_intersection() {
         let line_1: Segment = LineSegment::new([0.0, 0.0], [0.0, 1.0]).unwrap().into();
         let line_2 = line_1.clone();
 
-        let results = line_1.intersections_primitive(&line_2, 0.0, 0.0);
+        let results = line_1
+            .with_tolerance(0.0, 0.0)
+            .intersections_segment(&line_2);
         assert_eq!(results.len(), 2);
     }
     {
@@ -379,7 +387,9 @@ fn test_line_segments_intersection() {
         let line_1: Segment = LineSegment::new([0.0, 0.0], [0.0, 1.0]).unwrap().into();
         let line_2: Segment = LineSegment::new([1.0, 0.0], [1.0, 1.0]).unwrap().into();
 
-        let results = line_1.intersections_primitive(&line_2, 0.0, 0.0);
+        let results = line_1
+            .with_tolerance(0.0, 0.0)
+            .intersections_segment(&line_2);
         assert_eq!(results.len(), 0);
     }
     {
@@ -387,7 +397,9 @@ fn test_line_segments_intersection() {
         let line_1: Segment = LineSegment::new([0.0, 0.0], [0.0, 1.0]).unwrap().into();
         let line_2: Segment = LineSegment::new([0.0, 1.0], [0.0, 2.0]).unwrap().into();
 
-        let results = line_1.intersections_primitive(&line_2, 0.0, 0.0);
+        let results = line_1
+            .with_tolerance(0.0, 0.0)
+            .intersections_segment(&line_2);
         assert_eq!(results.len(), 1);
     }
     {
@@ -396,7 +408,9 @@ fn test_line_segments_intersection() {
         let line_1: Segment = LineSegment::new([0.0, 0.0], [0.0, 1.0]).unwrap().into();
         let line_2: Segment = LineSegment::new([0.0, 2.0], [0.0, 3.0]).unwrap().into();
 
-        let results = line_1.intersections_primitive(&line_2, 0.0, 0.0);
+        let results = line_1
+            .with_tolerance(0.0, 0.0)
+            .intersections_segment(&line_2);
         assert_eq!(results.len(), 0);
     }
     {
@@ -404,7 +418,9 @@ fn test_line_segments_intersection() {
         let line_1: Segment = LineSegment::new([0.0, 0.0], [1.0, 0.0]).unwrap().into();
         let line_2 = line_1.clone();
 
-        let results = line_1.intersections_primitive(&line_2, 0.0, 0.0);
+        let results = line_1
+            .with_tolerance(0.0, 0.0)
+            .intersections_segment(&line_2);
         assert_eq!(results.len(), 2);
     }
     {
@@ -421,7 +437,9 @@ fn test_line_segments_intersection() {
         )
         .unwrap()
         .into();
-        let intersections = line_1.intersections_primitive(&line_2, 0.0, 0.0);
+        let intersections = line_1
+            .with_tolerance(0.0, 0.0)
+            .intersections_segment(&line_2);
         approx::assert_relative_eq!(
             PrimitiveIntersections::One([0.004, 0.009078996041164352]),
             intersections
@@ -431,43 +449,65 @@ fn test_line_segments_intersection() {
         // Parallel lines
         let line_1 = LineSegment::new([0.0, 0.0], [1.0, 0.0]).unwrap();
         let line_2 = LineSegment::new([0.0, 1.0], [1.0, 1.0]).unwrap();
-        assert_eq!(line_1.intersections_primitive(&line_2, 0.0, 0.0).len(), 0);
+        assert_eq!(
+            line_1
+                .with_tolerance(0.0, 0.0)
+                .intersections_segment(&line_2)
+                .len(),
+            0
+        );
     }
     {
         // Parallel lines
         let line_1 = LineSegment::new([0.0, 0.0], [1.0, 1.0]).unwrap();
         let line_2 = LineSegment::new([2.0, 3.0], [3.0, 4.0]).unwrap();
-        assert_eq!(line_1.intersections_primitive(&line_2, 0.0, 0.0).len(), 0);
+        assert_eq!(
+            line_1
+                .with_tolerance(0.0, 0.0)
+                .intersections_segment(&line_2)
+                .len(),
+            0
+        );
     }
     {
         // Parallel lines
         let line_1 = LineSegment::new([0.0, 0.0], [1.0, 1.0]).unwrap();
         let line_2 = LineSegment::new([3.0, 4.0], [2.0, 3.0]).unwrap();
-        assert_eq!(line_1.intersections_primitive(&line_2, 0.0, 0.0).len(), 0);
+        assert_eq!(
+            line_1
+                .with_tolerance(0.0, 0.0)
+                .intersections_segment(&line_2)
+                .len(),
+            0
+        );
     }
     {
         let line_1 = LineSegment::new([0.0, 1.0], [1.0, -9.0]).unwrap();
         let line_2 = LineSegment::new([0.0, 0.0], [1.0, 0.0]).unwrap();
-        let actual = line_1.intersections_primitive(&line_2, 0.0, 0.0)[0];
+        let actual = line_1
+            .with_tolerance(0.0, 0.0)
+            .intersections_segment(&line_2)[0];
         assert_eq!(actual, [0.09999999999999998, 0.0]);
     }
     {
         let line_1 = LineSegment::new([0.0, 1.0], [1.0, -9.0]).unwrap();
         let line_2 = LineSegment::new([0.0, 1.0], [1.0, 1.0]).unwrap();
-        let actual = line_1.intersections_primitive(&line_2, 0.0, 0.0)[0];
+        let actual = line_1
+            .with_tolerance(0.0, 0.0)
+            .intersections_segment(&line_2)[0];
         assert_eq!(actual, [0.0, 1.0]);
     }
     {
         let line1 = LineSegment::new([1.0, 0.0], [1.0, 1.0]).unwrap();
         let line2 = LineSegment::new([-10.0, 1.0], [10.0, 1.0]).unwrap();
-        let intersections = line1.intersections_primitive(&line2, 0.0, 0.0);
+        let intersections = line1.with_tolerance(0.0, 0.0).intersections_segment(&line2);
         assert_eq!(intersections.len(), 1);
         approx::assert_relative_eq!(PrimitiveIntersections::One([1.0, 1.0]), intersections);
     }
     {
         let line1 = LineSegment::new([1.0, 1.0], [1.0, 0.0]).unwrap();
         let line2 = LineSegment::new([-10.0, 1.0], [10.0, 1.0]).unwrap();
-        let intersections = line1.intersections_primitive(&line2, 0.0, 0.0);
+        let intersections = line1.with_tolerance(0.0, 0.0).intersections_segment(&line2);
         assert_eq!(intersections.len(), 1);
         approx::assert_relative_eq!(PrimitiveIntersections::One([1.0, 1.0]), intersections);
     }
@@ -475,7 +515,7 @@ fn test_line_segments_intersection() {
         // Regression test from the Delaunay triangulation
         let line1: Segment = LineSegment::new([6.0, 2.0], [7.0, -3.0]).unwrap().into();
         let line2: Segment = LineSegment::new([0.0, 0.0], [1.0, 3.0]).unwrap().into();
-        let intersections = line1.intersections_primitive(&line2, 0.0, 0.0);
+        let intersections = line1.with_tolerance(0.0, 0.0).intersections_segment(&line2);
         assert_eq!(intersections.len(), 0);
     }
     {
@@ -487,17 +527,13 @@ fn test_line_segments_intersection() {
         // > The fix is to use a new heuristic which out of the 4 endpoints
         // > chooses the one which is closest to the other segment.
         // > This works in all known failure cases.
-        let line_1 = LineSegment::new(
-            [163.81867067, -211.31840378],
-            [165.9174252, -214.1665075],
-        )
-        .unwrap();
-        let line_2 = LineSegment::new(
-            [2.84139601, -57.95412726],
-            [469.59990601, -502.63851732],
-        )
-        .unwrap();
-        let actual = line_1.intersections_primitive(&line_2, 0.0, 0.0)[0];
+        let line_1 =
+            LineSegment::new([163.81867067, -211.31840378], [165.9174252, -214.1665075]).unwrap();
+        let line_2 =
+            LineSegment::new([2.84139601, -57.95412726], [469.59990601, -502.63851732]).unwrap();
+        let actual = line_1
+            .with_tolerance(0.0, 0.0)
+            .intersections_segment(&line_2)[0];
         assert_eq!(actual, [163.81867067, -211.31840378]);
     }
     {
@@ -516,7 +552,9 @@ fn test_line_segments_intersection() {
             [-218.1208801283, -160.68343590235],
         )
         .unwrap();
-        let actual = line_1.intersections_primitive(&line_2, 0.0, 0.0)[0];
+        let actual = line_1
+            .with_tolerance(0.0, 0.0)
+            .intersections_segment(&line_2)[0];
         assert_eq!(actual, [-215.22279674875, -158.65425425385]);
     }
     {
@@ -527,7 +565,13 @@ fn test_line_segments_intersection() {
         // > Succeeds using DD and Shewchuk orientation
         let line_1 = LineSegment::new([-42.0, 163.2], [21.2, 265.2]).unwrap();
         let line_2 = LineSegment::new([-26.2, 188.7], [37.0, 290.7]).unwrap();
-        assert_eq!(line_1.intersections_primitive(&line_2, 0.0, 0.0).len(), 0);
+        assert_eq!(
+            line_1
+                .with_tolerance(0.0, 0.0)
+                .intersections_segment(&line_2)
+                .len(),
+            0
+        );
     }
     {
         // Based on JTS test `testTomasFa_2`
@@ -537,7 +581,13 @@ fn test_line_segments_intersection() {
         // > Fails using original JTS DeVillers determine orientation test.
         let line_1 = LineSegment::new([-5.9, 163.1], [76.1, 250.7]).unwrap();
         let line_2 = LineSegment::new([14.6, 185.0], [96.6, 272.6]).unwrap();
-        assert_eq!(line_1.intersections_primitive(&line_2, 0.0, 0.0).len(), 0);
+        assert_eq!(
+            line_1
+                .with_tolerance(0.0, 0.0)
+                .intersections_segment(&line_2)
+                .len(),
+            0
+        );
     }
     {
         // Based on JTS test `testLeduc_1`
@@ -554,7 +604,9 @@ fn test_line_segments_intersection() {
             [305692.4999844298, 254171.4999983967],
         )
         .unwrap();
-        let actual = line_1.intersections_primitive(&line_2, 0.0, 0.0)[0];
+        let actual = line_1
+            .with_tolerance(0.0, 0.0)
+            .intersections_segment(&line_2)[0];
         assert_eq!(actual, [305690.0434123494, 254176.46578338774]);
     }
     {
@@ -571,7 +623,9 @@ fn test_line_segments_intersection() {
             [588748.2060437313, 4518933.9452791475],
         )
         .unwrap();
-        let actual = line_1.intersections_primitive(&line_2, 0.0, 0.0)[0];
+        let actual = line_1
+            .with_tolerance(0.0, 0.0)
+            .intersections_segment(&line_2)[0];
         assert_eq!(actual, [588748.2060416829, 4518933.945284994]);
     }
     {
@@ -588,7 +642,9 @@ fn test_line_segments_intersection() {
             [588731.7854614238, 4518924.578370095],
         )
         .unwrap();
-        let actual = line_1.intersections_primitive(&line_2, 0.0, 0.0)[0];
+        let actual = line_1
+            .with_tolerance(0.0, 0.0)
+            .intersections_segment(&line_2)[0];
         assert_eq!(actual, [588733.8306132929, 4518925.319423238]);
     }
     {
@@ -606,7 +662,9 @@ fn test_line_segments_intersection() {
             [2259977.3672236, 483675.17050843034],
         )
         .unwrap();
-        let actual = line_1.intersections_primitive(&line_2, 0.0, 0.0)[0];
+        let actual = line_1
+            .with_tolerance(0.0, 0.0)
+            .intersections_segment(&line_2)[0];
         assert_eq!(actual, [2087536.6062609926, 1187900.560566967]);
     }
     {
@@ -623,7 +681,9 @@ fn test_line_segments_intersection() {
             [4348440.8493874, 5552599.27202212],
         )
         .unwrap();
-        let actual = line_1.intersections_primitive(&line_2, 0.0, 0.0)[0];
+        let actual = line_1
+            .with_tolerance(0.0, 0.0)
+            .intersections_segment(&line_2)[0];
         assert_eq!(actual, [4348440.8493874, 5552599.27202212]);
     }
 }
@@ -633,15 +693,12 @@ fn self_intersection() {
     let ls = LineSegment::new([0.0, 0.0], [1.0, 0.0]).unwrap();
 
     // Self-intersection
-    assert_eq!(
-        ls.intersections_primitive(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE),
-        PrimitiveIntersections::Zero
-    );
+    assert_eq!(ls.intersections_segment(&ls), PrimitiveIntersections::Zero);
 
     // Intersections with equal primitive
     let ls_cloned = ls.clone();
     assert_eq!(
-        ls.intersections_primitive(&ls_cloned, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE),
+        ls.intersections_segment(&ls_cloned),
         PrimitiveIntersections::Two([[0.0, 0.0], [1.0, 0.0]])
     );
 }
@@ -652,140 +709,133 @@ fn test_intersection_line_line_segment() {
     let line = Line::from_point_angle([0.5, 0.5], 0.0);
 
     {
-        let intersection = ls.intersections_primitive(&line, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE);
+        let intersection = ls.intersections_line(&line);
         approx::assert_abs_diff_eq!(intersection, PrimitiveIntersections::One([0.0, 0.5]));
     }
     {
-        let intersection = ls.intersections(&line, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE);
+        let intersection = ls.intersections(&line);
         approx::assert_abs_diff_eq!(intersection[0].point, [0.0, 0.5]);
     }
 }
 
 #[test]
 fn test_covers() {
-    let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_RELATIVE;
-
     let ls = LineSegment::new([0.0, 0.0], [1.0, 1.0]).unwrap();
     let ls_start_to_middle = LineSegment::new([0.0, 0.0], [0.5, 0.5]).unwrap();
-    assert!(ls.covers(&ls_start_to_middle, e, m));
-    assert!(!ls_start_to_middle.covers(&ls, e, m));
+    assert!(ls.covers(&ls_start_to_middle));
+    assert!(!ls_start_to_middle.covers(&ls));
 
     let ls_middle_to_end = LineSegment::new([0.5, 0.5], [1.0, 1.0]).unwrap();
-    assert!(ls.covers(&ls_middle_to_end, e, m));
-    assert!(!ls_middle_to_end.covers(&ls, e, m));
+    assert!(ls.covers(&ls_middle_to_end));
+    assert!(!ls_middle_to_end.covers(&ls));
 
     let ls_overlap = LineSegment::new([0.5, 0.5], [1.5, 1.5]).unwrap();
-    assert!(!ls.covers(&ls_overlap, e, m));
-    assert!(!ls_overlap.covers(&ls, e, m));
+    assert!(!ls.covers(&ls_overlap));
+    assert!(!ls_overlap.covers(&ls));
 
     let ls_crossing = LineSegment::new([0.0, 1.0], [1.0, 0.0]).unwrap();
-    assert!(!ls.covers(&ls_crossing, e, m));
-    assert!(!ls_crossing.covers(&ls, e, m));
+    assert!(!ls.covers(&ls_crossing));
+    assert!(!ls_crossing.covers(&ls));
 
     let ls_elsewhere = LineSegment::new([0.0, -1.0], [1.0, -1.0]).unwrap();
-    assert!(!ls.covers(&ls_elsewhere, e, m));
-    assert!(!ls_elsewhere.covers(&ls, e, m));
+    assert!(!ls.covers(&ls_elsewhere));
+    assert!(!ls_elsewhere.covers(&ls));
 }
 
 #[test]
 fn test_touches_line_segment() {
-    let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_RELATIVE;
     {
         let ls1 = LineSegment::new([0.0, 0.0], [1.0, 1.0]).unwrap();
         let ls2 = LineSegment::new([0.5, 0.5], [1.0, 0.0]).unwrap();
-        assert!(ls1.touches_segment(&ls2, e, m));
-        assert!(ls2.touches_segment(&ls1, e, m));
-        assert!(!ls1.touches_segment(&ls1, e, m));
-        assert!(!ls2.touches_segment(&ls2, e, m));
+        assert!(ls1.touches_segment(&ls2));
+        assert!(ls2.touches_segment(&ls1));
+        assert!(!ls1.touches_segment(&ls1));
+        assert!(!ls2.touches_segment(&ls2));
     }
     {
         let ls1 = LineSegment::new([0.0, 0.0], [1.0, 1.0]).unwrap();
         let ls2 = LineSegment::new([0.0, 1.0], [1.0, 2.0]).unwrap();
-        assert!(!ls1.touches_segment(&ls2, e, m));
-        assert!(!ls2.touches_segment(&ls1, e, m));
+        assert!(!ls1.touches_segment(&ls2));
+        assert!(!ls2.touches_segment(&ls1));
     }
     {
         let ls1 = LineSegment::new([0.0, 0.0], [1.0, 1.0]).unwrap();
         let ls2 = LineSegment::new([0.0, 0.0], [1.0, 2.0]).unwrap();
-        assert!(ls1.touches_segment(&ls2, e, m));
-        assert!(ls2.touches_segment(&ls1, e, m));
+        assert!(ls1.touches_segment(&ls2));
+        assert!(ls2.touches_segment(&ls1));
     }
     {
         let ls1 = LineSegment::new([0.0, 0.0], [1.0, 1.0]).unwrap();
         let ls2 = LineSegment::new([1.0, 0.0], [1.0, 1.0]).unwrap();
-        assert!(ls1.touches_segment(&ls2, e, m));
-        assert!(ls2.touches_segment(&ls1, e, m));
+        assert!(ls1.touches_segment(&ls2));
+        assert!(ls2.touches_segment(&ls1));
     }
     {
         let ls1 = LineSegment::new([0.0, 0.0], [1.0, 1.0]).unwrap();
         let ls2 = LineSegment::new([0.0, 0.0], [1.0, 1.0]).unwrap();
-        assert!(ls1.touches_segment(&ls2, e, m));
-        assert!(ls2.touches_segment(&ls1, e, m));
+        assert!(ls1.touches_segment(&ls2));
+        assert!(ls2.touches_segment(&ls1));
     }
     {}
 }
 
 #[test]
 fn test_touches_arc_segments() {
-    let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_RELATIVE;
     {
         let ls = LineSegment::new([0.0, 3.0], [1.0, 3.0]).unwrap();
         let arc = ArcSegment::circle([0.0, 1.0], 2.0).unwrap();
-        assert!(ls.touches_segment(&arc, e, m));
-        assert!(arc.touches_segment(&ls, e, m));
+        assert!(ls.touches_segment(&arc));
+        assert!(arc.touches_segment(&ls));
     }
     {
         let ls = LineSegment::new([-10.0, 3.0], [1.0, 3.0]).unwrap();
         let arc = ArcSegment::circle([0.0, 1.0], 2.0).unwrap();
-        assert!(ls.touches_segment(&arc, e, m));
-        assert!(arc.touches_segment(&ls, e, m));
+        assert!(ls.touches_segment(&arc));
+        assert!(arc.touches_segment(&ls));
     }
     {
         let ls = LineSegment::new([-10.0, 4.0], [1.0, 4.0]).unwrap();
         let arc = ArcSegment::circle([0.0, 1.0], 2.0).unwrap();
-        assert!(!ls.touches_segment(&arc, e, m));
-        assert!(!arc.touches_segment(&ls, e, m));
+        assert!(!ls.touches_segment(&arc));
+        assert!(!arc.touches_segment(&ls));
     }
     {
         let ls = LineSegment::new([-10.0, 2.0], [1.0, 2.0]).unwrap();
         let arc = ArcSegment::circle([0.0, 1.0], 2.0).unwrap();
-        assert!(!ls.touches_segment(&arc, e, m));
-        assert!(!arc.touches_segment(&ls, e, m));
+        assert!(!ls.touches_segment(&arc));
+        assert!(!arc.touches_segment(&ls));
     }
     {
         let ls = LineSegment::new([3.0, 2.0], [3.0, -2.0]).unwrap();
         let arc = ArcSegment::circle([1.0, 1.0], 2.0).unwrap();
-        assert!(ls.touches_segment(&arc, e, m));
-        assert!(arc.touches_segment(&ls, e, m));
+        assert!(ls.touches_segment(&arc));
+        assert!(arc.touches_segment(&ls));
     }
     {
         let ls = LineSegment::new([3.0, 2.0], [3.0, -2.0]).unwrap();
         let arc =
             ArcSegment::from_center_radius_start_sweep_angle([1.0, 1.0], 2.0, 1.0, 1.0).unwrap();
-        assert!(!ls.touches_segment(&arc, e, m));
-        assert!(!arc.touches_segment(&ls, e, m));
+        assert!(!ls.touches_segment(&arc));
+        assert!(!arc.touches_segment(&ls));
     }
     {
         let ls = LineSegment::new([-1.0, 0.0], [1.0, 0.0]).unwrap();
         let arc =
             ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 1.0, 0.0, PI).unwrap();
-        assert!(ls.touches_segment(&arc, e, m));
-        assert!(arc.touches_segment(&ls, e, m));
+        assert!(ls.touches_segment(&arc));
+        assert!(arc.touches_segment(&ls));
     }
     {
         let ls = LineSegment::new([0.0, 0.0], [0.0, 1.0]).unwrap();
         let arc =
             ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 1.0, 0.0, PI).unwrap();
-        assert!(ls.touches_segment(&arc, e, m));
-        assert!(arc.touches_segment(&ls, e, m));
+        assert!(ls.touches_segment(&arc));
+        assert!(arc.touches_segment(&ls));
     }
     {
         let ls = LineSegment::new([-1.0, 0.0], [1.0, 0.0]).unwrap();
         let arc = ArcSegment::from_start_center_angle([0.0, 1.0], [1.0, 1.0], FRAC_PI_2).unwrap();
-        assert!(ls.touches_segment(&arc, e, m));
-        assert!(arc.touches_segment(&ls, e, m));
+        assert!(ls.touches_segment(&arc));
+        assert!(arc.touches_segment(&ls));
     }
 }

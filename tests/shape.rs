@@ -304,26 +304,54 @@ fn test_rectangle_with_hole() {
 
     let shape = Shape::new(vec![c1, c2]).unwrap();
 
-    assert!(shape.covers_point([0.0, 0.0], DEFAULT_EPSILON, 0.0).is_ok());
-    assert!(shape.covers_point([0.1, 0.1], DEFAULT_EPSILON, 0.0).is_ok());
     assert!(
         shape
-            .covers_point([0.11, 0.11], DEFAULT_EPSILON, 0.0)
-            .is_err()
-    );
-    assert!(shape.covers_point([0.11, 0.11], 0.2, 0.0).is_ok());
-    assert!(
-        shape
-            .covers_point([0.5, 0.5], DEFAULT_EPSILON, 0.0)
-            .is_err()
+            .with_tolerance(DEFAULT_EPSILON, 0.0)
+            .covers_point(&[0.0, 0.0],)
+            .is_ok()
     );
     assert!(
         shape
-            .covers_point([0.0, -0.05], DEFAULT_EPSILON, 0.0)
+            .with_tolerance(DEFAULT_EPSILON, 0.0)
+            .covers_point(&[0.1, 0.1])
+            .is_ok()
+    );
+    assert!(
+        shape
+            .with_tolerance(DEFAULT_EPSILON, 0.0)
+            .covers_point(&[0.11, 0.11])
             .is_err()
     );
-    assert!(shape.covers_point([0.0, -0.05], 0.05, 0.0).is_ok());
-    assert!(shape.covers_point([0.0, -0.05], 0.02, 0.0).is_err());
+    assert!(
+        shape
+            .with_tolerance(0.2, 0.0)
+            .covers_point(&[0.11, 0.11])
+            .is_ok()
+    );
+    assert!(
+        shape
+            .with_tolerance(DEFAULT_EPSILON, 0.0)
+            .covers_point(&[0.5, 0.5])
+            .is_err()
+    );
+    assert!(
+        shape
+            .with_tolerance(DEFAULT_EPSILON, 0.0)
+            .covers_point(&[0.0, -0.05])
+            .is_err()
+    );
+    assert!(
+        shape
+            .with_tolerance(0.05, 0.0)
+            .covers_point(&[0.0, -0.05])
+            .is_ok()
+    );
+    assert!(
+        shape
+            .with_tolerance(0.02, 0.0)
+            .covers_point(&[0.0, -0.05])
+            .is_err()
+    );
 }
 
 #[test]
@@ -345,9 +373,8 @@ fn test_intersection_with_polysegment() {
         [0.0, 2.0],
     ]);
 
-    let intersections_sc = shape.intersections(&polysegment, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE);
-    let mut intersections_cs =
-        polysegment.intersections(&shape, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE);
+    let intersections_sc = shape.intersections(&polysegment);
+    let mut intersections_cs = polysegment.intersections(&shape);
     intersections_cs
         .iter_mut()
         .for_each(|i| *i = Intersection::switch(*i));
@@ -460,7 +487,7 @@ fn test_intersection_with_polysegment() {
         let vertices = &[[2.0, 1.0], [2.0, 0.5], [0.0, 0.5]];
         let polysegment = Polysegment::from_points(vertices);
 
-        let intersections = polysegment.intersections(&shape, 0.0, 0.0);
+        let intersections = polysegment.with_tolerance(0.0, 0.0).intersections(&shape);
         assert_eq!(intersections.len(), 4);
 
         approx::assert_abs_diff_eq!(
@@ -515,8 +542,6 @@ fn test_centroid() {
 
 #[test]
 fn test_covers_shape() {
-    let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_RELATIVE;
     {
         let c = Contour::new(Polysegment::from_points(&[
             [0.0, 0.0],
@@ -525,7 +550,7 @@ fn test_covers_shape() {
             [0.0, 1.0],
         ]));
         let s1 = Shape::try_from(c).unwrap();
-        assert!(s1.covers_shape(&s1, e, m).is_ok());
+        assert!(s1.covers_shape(&s1).is_ok());
 
         let c = Contour::new(Polysegment::from_points(&[
             [0.0, 0.0],
@@ -534,8 +559,8 @@ fn test_covers_shape() {
             [0.0, 1.0],
         ]));
         let s2 = Shape::try_from(c).unwrap();
-        assert!(s1.covers_shape(&s2, e, m).is_err());
-        assert!(s2.covers_shape(&s1, e, m).is_ok());
+        assert!(s1.covers_shape(&s2).is_err());
+        assert!(s2.covers_shape(&s1).is_ok());
 
         let c = Contour::new(Polysegment::from_points(&[
             [0.0, 0.0],
@@ -544,8 +569,8 @@ fn test_covers_shape() {
             [0.0, 0.5],
         ]));
         let s2 = Shape::try_from(c).unwrap();
-        assert!(s1.covers_shape(&s2, e, m).is_err());
-        assert!(s2.covers_shape(&s1, e, m).is_err());
+        assert!(s1.covers_shape(&s2).is_err());
+        assert!(s2.covers_shape(&s1).is_err());
     }
     {
         let c = Contour::new(Polysegment::from_points(&[
@@ -561,7 +586,7 @@ fn test_covers_shape() {
             [0.1, 0.9],
         ]));
         let s1 = Shape::new(vec![c, h]).unwrap();
-        assert!(s1.covers_shape(&s1, e, m).is_ok());
+        assert!(s1.covers_shape(&s1).is_ok());
 
         let c = Contour::new(Polysegment::from_points(&[
             [0.0, 0.0],
@@ -570,8 +595,8 @@ fn test_covers_shape() {
             [0.0, 1.0],
         ]));
         let s2 = Shape::try_from(c).unwrap();
-        assert!(s1.covers_shape(&s2, e, m).is_ok());
-        assert!(s2.covers_shape(&s1, e, m).is_err());
+        assert!(s1.covers_shape(&s2).is_ok());
+        assert!(s2.covers_shape(&s1).is_err());
 
         let c = Contour::new(Polysegment::from_points(&[
             [0.01, 0.1],
@@ -580,8 +605,8 @@ fn test_covers_shape() {
             [0.01, 0.9],
         ]));
         let s2 = Shape::try_from(c).unwrap();
-        assert!(s1.covers_shape(&s2, e, m).is_ok());
-        assert!(s2.covers_shape(&s1, e, m).is_err());
+        assert!(s1.covers_shape(&s2).is_ok());
+        assert!(s2.covers_shape(&s1).is_err());
 
         let c = Contour::new(Polysegment::from_points(&[
             [0.11, 0.11],
@@ -590,8 +615,8 @@ fn test_covers_shape() {
             [0.11, 0.89],
         ]));
         let s2 = Shape::try_from(c).unwrap();
-        assert!(s1.covers_shape(&s2, e, m).is_err());
-        assert!(s2.covers_shape(&s1, e, m).is_err());
+        assert!(s1.covers_shape(&s2).is_err());
+        assert!(s2.covers_shape(&s1).is_err());
     }
     {
         let outer = Contour::new(Polysegment::from_points(&[
@@ -607,15 +632,12 @@ fn test_covers_shape() {
             [0.9, 0.1],
         ]));
         let shape = Shape::new(vec![outer, hole]).unwrap();
-        assert!(shape.covers_shape(&shape, e, m).is_ok());
+        assert!(shape.covers_shape(&shape).is_ok());
     }
 }
 
 #[test]
 fn test_covers_point() {
-    let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_RELATIVE;
-
     {
         let c = Contour::new(Polysegment::from_points(&[
             [0.0, 0.0],
@@ -630,17 +652,14 @@ fn test_covers_point() {
             [0.1, 0.9],
         ]));
         let s1 = Shape::new(vec![c, h]).unwrap();
-        assert!(s1.covers_point([0.05, 0.5], e, m).is_ok());
-        assert!(s1.covers_point([0.5, 0.5], e, m).is_err());
-        assert!(s1.covers_point([0.1, 0.5], e, m).is_ok());
+        assert!(s1.covers_point(&[0.05, 0.5]).is_ok());
+        assert!(s1.covers_point(&[0.5, 0.5]).is_err());
+        assert!(s1.covers_point(&[0.1, 0.5]).is_ok());
     }
 }
 
 #[test]
 fn test_contains_point() {
-    let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_RELATIVE;
-
     {
         let c = Contour::new(Polysegment::from_points(&[
             [0.0, 0.0],
@@ -655,16 +674,14 @@ fn test_contains_point() {
             [0.1, 0.9],
         ]));
         let s1 = Shape::new(vec![c, h]).unwrap();
-        assert!(s1.contains_point([0.05, 0.5], e, m).is_ok());
-        assert!(s1.contains_point([0.5, 0.5], e, m).is_err());
-        assert!(s1.contains_point([0.1, 0.5], e, m).is_err());
+        assert!(s1.contains_point(&[0.05, 0.5]).is_ok());
+        assert!(s1.contains_point(&[0.5, 0.5]).is_err());
+        assert!(s1.contains_point(&[0.1, 0.5]).is_err());
     }
 }
 
 #[test]
 fn test_contains_shape() {
-    let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_RELATIVE;
     {
         let c = Contour::new(Polysegment::from_points(&[
             [0.0, 0.0],
@@ -673,7 +690,7 @@ fn test_contains_shape() {
             [0.0, 1.0],
         ]));
         let s1 = Shape::try_from(c).unwrap();
-        assert!(s1.contains_shape(&s1, e, m).is_err());
+        assert!(s1.contains_shape(&s1).is_err());
 
         let c = Contour::new(Polysegment::from_points(&[
             [0.0, 0.0],
@@ -682,8 +699,8 @@ fn test_contains_shape() {
             [0.0, 1.0],
         ]));
         let s2 = Shape::try_from(c).unwrap();
-        assert!(s1.contains_shape(&s2, e, m).is_err());
-        assert!(s2.contains_shape(&s1, e, m).is_err());
+        assert!(s1.contains_shape(&s2).is_err());
+        assert!(s2.contains_shape(&s1).is_err());
 
         let c = Contour::new(Polysegment::from_points(&[
             [0.0, 0.0],
@@ -692,8 +709,8 @@ fn test_contains_shape() {
             [0.0, 0.5],
         ]));
         let s2 = Shape::try_from(c).unwrap();
-        assert!(s1.contains_shape(&s2, e, m).is_err());
-        assert!(s2.contains_shape(&s1, e, m).is_err());
+        assert!(s1.contains_shape(&s2).is_err());
+        assert!(s2.contains_shape(&s1).is_err());
     }
     {
         let c = Contour::new(Polysegment::from_points(&[
@@ -709,7 +726,7 @@ fn test_contains_shape() {
             [0.1, 0.9],
         ]));
         let s1 = Shape::new(vec![c, h]).unwrap();
-        assert!(s1.contains_shape(&s1, e, m).is_err());
+        assert!(s1.contains_shape(&s1).is_err());
 
         let c = Contour::new(Polysegment::from_points(&[
             [0.0, 0.0],
@@ -718,8 +735,8 @@ fn test_contains_shape() {
             [0.0, 1.0],
         ]));
         let s2 = Shape::try_from(c).unwrap();
-        assert!(s1.contains_shape(&s2, e, m).is_err());
-        assert!(s2.contains_shape(&s1, e, m).is_err());
+        assert!(s1.contains_shape(&s2).is_err());
+        assert!(s2.contains_shape(&s1).is_err());
 
         let c = Contour::new(Polysegment::from_points(&[
             [0.01, 0.1],
@@ -728,8 +745,8 @@ fn test_contains_shape() {
             [0.01, 0.9],
         ]));
         let s2 = Shape::try_from(c).unwrap();
-        assert!(s1.contains_shape(&s2, e, m).is_ok());
-        assert!(s2.contains_shape(&s1, e, m).is_err());
+        assert!(s1.contains_shape(&s2).is_ok());
+        assert!(s2.contains_shape(&s1).is_err());
 
         let c = Contour::new(Polysegment::from_points(&[
             [0.11, 0.11],
@@ -738,15 +755,13 @@ fn test_contains_shape() {
             [0.11, 0.89],
         ]));
         let s2 = Shape::try_from(c).unwrap();
-        assert!(s1.contains_shape(&s2, e, m).is_err());
-        assert!(s2.contains_shape(&s1, e, m).is_err());
+        assert!(s1.contains_shape(&s2).is_err());
+        assert!(s2.contains_shape(&s1).is_err());
     }
 }
 
 #[test]
 fn test_overlaps_segment() {
-    let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_RELATIVE;
     {
         let outer = Contour::new(Polysegment::from_points(&[
             [0.0, 0.0],
@@ -764,22 +779,22 @@ fn test_overlaps_segment() {
 
         assert!(
             shape
-                .contains_any_segment(&LineSegment::new([0.0, 0.0], [1.0, 1.0]).unwrap(), e, m)
+                .contains_any_segment(&LineSegment::new([0.0, 0.0], [1.0, 1.0]).unwrap())
                 .is_ok()
         );
         assert!(
             shape
-                .contains_any_segment(&LineSegment::new([-1.0, -1.0], [2.0, 2.0]).unwrap(), e, m)
+                .contains_any_segment(&LineSegment::new([-1.0, -1.0], [2.0, 2.0]).unwrap())
                 .is_ok()
         );
         assert!(
             !shape
-                .contains_any_segment(&LineSegment::new([0.2, 0.2], [0.8, 0.8]).unwrap(), e, m)
+                .contains_any_segment(&LineSegment::new([0.2, 0.2], [0.8, 0.8]).unwrap())
                 .is_ok()
         );
         assert!(
             !shape
-                .contains_any_segment(&LineSegment::new([0.1, 0.1], [0.9, 0.9]).unwrap(), e, m)
+                .contains_any_segment(&LineSegment::new([0.1, 0.1], [0.9, 0.9]).unwrap())
                 .is_ok()
         );
         assert!(
@@ -792,8 +807,6 @@ fn test_overlaps_segment() {
                         FRAC_PI_2,
                     )
                     .unwrap(),
-                    e,
-                    m
                 )
                 .is_ok()
         );
@@ -807,8 +820,6 @@ fn test_overlaps_segment() {
                         FRAC_PI_2,
                     )
                     .unwrap(),
-                    e,
-                    m
                 )
                 .is_ok()
         );
@@ -822,8 +833,6 @@ fn test_overlaps_segment() {
                         FRAC_PI_2,
                     )
                     .unwrap(),
-                    e,
-                    m
                 )
                 .is_ok()
         );
@@ -837,8 +846,6 @@ fn test_overlaps_segment() {
                         FRAC_PI_2,
                     )
                     .unwrap(),
-                    e,
-                    m
                 )
                 .is_ok()
         );
@@ -852,8 +859,6 @@ fn test_overlaps_segment() {
                         FRAC_PI_2 + 0.2,
                     )
                     .unwrap(),
-                    e,
-                    m
                 )
                 .is_ok()
         );
@@ -862,8 +867,6 @@ fn test_overlaps_segment() {
 
 #[test]
 fn test_overlaps_contour() {
-    let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_RELATIVE;
     {
         let outer = Contour::new(Polysegment::from_points(&[
             [0.0, 0.0],
@@ -881,86 +884,62 @@ fn test_overlaps_contour() {
 
         assert!(
             shape
-                .contains_any_contour(
-                    &Contour::new(Polysegment::from_points(&[
-                        [0.0, 0.0],
-                        [0.0, 1.0],
-                        [1.0, 1.0],
-                        [1.0, 0.0],
-                    ])),
-                    e,
-                    m
-                )
+                .contains_any_contour(&Contour::new(Polysegment::from_points(&[
+                    [0.0, 0.0],
+                    [0.0, 1.0],
+                    [1.0, 1.0],
+                    [1.0, 0.0],
+                ])),)
                 .is_ok()
         );
         assert!(
             !shape
-                .contains_any_contour(
-                    &Contour::new(Polysegment::from_points(&[
-                        [0.0, 0.0],
-                        [0.0, -1.0],
-                        [1.0, -1.0],
-                        [1.0, 0.0],
-                    ])),
-                    e,
-                    m
-                )
+                .contains_any_contour(&Contour::new(Polysegment::from_points(&[
+                    [0.0, 0.0],
+                    [0.0, -1.0],
+                    [1.0, -1.0],
+                    [1.0, 0.0],
+                ])),)
                 .is_ok()
         );
         assert!(
             shape
-                .contains_any_contour(
-                    &Contour::new(Polysegment::from_points(&[
-                        [0.0, 0.0],
-                        [0.0, 0.1],
-                        [1.0, 0.1],
-                        [1.0, 0.0],
-                    ])),
-                    e,
-                    m
-                )
+                .contains_any_contour(&Contour::new(Polysegment::from_points(&[
+                    [0.0, 0.0],
+                    [0.0, 0.1],
+                    [1.0, 0.1],
+                    [1.0, 0.0],
+                ])),)
                 .is_ok()
         );
         assert!(
             shape
-                .contains_any_contour(
-                    &Contour::new(Polysegment::from_points(&[
-                        [0.0, 0.0],
-                        [0.0, 0.8],
-                        [1.0, 0.8],
-                        [1.0, 0.0],
-                    ])),
-                    e,
-                    m
-                )
+                .contains_any_contour(&Contour::new(Polysegment::from_points(&[
+                    [0.0, 0.0],
+                    [0.0, 0.8],
+                    [1.0, 0.8],
+                    [1.0, 0.0],
+                ])),)
                 .is_ok()
         );
         assert!(
             !shape
-                .contains_any_contour(
-                    &Contour::new(Polysegment::from_points(&[
-                        [0.1, 0.1],
-                        [0.1, 0.9],
-                        [0.9, 0.9],
-                        [0.9, 0.1],
-                    ])),
-                    e,
-                    m
-                )
+                .contains_any_contour(&Contour::new(Polysegment::from_points(&[
+                    [0.1, 0.1],
+                    [0.1, 0.9],
+                    [0.9, 0.9],
+                    [0.9, 0.1],
+                ])),)
                 .is_ok()
         );
         assert!(
             shape
-                .contains_any_contour(
-                    &Contour::new(Polysegment::from_points(&[
-                        [-0.1, -0.1],
-                        [-0.1, 1.1],
-                        [1.1, 1.1],
-                        [1.1, -0.1],
-                    ])),
-                    e,
-                    m
-                )
+                .contains_any_contour(&Contour::new(Polysegment::from_points(&[
+                    [-0.1, -0.1],
+                    [-0.1, 1.1],
+                    [1.1, 1.1],
+                    [1.1, -0.1],
+                ])),)
                 .is_ok()
         );
     }
@@ -968,8 +947,6 @@ fn test_overlaps_contour() {
 
 #[test]
 fn test_overlaps_shape() {
-    let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_RELATIVE;
     {
         let outer = Contour::new(Polysegment::from_points(&[
             [0.0, 0.0],
@@ -984,7 +961,7 @@ fn test_overlaps_shape() {
             [0.9, 0.1],
         ]));
         let s1 = Shape::new(vec![outer, hole]).unwrap();
-        assert!(s1.contains_any_shape(&s1, e, m).is_ok());
+        assert!(s1.contains_any_shape(&s1).is_ok());
 
         let outer = Contour::new(Polysegment::from_points(&[
             [-0.1, -0.1],
@@ -999,8 +976,8 @@ fn test_overlaps_shape() {
             [1.0, 0.0],
         ]));
         let s2 = Shape::new(vec![outer, hole]).unwrap();
-        assert!(s1.contains_any_shape(&s2, e, m).is_err());
-        assert!(s2.contains_any_shape(&s1, e, m).is_err());
+        assert!(s1.contains_any_shape(&s2).is_err());
+        assert!(s2.contains_any_shape(&s1).is_err());
 
         let s3 = Shape::from_outer(Contour::new(Polysegment::from_points(&[
             [0.1, 0.1],
@@ -1009,8 +986,8 @@ fn test_overlaps_shape() {
             [0.9, 0.1],
         ])))
         .unwrap();
-        assert!(s1.contains_any_shape(&s3, e, m).is_err());
-        assert!(s3.contains_any_shape(&s1, e, m).is_err());
+        assert!(s1.contains_any_shape(&s3).is_err());
+        assert!(s3.contains_any_shape(&s1).is_err());
 
         let s4 = Shape::from_outer(Contour::new(Polysegment::from_points(&[
             [0.0, 0.1],
@@ -1019,16 +996,13 @@ fn test_overlaps_shape() {
             [0.9, 0.1],
         ])))
         .unwrap();
-        assert!(s1.contains_any_shape(&s4, e, m).is_ok());
-        assert!(s4.contains_any_shape(&s1, e, m).is_ok());
+        assert!(s1.contains_any_shape(&s4).is_ok());
+        assert!(s4.contains_any_shape(&s1).is_ok());
     }
 }
 
 #[test]
 fn test_overlaps_various_elements() {
-    let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_RELATIVE;
-
     let contour = Contour::new(Polysegment::from_points(&[
         [-2.0, -2.0],
         [2.0, -2.0],
@@ -1055,42 +1029,42 @@ fn test_overlaps_various_elements() {
     let delta_angle = 1.0 / max_counter * std::f64::consts::TAU;
 
     while count < max_counter {
-        if let Ok(e) = outer.contains_any_segment(&arc, e, m) {
+        if let Ok(e) = outer.contains_any_segment(&arc) {
             panic!(
                 "arc overlaps for angle {}, reason: {}",
                 delta_angle * count,
                 e
             );
         }
-        if let Ok(e) = outer.contains_any_segment(&line_1, e, m) {
+        if let Ok(e) = outer.contains_any_segment(&line_1) {
             panic!(
                 "line_1 overlaps for angle {}, reason: {}",
                 delta_angle * count,
                 e
             );
         }
-        if let Ok(e) = outer.contains_any_segment(&line_2, e, m) {
+        if let Ok(e) = outer.contains_any_segment(&line_2) {
             panic!(
                 "line_2 overlaps for angle {}, reason: {}",
                 delta_angle * count,
                 e
             );
         }
-        if let Ok(e) = outer.contains_any_composite(&polysegment, e, m) {
+        if let Ok(e) = outer.contains_any(&polysegment) {
             panic!(
                 "polysegment overlaps for angle {}, reason: {}",
                 delta_angle * count,
                 e
             );
         }
-        if let Ok(e) = outer.contains_any_composite(&contour, e, m) {
+        if let Ok(e) = outer.contains_any(&contour) {
             panic!(
                 "contour overlaps for angle {}, reason: {}",
                 delta_angle * count,
                 e
             );
         }
-        if let Ok(e) = outer.contains_any_composite(&shape, e, m) {
+        if let Ok(e) = outer.contains_any(&shape) {
             panic!(
                 "shape overlaps for angle {}, reason: {}",
                 delta_angle * count,

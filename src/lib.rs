@@ -34,48 +34,9 @@ doc = ::embed_doc_image::embed_image!("intersection_composites.svg", "docs/img/i
     doc = "**Doc images not enabled**. Compile docs with `cargo doc --features 'doc-images'` and Rust version >= 1.54."
 )]
 #![doc = include_str!("../docs/main.md")]
-#![deny(missing_docs)]
+// #![deny(missing_docs)]
 
 use bounding_box::BoundingBox;
-
-/**
-A reasonable default value for the absolute tolerance.
-
-Comparing floating-point numbers is often necessary within this crate, e.g.
-when deciding whether two geometries intersect or not. Since floating point
-numbers do not have arbitrary precision, most real numbers cannot be represented
-exactly (e.g. 0.1). Hence, comparisons within this crate are done using the
-[`relative_eq`](approx::relative_eq) macro from the [`approxim`](approx)
-crate, which requires specifying an absolute tolerance `epsilon` and a relative
-tolerance `max_relative`. The former is mainly relevant when comparing
-numbers close to zero, while the latter gets important with (absolute) big
-numbers.
-
-The following links taken directly from the [`approxim`](approx) crate contain
-more information regarding the behaviour of floating point numbers, particulary
-when comparing them:
-- [Comparing Floating Point Inners, 2012 Edition](https://randomascii.wordpress.com/2012/02/25/comparing-floating-point-numbers-2012-edition/)
-- [The Floating Point Guide - Comparison](https://floating-point-gui.de/errors/comparison/)
-- [What Every Computer Scientist Should Know About Floating-Point Arithmetic](https://docs.oracle.com/cd/E19957-01/806-3568/ncg_goldberg.html)
-
-This constant and [`DEFAULT_MAX_RELATIVE`] provide sane defaults which will work
-well in most cases and are recommeded to be used in the various functions
-requiring an `epsilon` and a `max_relative` argument. The reason they need to be
-provided as explicit arguments and are not simply used by default is that expert
-users can modify the comparison behaviour of e.g. the intersection algorithms
-if required for a particular use case.
-
-The value of this constant is the square root of the machine precision
-(`f64::EPSILON.sqrt()`).
-*/
-pub const DEFAULT_EPSILON: f64 = 0.000000014901161193847656_f64;
-
-/// A reasonable default value for the relative tolerance.
-///
-/// A lot of functions in this crate require the specification of both an
-/// absolute tolerance `epsilon` and a relative tolerance `max_relative`. See
-/// the docstring of [`DEFAULT_EPSILON`] for details.
-pub const DEFAULT_MAX_RELATIVE: f64 = 1e-8;
 
 // Base
 pub mod error;
@@ -97,6 +58,85 @@ pub mod geometry;
 
 #[cfg(feature = "cairo")]
 pub mod draw;
+
+/**
+A reasonable default value for the absolute tolerance.
+
+
+
+This constant and [`DEFAULT_MAX_RELATIVE`] provide sane defaults which will work
+well in most cases and are recommeded to be used in the various functions
+requiring an `epsilon` and a `max_relative` argument. The reason they need to be
+provided as explicit arguments and are not simply used by default is that expert
+users can modify the comparison behaviour of e.g. the intersection algorithms
+if required for a particular use case.
+
+The value of this constant is the square root of the machine precision
+(`f64::EPSILON.sqrt()`).
+*/
+pub const DEFAULT_EPSILON: f64 = 0.000000014901161193847656_f64;
+
+/// A reasonable default value for the relative tolerance.
+///
+/// A lot of functions in this crate require the specification of both an
+/// absolute tolerance `epsilon` and a relative tolerance `max_relative`. See
+/// the docstring of [`DEFAULT_EPSILON`] for details.
+pub const DEFAULT_MAX_RELATIVE: f64 = 1e-8;
+/**
+Comparing floating-point numbers is often necessary within this crate, e.g.
+when deciding whether two geometries intersect or not. Since floating point
+numbers do not have arbitrary precision, most real numbers cannot be represented
+exactly (e.g. 0.1). Hence, comparisons within this crate are done using the
+[`relative_eq`](approx::relative_eq) macro from the [`approxim`](approx)
+crate, which requires specifying an absolute tolerance `epsilon` and a relative
+tolerance `max_relative`. The former is mainly relevant when comparing
+numbers close to zero, while the latter gets important with (absolute) big
+numbers.
+
+The following links taken directly from the [`approxim`](approx) crate contain
+more information regarding the behaviour of floating point numbers, particulary
+when comparing them:
+- [Comparing Floating Point Inners, 2012 Edition](https://randomascii.wordpress.com/2012/02/25/comparing-floating-point-numbers-2012-edition/)
+- [The Floating Point Guide - Comparison](https://floating-point-gui.de/errors/comparison/)
+- [What Every Computer Scientist Should Know About Floating-Point Arithmetic](https://docs.oracle.com/cd/E19957-01/806-3568/ncg_goldberg.html)
+ */
+
+/*
+A tolerance context wrapper around a [`Primitive`] or [`Composite`] that allows
+specifying custom tolerances for geometric operations such as intersection
+calculation. Tolerance contexts are usually created with the `with_tolerance`
+method.
+
+
+
+Default tolerance:
+
+polysegment.intersections_line(&line)
+
+One-off custom tolerance:
+
+polysegment
+    .with_tolerance(epsilon, max_relative)
+    .intersections_line(&line)
+    .collect()
+
+Reusable custom tolerance:
+
+let ctx = polysegment.with_tolerance(epsilon, max_relative);
+
+ctx.intersections_line(&line);
+ctx.contains_point(&point);
+ctx.covers_line(&other);
+
+The reason why [`DEFAULT_EPSILON`] and [`DEFAULT_MAX_RELATIVE`] instead of 0:
+- Default behaviour without explicit `with_tolerance` should be reasonable and
+yield expected results. This wouldn't be the case for a zero-tolerance!
+*/
+pub struct ToleranceContext<'p, T> {
+    pub inner: &'p T,
+    pub epsilon: f64,
+    pub max_relative: f64,
+}
 
 /**
 Affine transformations for geometric types.

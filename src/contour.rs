@@ -25,11 +25,13 @@ use rayon::prelude::*;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-use crate::composite::*;
+use crate::geometry::GeometryRef;
 use crate::polysegment::Polysegment;
-use crate::primitive::Primitive;
+use crate::primitive::PrimitiveWithTol;
 use crate::segment::{Segment, SegmentRef, arc_segment::ArcSegment, line_segment::LineSegment};
-use crate::{CentroidData, Transformation};
+use crate::shape::Shape;
+use crate::{CentroidData, ToleranceContext, Transformation};
+use crate::{DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE, composite::*};
 
 use bounding_box::{BoundingBox, ToBoundingBox};
 
@@ -357,6 +359,24 @@ impl Contour {
         return PointIterator::new(self.polysegment(), true, polygonizer);
     }
 
+    /// Wraps `self` in a [`ToleranceContext`] using the specified `epsilon` and
+    /// `max_relative` tolerances.
+    ///
+    /// The [`ToleranceContext`] applies these tolerances to floating-point
+    /// comparisons performed by geometric operations, such as finding
+    /// intersections. See [`ToleranceContext`] for details and examples.
+    pub fn with_tolerance<'a>(
+        &'a self,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> ToleranceContext<'a, Self> {
+        ToleranceContext {
+            inner: self,
+            epsilon,
+            max_relative,
+        }
+    }
+
     /**
     Cuts `self` into multiple polysegments by intersecting it with `other` and returns
     those them.
@@ -380,29 +400,9 @@ impl Contour {
     assert_eq!(separated_lines.len(), 2);
     ```
      */
-    pub fn intersection_cut(
-        &self,
-        other: &Polysegment,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> Vec<Polysegment> {
-        let mut lines = self
-            .polysegment()
-            .intersection_cut(other, epsilon, max_relative);
-        if lines.len() > 1 {
-            match lines.pop() {
-                Some(mut last_polyline) => {
-                    let mut first_polyline =
-                        std::mem::replace(lines.first_mut().unwrap(), Polysegment::new());
-
-                    last_polyline.append(&mut first_polyline);
-                    lines[0] = last_polyline;
-                }
-                None => (),
-            }
-        }
-
-        return lines;
+    pub fn intersection_cut(&self, other: &Polysegment) -> Vec<Polysegment> {
+        self.with_tolerance(DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+            .intersection_cut(other)
     }
 
     /**
@@ -722,30 +722,30 @@ impl Contour {
     /// docs/point_inside_contour/point_inside_contour.md.
     fn covers_or_contains_point<const COVERS: bool>(
         &self,
-        point: [f64; 2],
+        point: &[f64; 2],
         epsilon: f64,
         max_relative: f64,
     ) -> Result<Covered, NotCovered> {
         // First coarse, but fast test: Check if the point is inside the bounding box
         let bb = BoundingBox::from(self);
         if COVERS {
-            if !bb.approx_covers_point(point, epsilon) {
+            if !bb.approx_covers_point(*point, epsilon) {
                 return Err(NotCovered::OutsideBoundingBox);
             }
         } else {
-            if !bb.contains_point(point) {
+            if !bb.contains_point(*point) {
                 return Err(NotCovered::OutsideBoundingBox);
             }
         }
 
         // Check if the point is located on the edge of the polysegment
         for (idx, segment) in self.segments().enumerate() {
-            if segment.covers_point(point, epsilon, max_relative) {
+            if segment.covers_point_tol(point, epsilon, max_relative) {
                 return Ok(Covered::OnBoundary(SegmentKey::from_segment_idx(idx)));
             }
         }
 
-        let [x, y] = point;
+        let [x, y] = *point;
         let mut inside = false;
 
         // The algorithm skips "almost" horizontal segments because the
@@ -937,36 +937,459 @@ impl Composite for Contour {
         return self.0.par_iter();
     }
 
+    fn contains_point(&self, point: &[f64; 2]) -> Result<Contained, NotContained> {
+        self.contains_point_tol(point, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn contains_segment<'a, T: Into<SegmentRef<'a>>>(
+        &self,
+        segment: T,
+    ) -> Result<Contained, NotContained> {
+        self.contains_segment_tol(segment, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn contains_polysegment(&self, polysegment: &Polysegment) -> Result<Contained, NotContained> {
+        self.contains_polysegment_tol(polysegment, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn contains_contour(&self, contour: &Contour) -> Result<Contained, NotContained> {
+        self.contains_contour_tol(contour, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn contains_shape(&self, shape: &Shape) -> Result<Contained, NotContained> {
+        self.contains_shape_tol(shape, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn contains<'a, T: Into<GeometryRef<'a>>>(&self, other: T) -> Result<Contained, NotContained> {
+        self.contains_tol(other, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn contains_any_segment<'a, T: Into<SegmentRef<'a>>>(
+        &self,
+        segment: T,
+    ) -> Result<Overlap, NoOverlap> {
+        self.contains_any_segment_tol(segment, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn contains_any_polysegment(&self, polysegment: &Polysegment) -> Result<Overlap, NoOverlap> {
+        self.contains_any_polysegment_tol(polysegment, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn contains_any_contour(&self, contour: &Contour) -> Result<Overlap, NoOverlap> {
+        self.contains_any_contour_tol(contour, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn contains_any_shape(&self, shape: &crate::prelude::Shape) -> Result<Overlap, NoOverlap> {
+        self.contains_any_shape_tol(shape, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn contains_any<'a, T: Into<GeometryRef<'a>>>(&self, other: T) -> Result<Overlap, NoOverlap> {
+        self.contains_any_tol(other, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn covers_point(&self, point: &[f64; 2]) -> Result<Covered, NotCovered> {
+        self.covers_point_tol(point, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn covers_segment<'a, T: Into<SegmentRef<'a>>>(
+        &self,
+        segment: T,
+    ) -> Result<Covered, NotCovered> {
+        self.covers_segment_tol(segment, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn covers_polysegment(&self, polysegment: &Polysegment) -> Result<Covered, NotCovered> {
+        self.covers_polysegment_tol(polysegment, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn covers_contour(&self, contour: &Contour) -> Result<Covered, NotCovered> {
+        self.covers_contour_tol(contour, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn covers_shape(&self, shape: &Shape) -> Result<Covered, NotCovered> {
+        self.covers_shape_tol(shape, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn covers<'a, T: Into<GeometryRef<'a>>>(&'a self, other: T) -> Result<Covered, NotCovered> {
+        self.covers_tol(other, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
     fn intersections_polysegment<'a>(
         &'a self,
         polysegment: &'a Polysegment,
-        epsilon: f64,
-        max_relative: f64,
     ) -> impl Iterator<Item = Intersection> + 'a {
-        self.polysegment()
-            .intersections_polysegment(polysegment, epsilon, max_relative)
+        self.intersections_polysegment_tol(polysegment, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
     }
 
     fn intersections_polysegment_par<'a>(
         &'a self,
         polysegment: &'a Polysegment,
-        epsilon: f64,
-        max_relative: f64,
     ) -> impl ParallelIterator<Item = Intersection> + 'a {
-        self.polysegment()
-            .intersections_polysegment_par(polysegment, epsilon, max_relative)
+        self.intersections_polysegment_par_tol(polysegment, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
     }
 
     fn intersections_contour<'a>(
         &'a self,
         contour: &'a Contour,
+    ) -> impl Iterator<Item = Intersection> + 'a {
+        self.intersections_contour_tol(contour, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn intersections_contour_par<'a>(
+        &'a self,
+        contour: &'a Contour,
+    ) -> impl ParallelIterator<Item = Intersection> + 'a {
+        self.intersections_contour_par_tol(contour, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn intersections_shape<'a>(
+        &'a self,
+        shape: &'a crate::prelude::Shape,
+    ) -> impl Iterator<Item = Intersection> + 'a {
+        self.intersections_shape_tol(shape, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn intersections_shape_par<'a>(
+        &'a self,
+        shape: &'a crate::prelude::Shape,
+    ) -> impl ParallelIterator<Item = Intersection> + 'a {
+        self.intersections_shape_par_tol(shape, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn intersections_point<'a>(
+        &'a self,
+        point: &[f64; 2],
+    ) -> impl Iterator<Item = Intersection> + 'a {
+        self.intersections_point_tol(point, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn intersections_point_par<'a>(
+        &'a self,
+        point: &[f64; 2],
+    ) -> impl ParallelIterator<Item = Intersection> + 'a {
+        self.intersections_point_par_tol(point, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn intersections_line<'a>(
+        &'a self,
+        line: &'a crate::prelude::Line,
+    ) -> impl Iterator<Item = Intersection> + 'a {
+        self.intersections_line_tol(line, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn intersections_line_par<'a>(
+        &'a self,
+        line: &'a crate::prelude::Line,
+    ) -> impl ParallelIterator<Item = Intersection> + 'a {
+        self.intersections_line_par_tol(line, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn intersections_segment<'a, T>(&'a self, segment: T) -> impl Iterator<Item = Intersection> + 'a
+    where
+        T: Into<SegmentRef<'a>>,
+    {
+        self.intersections_segment_tol(segment, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn intersections_segment_par<'a, T>(
+        &'a self,
+        segment: T,
+    ) -> impl ParallelIterator<Item = Intersection> + 'a
+    where
+        T: Into<SegmentRef<'a>>,
+    {
+        self.intersections_segment_par_tol(segment, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn intersections<'a, T: Into<crate::geometry::GeometryRef<'a>>>(
+        &self,
+        other: T,
+    ) -> Vec<Intersection>
+    where
+        Self: Sized,
+    {
+        self.intersections_tol(other, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn intersections_par<'a, T: Into<crate::geometry::GeometryRef<'a>>>(
+        &self,
+        other: T,
+    ) -> Vec<Intersection>
+    where
+        Self: Sized,
+    {
+        self.intersections_par_tol(other, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+}
+
+impl<'c> Composite for ToleranceContext<'c, Contour> {
+    fn segment(&self, key: SegmentKey) -> Option<&Segment> {
+        self.inner.segment(key)
+    }
+
+    fn iter<'a>(&'a self) -> impl Iterator<Item = (SegmentKey, &'a Segment)> {
+        self.inner.iter()
+    }
+
+    fn par_iter<'a>(&'a self) -> impl ParallelIterator<Item = (SegmentKey, &'a Segment)> {
+        self.inner.par_iter()
+    }
+
+    fn num_segments(&self) -> usize {
+        self.inner.num_segments()
+    }
+
+    fn centroid(&self) -> [f64; 2] {
+        self.inner.centroid()
+    }
+
+    fn contains_point(&self, point: &[f64; 2]) -> Result<Contained, NotContained> {
+        self.inner
+            .contains_point_tol(point, self.epsilon, self.max_relative)
+    }
+
+    fn contains_segment<'a, T: Into<SegmentRef<'a>>>(
+        &self,
+        segment: T,
+    ) -> Result<Contained, NotContained> {
+        self.inner
+            .contains_segment_tol(segment, self.epsilon, self.max_relative)
+    }
+
+    fn contains_polysegment(&self, polysegment: &Polysegment) -> Result<Contained, NotContained> {
+        self.inner
+            .contains_polysegment_tol(polysegment, self.epsilon, self.max_relative)
+    }
+
+    fn contains_contour(&self, contour: &Contour) -> Result<Contained, NotContained> {
+        self.inner
+            .contains_contour_tol(contour, self.epsilon, self.max_relative)
+    }
+
+    fn contains_shape(&self, shape: &Shape) -> Result<Contained, NotContained> {
+        self.inner
+            .contains_shape_tol(shape, self.epsilon, self.max_relative)
+    }
+
+    fn contains<'a, T: Into<GeometryRef<'a>>>(&self, other: T) -> Result<Contained, NotContained> {
+        self.inner
+            .contains_tol(other, self.epsilon, self.max_relative)
+    }
+
+    fn contains_any_segment<'a, T: Into<SegmentRef<'a>>>(
+        &self,
+        segment: T,
+    ) -> Result<Overlap, NoOverlap> {
+        self.inner
+            .contains_any_segment_tol(segment, self.epsilon, self.max_relative)
+    }
+
+    fn contains_any_polysegment(&self, polysegment: &Polysegment) -> Result<Overlap, NoOverlap> {
+        self.inner
+            .contains_any_polysegment_tol(polysegment, self.epsilon, self.max_relative)
+    }
+
+    fn contains_any_contour(&self, contour: &Contour) -> Result<Overlap, NoOverlap> {
+        self.inner
+            .contains_any_contour_tol(contour, self.epsilon, self.max_relative)
+    }
+
+    fn contains_any_shape(&self, shape: &crate::prelude::Shape) -> Result<Overlap, NoOverlap> {
+        self.inner
+            .contains_any_shape_tol(shape, self.epsilon, self.max_relative)
+    }
+
+    fn contains_any<'a, T: Into<GeometryRef<'a>>>(&self, other: T) -> Result<Overlap, NoOverlap> {
+        self.inner
+            .contains_any_tol(other, self.epsilon, self.max_relative)
+    }
+
+    fn covers_point(&self, point: &[f64; 2]) -> Result<Covered, NotCovered> {
+        self.inner
+            .covers_point_tol(point, self.epsilon, self.max_relative)
+    }
+
+    fn covers_segment<'a, T: Into<SegmentRef<'a>>>(
+        &self,
+        segment: T,
+    ) -> Result<Covered, NotCovered> {
+        self.inner
+            .covers_segment_tol(segment, self.epsilon, self.max_relative)
+    }
+
+    fn covers_polysegment(&self, polysegment: &Polysegment) -> Result<Covered, NotCovered> {
+        self.inner
+            .covers_polysegment_tol(polysegment, self.epsilon, self.max_relative)
+    }
+
+    fn covers_contour(&self, contour: &Contour) -> Result<Covered, NotCovered> {
+        self.inner
+            .covers_contour_tol(contour, self.epsilon, self.max_relative)
+    }
+
+    fn covers_shape(&self, shape: &Shape) -> Result<Covered, NotCovered> {
+        self.inner
+            .covers_shape_tol(shape, self.epsilon, self.max_relative)
+    }
+
+    fn covers<'a, T: Into<GeometryRef<'a>>>(&'a self, other: T) -> Result<Covered, NotCovered> {
+        self.inner
+            .covers_tol(other, self.epsilon, self.max_relative)
+    }
+
+    fn intersections_polysegment<'a>(
+        &'a self,
+        polysegment: &'a Polysegment,
+    ) -> impl Iterator<Item = Intersection> + 'a {
+        self.inner
+            .intersections_polysegment_tol(polysegment, self.epsilon, self.max_relative)
+    }
+
+    fn intersections_polysegment_par<'a>(
+        &'a self,
+        polysegment: &'a Polysegment,
+    ) -> impl ParallelIterator<Item = Intersection> + 'a {
+        self.inner
+            .intersections_polysegment_par_tol(polysegment, self.epsilon, self.max_relative)
+    }
+
+    fn intersections_shape<'a>(
+        &'a self,
+        shape: &'a crate::prelude::Shape,
+    ) -> impl Iterator<Item = Intersection> + 'a {
+        self.inner
+            .intersections_shape_tol(shape, self.epsilon, self.max_relative)
+    }
+
+    fn intersections_shape_par<'a>(
+        &'a self,
+        shape: &'a crate::prelude::Shape,
+    ) -> impl ParallelIterator<Item = Intersection> + 'a {
+        self.inner
+            .intersections_shape_par_tol(shape, self.epsilon, self.max_relative)
+    }
+
+    fn intersections_point<'a>(
+        &'a self,
+        point: &[f64; 2],
+    ) -> impl Iterator<Item = Intersection> + 'a {
+        self.inner
+            .intersections_point_tol(point, self.epsilon, self.max_relative)
+    }
+
+    fn intersections_point_par<'a>(
+        &'a self,
+        point: &[f64; 2],
+    ) -> impl ParallelIterator<Item = Intersection> + 'a {
+        self.inner
+            .intersections_point_par_tol(point, self.epsilon, self.max_relative)
+    }
+
+    fn intersections_line<'a>(
+        &'a self,
+        line: &'a crate::prelude::Line,
+    ) -> impl Iterator<Item = Intersection> + 'a {
+        self.inner
+            .intersections_line_tol(line, self.epsilon, self.max_relative)
+    }
+
+    fn intersections_line_par<'a>(
+        &'a self,
+        line: &'a crate::prelude::Line,
+    ) -> impl ParallelIterator<Item = Intersection> + 'a {
+        self.inner
+            .intersections_line_par_tol(line, self.epsilon, self.max_relative)
+    }
+
+    fn intersections_segment<'a, T>(&'a self, segment: T) -> impl Iterator<Item = Intersection> + 'a
+    where
+        T: Into<SegmentRef<'a>>,
+    {
+        self.inner
+            .intersections_segment_tol(segment, self.epsilon, self.max_relative)
+    }
+
+    fn intersections_segment_par<'a, T>(
+        &'a self,
+        segment: T,
+    ) -> impl ParallelIterator<Item = Intersection> + 'a
+    where
+        T: Into<SegmentRef<'a>>,
+    {
+        self.inner
+            .intersections_segment_par_tol(segment, self.epsilon, self.max_relative)
+    }
+
+    fn intersections_contour<'a>(
+        &'a self,
+        contour: &'a Contour,
+    ) -> impl Iterator<Item = Intersection> + 'a {
+        self.inner
+            .intersections_contour_tol(contour, self.epsilon, self.max_relative)
+    }
+
+    fn intersections_contour_par<'a>(
+        &'a self,
+        contour: &'a Contour,
+    ) -> impl ParallelIterator<Item = Intersection> + 'a {
+        self.inner
+            .intersections_contour_par_tol(contour, self.epsilon, self.max_relative)
+    }
+
+    fn intersections<'a, T: Into<crate::geometry::GeometryRef<'a>>>(
+        &self,
+        other: T,
+    ) -> Vec<Intersection>
+    where
+        Self: Sized,
+    {
+        self.inner
+            .intersections_tol(other, self.epsilon, self.max_relative)
+    }
+
+    fn intersections_par<'a, T: Into<crate::geometry::GeometryRef<'a>>>(
+        &self,
+        other: T,
+    ) -> Vec<Intersection>
+    where
+        Self: Sized,
+    {
+        self.inner
+            .intersections_par_tol(other, self.epsilon, self.max_relative)
+    }
+}
+
+impl CompositeWithTol for Contour {
+    fn intersections_polysegment_tol<'a>(
+        &'a self,
+        polysegment: &'a Polysegment,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> impl Iterator<Item = Intersection> + 'a {
+        self.polysegment()
+            .intersections_polysegment_tol(polysegment, epsilon, max_relative)
+    }
+
+    fn intersections_polysegment_par_tol<'a>(
+        &'a self,
+        polysegment: &'a Polysegment,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> impl ParallelIterator<Item = Intersection> + 'a {
+        self.polysegment()
+            .intersections_polysegment_par_tol(polysegment, epsilon, max_relative)
+    }
+
+    fn intersections_contour_tol<'a>(
+        &'a self,
+        contour: &'a Contour,
         epsilon: f64,
         max_relative: f64,
     ) -> impl Iterator<Item = Intersection> + 'a {
         let self_intersection = std::ptr::eq(self, contour);
         return self
             .polysegment()
-            .intersections_polysegment(contour.polysegment(), epsilon, max_relative)
+            .intersections_polysegment_tol(contour.polysegment(), epsilon, max_relative)
             .filter(move |i| {
                 if self_intersection {
                     self.filter_intersections(i, epsilon, max_relative)
@@ -976,7 +1399,7 @@ impl Composite for Contour {
             });
     }
 
-    fn intersections_contour_par<'a>(
+    fn intersections_contour_par_tol<'a>(
         &'a self,
         contour: &'a Contour,
         epsilon: f64,
@@ -985,7 +1408,7 @@ impl Composite for Contour {
         let self_intersection = std::ptr::eq(self, contour);
         return self
             .polysegment()
-            .intersections_polysegment_par(contour.polysegment(), epsilon, max_relative)
+            .intersections_polysegment_par_tol(contour.polysegment(), epsilon, max_relative)
             .filter(move |i| {
                 if self_intersection {
                     self.filter_intersections(i, epsilon, max_relative)
@@ -995,59 +1418,31 @@ impl Composite for Contour {
             });
     }
 
-    fn intersections_shape<'a>(
+    fn intersections_shape_tol<'a>(
         &'a self,
         shape: &'a crate::prelude::Shape,
         epsilon: f64,
         max_relative: f64,
     ) -> impl Iterator<Item = Intersection> + 'a {
         shape
-            .intersections_contour(self, epsilon, max_relative)
+            .intersections_contour_tol(self, epsilon, max_relative)
             .map(Intersection::switch)
     }
 
-    fn intersections_shape_par<'a>(
+    fn intersections_shape_par_tol<'a>(
         &'a self,
         shape: &'a crate::prelude::Shape,
         epsilon: f64,
         max_relative: f64,
     ) -> impl ParallelIterator<Item = Intersection> + 'a {
         shape
-            .intersections_contour_par(self, epsilon, max_relative)
+            .intersections_contour_par_tol(self, epsilon, max_relative)
             .map(Intersection::switch)
     }
 
-    fn intersections_composite<'a, T: Composite>(
-        &'a self,
-        other: &'a T,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> impl Iterator<Item = Intersection> + 'a
-    where
-        Self: Sized,
-    {
-        return other
-            .intersections_contour(self, epsilon, max_relative)
-            .map(Intersection::switch);
-    }
-
-    fn intersections_composite_par<'a, T: Composite>(
-        &'a self,
-        other: &'a T,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> impl ParallelIterator<Item = Intersection> + 'a
-    where
-        Self: Sized,
-    {
-        return other
-            .intersections_contour_par(self, epsilon, max_relative)
-            .map(Intersection::switch);
-    }
-
-    fn contains_point(
+    fn contains_point_tol(
         &self,
-        point: [f64; 2],
+        point: &[f64; 2],
         epsilon: f64,
         max_relative: f64,
     ) -> Result<Contained, NotContained> {
@@ -1061,12 +1456,12 @@ impl Composite for Contour {
                     Err(NotContained::Intersection(intersection))
                 }
                 NotCovered::OutsideBoundingBox => Err(NotContained::OutsideBoundingBox),
-                _ => Err(NotContained::PointOutside(point.into())),
+                _ => Err(NotContained::PointOutside(*point)),
             },
         }
     }
 
-    fn contains_segment<'a, T: Into<crate::prelude::SegmentRef<'a>>>(
+    fn contains_segment_tol<'a, T: Into<crate::prelude::SegmentRef<'a>>>(
         &self,
         segment: T,
         epsilon: f64,
@@ -1081,11 +1476,11 @@ impl Composite for Contour {
         }
 
         // Are the start or stop point outside self?
-        self.contains_point(segment.start(), epsilon, max_relative)?;
-        self.contains_point(segment.stop(), epsilon, max_relative)?;
+        self.contains_point_tol(&segment.start(), epsilon, max_relative)?;
+        self.contains_point_tol(&segment.stop(), epsilon, max_relative)?;
 
         if let Some(i) = self
-            .intersections_primitive(&segment, epsilon, max_relative)
+            .intersections_segment_tol(segment, epsilon, max_relative)
             .next()
         {
             return Err(NotContained::Intersection(i));
@@ -1094,25 +1489,308 @@ impl Composite for Contour {
         return Ok(Contained::Inside);
     }
 
-    fn contains_composite<'a, T: Composite>(
-        &'a self,
-        other: &'a T,
+    fn contains_tol<'a, T: Into<GeometryRef<'a>>>(
+        &self,
+        other: T,
         epsilon: f64,
         max_relative: f64,
     ) -> Result<Contained, NotContained> {
-        return other.contains_contour(self, epsilon, max_relative);
+        match other.into() {
+            GeometryRef::Point(pt) => self.contains_point_tol(pt, epsilon, max_relative),
+            GeometryRef::ArcSegment(arc_segment) => {
+                self.contains_segment_tol(arc_segment, epsilon, max_relative)
+            }
+            GeometryRef::LineSegment(line_segment) => {
+                self.contains_segment_tol(line_segment, epsilon, max_relative)
+            }
+            GeometryRef::Line(_) => Err(NotContained::OutsideBoundingBox),
+            GeometryRef::Segment(segment) => {
+                self.contains_segment_tol(segment, epsilon, max_relative)
+            }
+            GeometryRef::Polysegment(polysegment) => {
+                self.contains_polysegment_tol(polysegment, epsilon, max_relative)
+            }
+            GeometryRef::Contour(contour) => {
+                self.contains_contour_tol(contour, epsilon, max_relative)
+            }
+            GeometryRef::Shape(shape) => self.contains_shape_tol(shape, epsilon, max_relative),
+            GeometryRef::BoundingBox(bounding_box) => {
+                let contour = Contour::from(bounding_box);
+                self.contains_contour_tol(&contour, epsilon, max_relative)
+            }
+        }
     }
 
-    fn covers_point(
+    fn contains_any_segment_tol<'a, T: Into<SegmentRef<'a>>>(
         &self,
-        point: [f64; 2],
+        segment: T,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Result<Overlap, NoOverlap> {
+        let segment: SegmentRef = segment.into();
+
+        // If the segment is outside the bounding box of self, then the segment
+        // and the contour surely don't overlap
+        if !self.bounding_box().overlaps(&segment.bounding_box()) {
+            return Err(NoOverlap::DisjointBoundingBoxes);
+        }
+
+        match segment {
+            SegmentRef::LineSegment(line_segment) => {
+                /*
+                Sort the intersection points by their distance to
+                line_segment.start(). Each pair of neighboring intersections
+                describes a part of line_segment. If the middle points of these
+                parts are all contained in self, then the entire line segment is
+                also contained in self.
+                 */
+                let mut intersections: Vec<[f64; 2]> = self
+                    .intersections_segment_par_tol(segment, epsilon, max_relative)
+                    .map(|i| i.point)
+                    .collect();
+                intersections.push(line_segment.start());
+                intersections.push(line_segment.stop());
+
+                // Sort the intersections in ascending order by their distance
+                // to line_segment.start().
+                let s = line_segment.start();
+                intersections.sort_unstable_by(|a, b| {
+                    ((a[0] - s[0]).powi(2) + (a[1] - s[1]).powi(2))
+                        .total_cmp(&((b[0] - s[0]).powi(2) + (b[1] - s[1]).powi(2)))
+                });
+
+                // Create individual segments out of the sorted intersections
+                // and check if their middle point is contained in self
+                for w in intersections.windows(2) {
+                    if let Some(start) = w.get(0) {
+                        if let Some(stop) = w.get(1) {
+                            let mx = 0.5 * (start[0] + stop[0]);
+                            let my = 0.5 * (start[1] + stop[1]);
+                            if self
+                                .contains_point_tol(&[mx, my], epsilon, max_relative)
+                                .is_ok()
+                            {
+                                return Ok(Overlap::Point([mx, my]));
+                            }
+                        }
+                    }
+                }
+                return Err(NoOverlap::NoPointContained);
+            }
+            SegmentRef::ArcSegment(arc_segment) => {
+                /*
+                Calculate the angles of all intersection points relative to the
+                center of arc_segment, then sort them. This separates
+                arc_segment in multiple arc segments. Calculate their middle
+                point and check if that point is contained within self. If that is
+                true for all partial segments, then the entire arc_segment is
+                also contained in self.
+                 */
+                let c = arc_segment.center();
+                let r = arc_segment.radius();
+                let start_angle = arc_segment.start_angle();
+                let stop_angle = arc_segment.stop_angle();
+
+                let mut angles: Vec<f64> = self
+                    .intersections_segment_par_tol(arc_segment, epsilon, max_relative)
+                    .map(|i| {
+                        let a = (i.point[1] - c[1]).atan2(i.point[0] - c[0]);
+
+                        // Make sure a is between start_angle and stop_angle
+                        if relative_eq!(
+                            a,
+                            start_angle,
+                            epsilon = epsilon,
+                            max_relative = max_relative
+                        ) {
+                            return start_angle;
+                        }
+                        if relative_eq!(
+                            a,
+                            stop_angle,
+                            epsilon = epsilon,
+                            max_relative = max_relative
+                        ) {
+                            return stop_angle;
+                        }
+                        if arc_segment.is_positive() {
+                            if a < start_angle {
+                                a + TAU
+                            } else if a > stop_angle {
+                                a - TAU
+                            } else {
+                                a
+                            }
+                        } else {
+                            if a > start_angle {
+                                a - TAU
+                            } else if a < stop_angle {
+                                a + TAU
+                            } else {
+                                a
+                            }
+                        }
+                    })
+                    .collect();
+
+                /*
+                Make sure that the start and the stop angle are always included.
+                This is done because there might be rare cases where start and
+                stop points are just on the boundary of the contour, but the
+                intersection algorithm fails to find the intersection. If the
+                intersection has in fact been found before, it gets added again,
+                but this is not a problem for the algorithm. If the intersection
+                would be missing however, the algorithm may find false
+                positives!)
+                 */
+                angles.push(arc_segment.start_angle());
+                angles.push(arc_segment.stop_angle());
+
+                angles.sort_unstable_by(f64::total_cmp);
+
+                for w in angles.windows(2) {
+                    if let Some(start) = w.get(0) {
+                        if let Some(stop) = w.get(1) {
+                            let mid_angle = 0.5 * (stop + start);
+                            let mx = c[0] + r * mid_angle.cos();
+                            let my = c[1] + r * mid_angle.sin();
+                            if self
+                                .contains_point_tol(&[mx, my], epsilon, max_relative)
+                                .is_ok()
+                            {
+                                return Ok(Overlap::Point([mx, my]));
+                            }
+                        }
+                    }
+                }
+                return Err(NoOverlap::NoPointContained);
+            }
+        }
+    }
+
+    fn contains_any_contour_tol(
+        &self,
+        other: &Self,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Result<Overlap, NoOverlap> {
+        if std::ptr::eq(self, other) {
+            // A contour naturally overlaps itself
+            return Ok(Overlap::Identical);
+        }
+
+        let b_self = BoundingBox::from(self);
+        let b_other = BoundingBox::from(other);
+
+        // If the bounding boxes do not overlap, then self and other also can't overlap
+        if !b_self.overlaps(&b_other) {
+            return Err(NoOverlap::DisjointBoundingBoxes);
+        }
+
+        // Does any segment of self overlap other? If no segment of self
+        // overlaps other, the inverse is also true (and is therefore not checked)
+        if let Some(o) = other
+            .segments_par()
+            .enumerate()
+            .find_map_any(|(segment_idx, s)| {
+                // Returns a segment of `polysegment` that overlaps with `self`.
+                // Therefore, `segment_of_self` is false.
+                if self
+                    .contains_any_segment_tol(s, epsilon, max_relative)
+                    .is_ok()
+                {
+                    return Some(Overlap::Segment {
+                        key: SegmentKey::from_segment_idx(segment_idx),
+                        key_of_self: false,
+                    });
+                } else {
+                    return None;
+                }
+            })
+        {
+            return Ok(o);
+        }
+
+        // Does one of the contours cover the other one?
+        if self
+            .covers_contour_tol(other, epsilon, max_relative)
+            .is_ok()
+        {
+            return Ok(Overlap::Covers {
+                self_covers_other: true,
+            });
+        }
+        if other
+            .covers_contour_tol(self, epsilon, max_relative)
+            .is_ok()
+        {
+            return Ok(Overlap::Covers {
+                self_covers_other: false,
+            });
+        }
+        return Err(NoOverlap::NoPointContained);
+    }
+
+    fn contains_any_shape_tol(
+        &self,
+        shape: &crate::shape::Shape,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Result<Overlap, NoOverlap> {
+        // NoOverlap has no switch method
+        return shape
+            .contains_any_contour_tol(self, epsilon, max_relative)
+            .map(Overlap::switch);
+    }
+
+    fn contains_any_tol<'a, T: Into<GeometryRef<'a>>>(
+        &self,
+        other: T,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Result<Overlap, NoOverlap> {
+        match other.into() {
+            GeometryRef::Point(pt) => match self.contains_point_tol(pt, epsilon, max_relative) {
+                Ok(_) => Ok(Overlap::Point(*pt)),
+                Err(_) => Err(NoOverlap::DisjointBoundingBoxes),
+            },
+            GeometryRef::ArcSegment(arc_segment) => {
+                self.contains_any_segment_tol(arc_segment, epsilon, max_relative)
+            }
+            GeometryRef::LineSegment(line_segment) => {
+                self.contains_any_segment_tol(line_segment, epsilon, max_relative)
+            }
+            GeometryRef::Line(line) => match self.intersections_line(&line).next() {
+                Some(pt) => Ok(Overlap::Point(pt.point)),
+                None => Err(NoOverlap::DisjointBoundingBoxes),
+            },
+            GeometryRef::Segment(segment) => {
+                self.contains_any_segment_tol(segment, epsilon, max_relative)
+            }
+            GeometryRef::Polysegment(polysegment) => {
+                self.contains_any_polysegment_tol(polysegment, epsilon, max_relative)
+            }
+            GeometryRef::Contour(contour) => {
+                self.contains_any_contour_tol(contour, epsilon, max_relative)
+            }
+            GeometryRef::Shape(shape) => self.contains_any_shape_tol(shape, epsilon, max_relative),
+            GeometryRef::BoundingBox(bounding_box) => {
+                let contour = Contour::from(bounding_box);
+                self.contains_any_contour_tol(&contour, epsilon, max_relative)
+            }
+        }
+    }
+
+    fn covers_point_tol(
+        &self,
+        point: &[f64; 2],
         epsilon: f64,
         max_relative: f64,
     ) -> Result<Covered, NotCovered> {
         return self.covers_or_contains_point::<true>(point, epsilon, max_relative);
     }
 
-    fn covers_segment<'a, T: Into<SegmentRef<'a>>>(
+    fn covers_segment_tol<'a, T: Into<SegmentRef<'a>>>(
         &self,
         segment: T,
         epsilon: f64,
@@ -1130,8 +1808,8 @@ impl Composite for Contour {
         }
 
         // Are the start or stop point outside self?
-        let start_covered = self.covers_point(segment.start(), epsilon, max_relative)?;
-        let stop_covered = self.covers_point(segment.stop(), epsilon, max_relative)?;
+        let start_covered = self.covers_point_tol(&segment.start(), epsilon, max_relative)?;
+        let stop_covered = self.covers_point_tol(&segment.stop(), epsilon, max_relative)?;
 
         match segment {
             SegmentRef::LineSegment(line_segment) => {
@@ -1143,7 +1821,7 @@ impl Composite for Contour {
                 also covered by self.
                  */
                 let mut intersections: Vec<Intersection> = self
-                    .intersections_primitive_par(&segment, epsilon, max_relative)
+                    .intersections_segment_par_tol(segment, epsilon, max_relative)
                     .collect();
 
                 // Sort the intersections in ascending order by their distance
@@ -1163,7 +1841,9 @@ impl Composite for Contour {
                         if let Some(stop) = w.get(1) {
                             let mx = 0.5 * (start.point[0] + stop.point[0]);
                             let my = 0.5 * (start.point[1] + stop.point[1]);
-                            if let Err(err) = self.covers_point([mx, my], epsilon, max_relative) {
+                            if let Err(err) =
+                                self.covers_point_tol(&[mx, my], epsilon, max_relative)
+                            {
                                 match err {
                                     NotCovered::Intersection(_) => {
                                         return Err(NotCovered::Intersection(start.clone()));
@@ -1191,7 +1871,7 @@ impl Composite for Contour {
                 let stop_angle = arc_segment.stop_angle();
 
                 let mut angles: Vec<(f64, Intersection)> = self
-                    .intersections_primitive_par(arc_segment, epsilon, max_relative)
+                    .intersections_segment_par_tol(arc_segment, epsilon, max_relative)
                     .map(|i| {
                         let a = (i.point[1] - c[1]).atan2(i.point[0] - c[0]);
 
@@ -1279,7 +1959,7 @@ impl Composite for Contour {
                             let mx = c[0] + r * mid_angle.cos();
                             let my = c[1] + r * mid_angle.sin();
 
-                            match self.covers_point([mx, my], epsilon, max_relative) {
+                            match self.covers_point_tol(&[mx, my], epsilon, max_relative) {
                                 Ok(ok) => covered = Some(ok),
                                 Err(err) => match err {
                                     NotCovered::Intersection(_) => {
@@ -1299,232 +1979,88 @@ impl Composite for Contour {
         }
     }
 
-    fn covers_composite<'a, T: Composite>(
-        &'a self,
-        other: &'a T,
+    fn covers_tol<'a, T: Into<GeometryRef<'a>>>(
+        &self,
+        other: T,
         epsilon: f64,
         max_relative: f64,
     ) -> Result<Covered, NotCovered> {
-        return other.covers_contour(self, epsilon, max_relative);
-    }
-
-    fn contains_any_segment<'a, T: Into<SegmentRef<'a>>>(
-        &self,
-        segment: T,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> Result<Overlap, NoOverlap> {
-        let segment: SegmentRef = segment.into();
-
-        // If the segment is outside the bounding box of self, then the segment
-        // and the contour surely don't overlap
-        if !self.bounding_box().overlaps(&segment.bounding_box()) {
-            return Err(NoOverlap::DisjointBoundingBoxes);
-        }
-
-        match segment {
-            SegmentRef::LineSegment(line_segment) => {
-                /*
-                Sort the intersection points by their distance to
-                line_segment.start(). Each pair of neighboring intersections
-                describes a part of line_segment. If the middle points of these
-                parts are all contained in self, then the entire line segment is
-                also contained in self.
-                 */
-                let mut intersections: Vec<[f64; 2]> = self
-                    .intersections_primitive_par(&segment, epsilon, max_relative)
-                    .map(|i| i.point)
-                    .collect();
-                intersections.push(line_segment.start());
-                intersections.push(line_segment.stop());
-
-                // Sort the intersections in ascending order by their distance
-                // to line_segment.start().
-                let s = line_segment.start();
-                intersections.sort_unstable_by(|a, b| {
-                    ((a[0] - s[0]).powi(2) + (a[1] - s[1]).powi(2))
-                        .total_cmp(&((b[0] - s[0]).powi(2) + (b[1] - s[1]).powi(2)))
-                });
-
-                // Create individual segments out of the sorted intersections
-                // and check if their middle point is contained in self
-                for w in intersections.windows(2) {
-                    if let Some(start) = w.get(0) {
-                        if let Some(stop) = w.get(1) {
-                            let mx = 0.5 * (start[0] + stop[0]);
-                            let my = 0.5 * (start[1] + stop[1]);
-                            if self.contains_point([mx, my], epsilon, max_relative).is_ok() {
-                                return Ok(Overlap::Point([mx, my]));
-                            }
-                        }
-                    }
-                }
-                return Err(NoOverlap::NoPointContained);
+        match other.into() {
+            GeometryRef::Point(pt) => self.covers_point_tol(pt, epsilon, max_relative),
+            GeometryRef::ArcSegment(arc_segment) => {
+                self.covers_segment_tol(arc_segment, epsilon, max_relative)
             }
-            SegmentRef::ArcSegment(arc_segment) => {
-                /*
-                Calculate the angles of all intersection points relative to the
-                center of arc_segment, then sort them. This separates
-                arc_segment in multiple arc segments. Calculate their middle
-                point and check if that point is contained within self. If that is
-                true for all partial segments, then the entire arc_segment is
-                also contained in self.
-                 */
-                let c = arc_segment.center();
-                let r = arc_segment.radius();
-                let start_angle = arc_segment.start_angle();
-                let stop_angle = arc_segment.stop_angle();
-
-                let mut angles: Vec<f64> = self
-                    .intersections_primitive_par(arc_segment, epsilon, max_relative)
-                    .map(|i| {
-                        let a = (i.point[1] - c[1]).atan2(i.point[0] - c[0]);
-
-                        // Make sure a is between start_angle and stop_angle
-                        if relative_eq!(
-                            a,
-                            start_angle,
-                            epsilon = epsilon,
-                            max_relative = max_relative
-                        ) {
-                            return start_angle;
-                        }
-                        if relative_eq!(
-                            a,
-                            stop_angle,
-                            epsilon = epsilon,
-                            max_relative = max_relative
-                        ) {
-                            return stop_angle;
-                        }
-                        if arc_segment.is_positive() {
-                            if a < start_angle {
-                                a + TAU
-                            } else if a > stop_angle {
-                                a - TAU
-                            } else {
-                                a
-                            }
-                        } else {
-                            if a > start_angle {
-                                a - TAU
-                            } else if a < stop_angle {
-                                a + TAU
-                            } else {
-                                a
-                            }
-                        }
-                    })
-                    .collect();
-
-                /*
-                Make sure that the start and the stop angle are always included.
-                This is done because there might be rare cases where start and
-                stop points are just on the boundary of the contour, but the
-                intersection algorithm fails to find the intersection. If the
-                intersection has in fact been found before, it gets added again,
-                but this is not a problem for the algorithm. If the intersection
-                would be missing however, the algorithm may find false
-                positives!)
-                 */
-                angles.push(arc_segment.start_angle());
-                angles.push(arc_segment.stop_angle());
-
-                angles.sort_unstable_by(f64::total_cmp);
-
-                for w in angles.windows(2) {
-                    if let Some(start) = w.get(0) {
-                        if let Some(stop) = w.get(1) {
-                            let mid_angle = 0.5 * (stop + start);
-                            let mx = c[0] + r * mid_angle.cos();
-                            let my = c[1] + r * mid_angle.sin();
-                            if self.contains_point([mx, my], epsilon, max_relative).is_ok() {
-                                return Ok(Overlap::Point([mx, my]));
-                            }
-                        }
-                    }
-                }
-                return Err(NoOverlap::NoPointContained);
+            GeometryRef::LineSegment(line_segment) => {
+                self.covers_segment_tol(line_segment, epsilon, max_relative)
+            }
+            GeometryRef::Line(_) => Err(NotCovered::OutsideBoundingBox),
+            GeometryRef::Segment(segment) => {
+                self.covers_segment_tol(segment, epsilon, max_relative)
+            }
+            GeometryRef::Polysegment(polysegment) => {
+                self.covers_polysegment_tol(polysegment, epsilon, max_relative)
+            }
+            GeometryRef::Contour(contour) => {
+                self.covers_contour_tol(contour, epsilon, max_relative)
+            }
+            GeometryRef::Shape(shape) => self.covers_shape_tol(shape, epsilon, max_relative),
+            GeometryRef::BoundingBox(bounding_box) => {
+                let contour = Contour::from(bounding_box);
+                self.covers_contour_tol(&contour, epsilon, max_relative)
             }
         }
     }
 
-    fn contains_any_contour(
+    fn intersections_tol<'a, T: Into<GeometryRef<'a>>>(
         &self,
-        other: &Self,
+        other: T,
         epsilon: f64,
         max_relative: f64,
-    ) -> Result<Overlap, NoOverlap> {
-        if std::ptr::eq(self, other) {
-            // A contour naturally overlaps itself
-            return Ok(Overlap::Identical);
-        }
+    ) -> Vec<Intersection>
+    where
+        Self: Sized,
+    {
+        let geo_self: GeometryRef = self.into();
+        let geo_other: GeometryRef = other.into();
+        geo_self.intersections_tol::<false, _>(geo_other, epsilon, max_relative)
+    }
 
-        let b_self = BoundingBox::from(self);
-        let b_other = BoundingBox::from(other);
+    fn intersections_par_tol<'a, T: Into<crate::geometry::GeometryRef<'a>>>(
+        &self,
+        other: T,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Vec<Intersection>
+    where
+        Self: Sized,
+    {
+        let geo_self: GeometryRef = self.into();
+        let geo_other: GeometryRef = other.into();
+        geo_self.intersections_tol::<true, _>(geo_other, epsilon, max_relative)
+    }
+}
 
-        // If the bounding boxes do not overlap, then self and other also can't overlap
-        if !b_self.overlaps(&b_other) {
-            return Err(NoOverlap::DisjointBoundingBoxes);
-        }
+impl<'c> ToleranceContext<'c, Contour> {
+    pub fn intersection_cut(&self, other: &Polysegment) -> Vec<Polysegment> {
+        let mut lines = self
+            .inner
+            .polysegment()
+            .with_tolerance(self.epsilon, self.max_relative)
+            .intersection_cut(other);
+        if lines.len() > 1 {
+            match lines.pop() {
+                Some(mut last_polyline) => {
+                    let mut first_polyline =
+                        std::mem::replace(lines.first_mut().unwrap(), Polysegment::new());
 
-        // Does any segment of self overlap other? If no segment of self
-        // overlaps other, the inverse is also true (and is therefore not checked)
-        if let Some(o) = other
-            .segments_par()
-            .enumerate()
-            .find_map_any(|(segment_idx, s)| {
-                // Returns a segment of `polysegment` that overlaps with `self`.
-                // Therefore, `segment_of_self` is false.
-                if self.contains_any_segment(s, epsilon, max_relative).is_ok() {
-                    return Some(Overlap::Segment {
-                        key: SegmentKey::from_segment_idx(segment_idx),
-                        key_of_self: false,
-                    });
-                } else {
-                    return None;
+                    last_polyline.append(&mut first_polyline);
+                    lines[0] = last_polyline;
                 }
-            })
-        {
-            return Ok(o);
+                None => (),
+            }
         }
 
-        // Does one of the contours cover the other one?
-        if self.covers_contour(other, epsilon, max_relative).is_ok() {
-            return Ok(Overlap::Covers {
-                self_covers_other: true,
-            });
-        }
-        if other.covers_contour(self, epsilon, max_relative).is_ok() {
-            return Ok(Overlap::Covers {
-                self_covers_other: false,
-            });
-        }
-        return Err(NoOverlap::NoPointContained);
-    }
-
-    fn contains_any_shape(
-        &self,
-        shape: &crate::shape::Shape,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> Result<Overlap, NoOverlap> {
-        // NoOverlap has no switch method
-        return shape
-            .contains_any_contour(self, epsilon, max_relative)
-            .map(Overlap::switch);
-    }
-
-    fn contains_any_composite<'a, T: Composite>(
-        &'a self,
-        other: &'a T,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> Result<Overlap, NoOverlap> {
-        // NoOverlap has no switch method
-        return other
-            .contains_any_contour(self, epsilon, max_relative)
-            .map(Overlap::switch);
+        return lines;
     }
 }
 

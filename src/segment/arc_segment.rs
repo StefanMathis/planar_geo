@@ -16,13 +16,19 @@ usage.
 
 use approx::{relative_eq, relative_ne};
 use compare_variables::compare_variables;
+use rayon::prelude::*;
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    CentroidData, Rotation2, Transformation,
-    primitive::{Primitive, PrimitiveIntersections},
+    CentroidData, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE, Rotation2, ToleranceContext,
+    Transformation,
+    composite::CompositeWithTol,
+    geometry::GeometryRef,
+    line::Line,
+    primitive::{Primitive, PrimitiveIntersections, PrimitiveWithTol},
+    segment::{LineSegment, SegmentRef},
 };
 use bounding_box::{BoundingBox, ToBoundingBox};
 
@@ -1112,6 +1118,24 @@ impl ArcSegment {
         return self.polygonize(super::SegmentPolygonizer::InnerSegments(1));
     }
 
+    /// Wraps `self` in a [`ToleranceContext`] using the specified `epsilon` and
+    /// `max_relative` tolerances.
+    ///
+    /// The [`ToleranceContext`] applies these tolerances to floating-point
+    /// comparisons performed by geometric operations, such as finding
+    /// intersections. See [`ToleranceContext`] for details and examples.
+    pub fn with_tolerance<'a>(
+        &'a self,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> ToleranceContext<'a, Self> {
+        ToleranceContext {
+            inner: self,
+            epsilon,
+            max_relative,
+        }
+    }
+
     /**
     Returns whether `self` and `other` lay approximately on the same circle
     (center and radius are approximately equal).
@@ -1134,18 +1158,9 @@ impl ArcSegment {
     assert!(!a2.same_circle(&a3, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
     ```
      */
-    pub fn same_circle(&self, other: &ArcSegment, epsilon: f64, max_relative: f64) -> bool {
-        relative_eq!(
-            self.center,
-            other.center,
-            epsilon = epsilon,
-            max_relative = max_relative
-        ) && relative_eq!(
-            self.radius,
-            other.radius,
-            epsilon = epsilon,
-            max_relative = max_relative
-        )
+    pub fn same_circle(&self, other: &ArcSegment) -> bool {
+        self.with_tolerance(DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+            .same_circle(other)
     }
 
     /**
@@ -1184,13 +1199,8 @@ impl ArcSegment {
     assert!(!arc.is_tangent(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
     ```
      */
-    pub fn is_tangent(
-        &self,
-        line_segment: &super::LineSegment,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> bool {
-        return line_segment.is_tangent(self, epsilon, max_relative);
+    pub fn is_tangent(&self, line_segment: &super::LineSegment) -> bool {
+        return line_segment.is_tangent(self);
     }
 
     /// Returns whether `self` and `other` are touching.
@@ -1245,14 +1255,9 @@ impl ArcSegment {
     /// // ls is a tangent of c1
     /// assert!(c1.touches_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
     /// ```
-    pub fn touches_segment<'a, T: Into<super::SegmentRef<'a>>>(
-        &self,
-        other: T,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> bool {
+    pub fn touches_segment<'a, T: Into<super::SegmentRef<'a>>>(&self, other: T) -> bool {
         return self
-            .touches_and_intersections(other.into(), epsilon, max_relative)
+            .touches_and_intersections(other.into(), DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
             .0;
     }
 
@@ -1281,7 +1286,7 @@ impl ArcSegment {
                 }
 
                 let intersections =
-                    self.intersections_arc_segment(arc_segment, epsilon, max_relative);
+                    self.intersections_arc_segment_tol(arc_segment, epsilon, max_relative);
                 let touches = match intersections {
                     PrimitiveIntersections::Zero => false,
                     PrimitiveIntersections::One(i) => {
@@ -1302,7 +1307,10 @@ impl ArcSegment {
                     PrimitiveIntersections::Two([i1, i2]) => {
                         // If center and radius are identical, the arc segments are part
                         // of the same circle and therefore touch
-                        if self.same_circle(&arc_segment, epsilon, max_relative) {
+                        if self
+                            .with_tolerance(epsilon, max_relative)
+                            .same_circle(&arc_segment)
+                        {
                             true
                         } else {
                             // Are the intersections end points?
@@ -1403,7 +1411,7 @@ impl ArcSegment {
             max_relative = max_relative
         ) {
             let pt = [x0 + ox, y0 + oy];
-            if self.covers_point(pt, epsilon, max_relative) {
+            if self.covers_point_tol(&pt, epsilon, max_relative) {
                 intersections.push(pt);
             }
         } else if radial_discriminant > 0.0 {
@@ -1520,231 +1528,6 @@ impl ArcSegment {
         }
 
         return arcs;
-    }
-}
-
-impl crate::primitive::private::Sealed for ArcSegment {}
-
-impl Primitive for ArcSegment {
-    fn covers_point(&self, point: [f64; 2], epsilon: f64, max_relative: f64) -> bool {
-        if relative_eq!(
-            self.start(),
-            point,
-            epsilon = epsilon,
-            max_relative = max_relative
-        ) {
-            return true;
-        }
-        if relative_eq!(
-            self.stop(),
-            point,
-            epsilon = epsilon,
-            max_relative = max_relative
-        ) {
-            return true;
-        }
-
-        // Quick first check: If point p is outside the segment bounding box, it
-        // can't be part of the arc segment.
-        if !BoundingBox::from(self).approx_covers_point(point, epsilon) {
-            return false;
-        }
-
-        let shifted_pt = [point[0] - self.center()[0], point[1] - self.center()[1]];
-
-        if relative_eq!(
-            self.radius().powi(2),
-            shifted_pt[0].powi(2) + shifted_pt[1].powi(2),
-            epsilon = epsilon,
-            max_relative = max_relative
-        ) {
-            let angle = shifted_pt[1].atan2(shifted_pt[0]);
-            return self.covers_angle(angle);
-        } else {
-            return false;
-        }
-    }
-
-    fn covers_arc_segment(&self, arc_segment: &Self, epsilon: f64, max_relative: f64) -> bool {
-        if std::ptr::eq(self, arc_segment) {
-            return true;
-        }
-
-        // Special treatment of a full circle: other is contained if center and
-        // radius are identical to that of self.
-        if self.is_circle() {
-            return relative_eq!(
-                self.center(),
-                arc_segment.center(),
-                epsilon = epsilon,
-                max_relative = max_relative
-            ) && relative_eq!(
-                self.radius(),
-                arc_segment.radius(),
-                epsilon = epsilon,
-                max_relative = max_relative
-            );
-        }
-
-        match self.intersections_primitive(arc_segment, epsilon, max_relative) {
-            // Deal with special case where self and other are identical
-            PrimitiveIntersections::Zero => false,
-            PrimitiveIntersections::One(_) => false,
-            PrimitiveIntersections::Two([pt1, pt2]) => {
-                let start = arc_segment.start();
-                let stop = arc_segment.stop();
-
-                if relative_ne!(start, pt1, epsilon = epsilon, max_relative = max_relative)
-                    && relative_ne!(stop, pt1, epsilon = epsilon, max_relative = max_relative)
-                {
-                    false
-                } else if relative_ne!(start, pt2, epsilon = epsilon, max_relative = max_relative)
-                    && relative_ne!(stop, pt2, epsilon = epsilon, max_relative = max_relative)
-                {
-                    false
-                } else {
-                    // Middle angle of other must be on self
-                    self.covers_angle(arc_segment.start_angle() + 0.5 * arc_segment.sweep_angle())
-                }
-            }
-        }
-    }
-
-    fn covers_line_segment(
-        &self,
-        _line_segment: &crate::segment::LineSegment,
-        _epsilon: f64,
-        _max_relative: f64,
-    ) -> bool {
-        return false;
-    }
-
-    fn covers_line(&self, _line: &crate::line::Line, _epsilon: f64, _max_relative: f64) -> bool {
-        return false;
-    }
-
-    fn intersections_line(
-        &self,
-        line: &crate::line::Line,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> PrimitiveIntersections {
-        line.intersections_arc_segment(self, epsilon, max_relative)
-    }
-
-    fn intersections_line_segment(
-        &self,
-        line_segment: &crate::segment::LineSegment,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> PrimitiveIntersections {
-        line_segment.intersections_arc_segment(self, epsilon, max_relative)
-    }
-
-    /// This function uses a modified version of the circle-circle intersection
-    /// algorithm from cp-algorithms.com:
-    /// <https://cp-algorithms.com/geometry/circle-circle-intersection.html>
-    fn intersections_arc_segment(
-        &self,
-        arc_segment: &ArcSegment,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> PrimitiveIntersections {
-        // If the segments are identical, they do not intersect by definition
-        if std::ptr::eq(self, arc_segment) {
-            return PrimitiveIntersections::Zero;
-        }
-
-        /*
-        Compute intersection of two circles via radical axis reduction.
-
-        We derive a line (radical axis) in WORLD coordinates:
-
-            a x + b y + c = 0
-
-        where:
-            a = 2 (C1x - C2x)
-            b = 2 (C1y - C2y)
-            c = C2·C2 - C1·C1 + r1² - r2²
-
-        This line represents all points with equal power w.r.t. both circles.
-
-        IMPORTANT INVARIANT:
-        - No coordinate translation is performed here.
-        - This line is already in WORLD space.
-        - Any local coordinate handling is done inside `intersections_line_circle`.
-        */
-        let radius_arc1 = self.radius();
-        let radius_arc2 = arc_segment.radius();
-        let center_arc1 = self.center();
-        let center_arc2 = arc_segment.center();
-
-        // Circles are identical
-        if relative_eq!(
-            radius_arc1,
-            radius_arc2,
-            epsilon = epsilon,
-            max_relative = max_relative
-        ) && relative_eq!(
-            center_arc1,
-            center_arc2,
-            epsilon = epsilon,
-            max_relative = max_relative
-        ) {
-            let mut intersections = PrimitiveIntersections::Zero;
-            if self.covers_angle(arc_segment.start_angle()) {
-                intersections.push(arc_segment.start());
-            }
-            if self.covers_angle(arc_segment.stop_angle()) {
-                intersections.push(arc_segment.stop());
-            }
-            if intersections.len() == 2 {
-                return intersections;
-            }
-            if arc_segment.covers_angle(self.start_angle()) {
-                intersections.push(self.start());
-            }
-            if intersections.len() == 2 {
-                return intersections;
-            }
-            if arc_segment.covers_angle(self.stop_angle()) {
-                intersections.push(self.stop());
-            }
-            return intersections;
-        }
-
-        // Radical axis (WORLD coordinates)
-        let a = 2.0 * (center_arc1[0] - center_arc2[0]);
-        let b = 2.0 * (center_arc1[1] - center_arc2[1]);
-        let c = center_arc2[0].powi(2) + center_arc2[1].powi(2)
-            - center_arc1[0].powi(2)
-            - center_arc1[1].powi(2)
-            + radius_arc1.powi(2)
-            - radius_arc2.powi(2);
-
-        /*
-        General case:
-
-        1. Intersect radical axis (line) with THIS circle
-        2. This returns points in WORLD coordinates
-        3. Filter by whether points lie inside arc_segment
-        */
-        let mut intersections = PrimitiveIntersections::Zero;
-        for i in self.intersections_line_circle(a, b, c, epsilon, max_relative) {
-            if arc_segment.covers_point(i, epsilon, max_relative) {
-                intersections.push(i);
-            }
-        }
-        return intersections;
-    }
-
-    fn intersections_primitive<T: Primitive>(
-        &self,
-        other: &T,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> PrimitiveIntersections {
-        other.intersections_arc_segment(self, epsilon, max_relative)
     }
 }
 
@@ -2073,4 +1856,560 @@ pub fn calculate_sweep_angle(start_angle: f64, stop_angle: f64, positive: bool) 
         }
     }
     return sweep_angle;
+}
+
+impl crate::primitive::private::Sealed for ArcSegment {}
+
+impl Primitive for ArcSegment {
+    fn covers_point(&self, point: &[f64; 2]) -> bool {
+        self.covers_point_tol(point, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn covers_arc_segment(&self, arc_segment: &ArcSegment) -> bool {
+        self.covers_arc_segment_tol(arc_segment, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn covers_line_segment(&self, line_segment: &LineSegment) -> bool {
+        self.covers_line_segment_tol(line_segment, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn covers_line(&self, line: &Line) -> bool {
+        self.covers_line_tol(line, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn covers<'a, T>(&self, other: T) -> bool
+    where
+        Self: Sized,
+        T: Into<GeometryRef<'a>>,
+    {
+        self.covers_tol(other, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn intersections_point(&self, point: &[f64; 2]) -> PrimitiveIntersections {
+        self.intersections_point_tol(point, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn intersections_line(&self, line: &Line) -> PrimitiveIntersections {
+        self.intersections_line_tol(line, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn intersections_line_segment(&self, line_segment: &LineSegment) -> PrimitiveIntersections {
+        self.intersections_line_segment_tol(line_segment, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn intersections_arc_segment(&self, arc_segment: &ArcSegment) -> PrimitiveIntersections {
+        self.intersections_arc_segment_tol(arc_segment, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn intersections_segment<'a, T>(&self, segment: T) -> PrimitiveIntersections
+    where
+        T: Into<SegmentRef<'a>>,
+    {
+        self.intersections_segment_tol(segment, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn intersections_primitive<'a, T: Primitive>(&self, other: &'a T) -> PrimitiveIntersections
+    where
+        &'a T: Into<GeometryRef<'a>>,
+        Self: Sized,
+    {
+        let geo_ref: GeometryRef = other.into();
+        match geo_ref {
+            GeometryRef::Point(pt) => {
+                pt.intersections_arc_segment_tol(self, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+            }
+            GeometryRef::ArcSegment(arc_segment) => arc_segment.intersections_arc_segment_tol(
+                self,
+                DEFAULT_EPSILON,
+                DEFAULT_MAX_RELATIVE,
+            ),
+            GeometryRef::LineSegment(line_segment) => line_segment.intersections_arc_segment_tol(
+                self,
+                DEFAULT_EPSILON,
+                DEFAULT_MAX_RELATIVE,
+            ),
+            GeometryRef::Line(line) => {
+                line.intersections_arc_segment_tol(self, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+            }
+            GeometryRef::Segment(segment) => {
+                segment.intersections_arc_segment_tol(self, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+            }
+            _ => unreachable!(
+                "since other is a Primitive and Primitive is sealed, it cannot be another type"
+            ),
+        }
+    }
+
+    fn intersections<'a, T>(&self, other: T) -> Vec<crate::composite::Intersection>
+    where
+        Self: Sized,
+        for<'b> &'b Self: Into<GeometryRef<'b>>,
+        T: Into<GeometryRef<'a>>,
+    {
+        let geo_ref: GeometryRef<'_> = other.into();
+        match geo_ref {
+            GeometryRef::Point(pt) => pt
+                .intersections_arc_segment_tol(self, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+                .into_iter()
+                .map(From::from)
+                .collect(),
+            GeometryRef::ArcSegment(arc_segment) => arc_segment
+                .intersections_arc_segment_tol(self, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+                .into_iter()
+                .map(From::from)
+                .collect(),
+            GeometryRef::LineSegment(line_segment) => line_segment
+                .intersections_arc_segment_tol(self, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+                .into_iter()
+                .map(From::from)
+                .collect(),
+            GeometryRef::Line(line) => line
+                .intersections_arc_segment_tol(self, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+                .into_iter()
+                .map(From::from)
+                .collect(),
+            GeometryRef::Segment(segment) => segment
+                .intersections_arc_segment_tol(self, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+                .into_iter()
+                .map(From::from)
+                .collect(),
+            GeometryRef::BoundingBox(bounding_box) => {
+                let c = crate::contour::Contour::from(bounding_box);
+                c.intersections_segment_tol(self, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+                    .collect()
+            }
+            GeometryRef::Polysegment(polysegment) => polysegment
+                .intersections_segment_tol(self, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+                .collect(),
+            GeometryRef::Contour(contour) => contour
+                .intersections_segment_tol(self, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+                .collect(),
+            GeometryRef::Shape(shape) => shape
+                .intersections_segment_tol(self, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+                .collect(),
+        }
+    }
+}
+
+impl<'c> Primitive for ToleranceContext<'c, ArcSegment> {
+    fn covers_point(&self, point: &[f64; 2]) -> bool {
+        self.inner
+            .covers_point_tol(point, self.epsilon, self.max_relative)
+    }
+
+    fn covers_arc_segment(&self, arc_segment: &ArcSegment) -> bool {
+        self.inner
+            .covers_arc_segment_tol(arc_segment, self.epsilon, self.max_relative)
+    }
+
+    fn covers_line_segment(&self, line_segment: &LineSegment) -> bool {
+        self.inner
+            .covers_line_segment_tol(line_segment, self.epsilon, self.max_relative)
+    }
+
+    fn covers_line(&self, line: &Line) -> bool {
+        self.inner
+            .covers_line_tol(line, self.epsilon, self.max_relative)
+    }
+
+    fn covers<'a, T>(&self, other: T) -> bool
+    where
+        Self: Sized,
+        T: Into<GeometryRef<'a>>,
+    {
+        self.inner
+            .covers_tol(other, self.epsilon, self.max_relative)
+    }
+
+    fn intersections_point(&self, point: &[f64; 2]) -> PrimitiveIntersections {
+        self.inner
+            .intersections_point_tol(point, self.epsilon, self.max_relative)
+    }
+
+    fn intersections_line(&self, line: &Line) -> PrimitiveIntersections {
+        self.inner
+            .intersections_line_tol(line, self.epsilon, self.max_relative)
+    }
+
+    fn intersections_line_segment(&self, line_segment: &LineSegment) -> PrimitiveIntersections {
+        self.inner
+            .intersections_line_segment_tol(line_segment, self.epsilon, self.max_relative)
+    }
+
+    fn intersections_arc_segment(&self, arc_segment: &ArcSegment) -> PrimitiveIntersections {
+        self.inner
+            .intersections_arc_segment_tol(arc_segment, self.epsilon, self.max_relative)
+    }
+
+    fn intersections_segment<'a, T>(&self, segment: T) -> PrimitiveIntersections
+    where
+        T: Into<SegmentRef<'a>>,
+    {
+        self.inner
+            .intersections_segment_tol(segment, self.epsilon, self.max_relative)
+    }
+
+    fn intersections_primitive<'a, T: Primitive>(&self, other: &'a T) -> PrimitiveIntersections
+    where
+        &'a T: Into<GeometryRef<'a>>,
+        Self: Sized,
+    {
+        let geo_ref: GeometryRef = other.into();
+        match geo_ref {
+            GeometryRef::Point(pt) => {
+                pt.intersections_arc_segment_tol(self.inner, self.epsilon, self.max_relative)
+            }
+            GeometryRef::ArcSegment(arc_segment) => arc_segment.intersections_arc_segment_tol(
+                self.inner,
+                self.epsilon,
+                self.max_relative,
+            ),
+            GeometryRef::LineSegment(line_segment) => line_segment.intersections_arc_segment_tol(
+                self.inner,
+                self.epsilon,
+                self.max_relative,
+            ),
+            GeometryRef::Line(line) => {
+                line.intersections_arc_segment_tol(self.inner, self.epsilon, self.max_relative)
+            }
+            GeometryRef::Segment(segment) => {
+                segment.intersections_arc_segment_tol(self.inner, self.epsilon, self.max_relative)
+            }
+            _ => unreachable!(
+                "since other is a Primitive and Primitive is sealed, it cannot be another type"
+            ),
+        }
+    }
+
+    fn intersections<'a, T>(&self, other: T) -> Vec<crate::composite::Intersection>
+    where
+        Self: Sized,
+        for<'b> &'b Self: Into<GeometryRef<'b>>,
+        T: Into<GeometryRef<'a>>,
+    {
+        let geo_ref: GeometryRef<'_> = other.into();
+        match geo_ref {
+            GeometryRef::Point(pt) => pt
+                .intersections_arc_segment_tol(self.inner, self.epsilon, self.max_relative)
+                .into_iter()
+                .map(From::from)
+                .collect(),
+            GeometryRef::ArcSegment(arc_segment) => arc_segment
+                .intersections_arc_segment_tol(self.inner, self.epsilon, self.max_relative)
+                .into_iter()
+                .map(From::from)
+                .collect(),
+            GeometryRef::LineSegment(line_segment) => line_segment
+                .intersections_arc_segment_tol(self.inner, self.epsilon, self.max_relative)
+                .into_iter()
+                .map(From::from)
+                .collect(),
+            GeometryRef::Line(line) => line
+                .intersections_arc_segment_tol(self.inner, self.epsilon, self.max_relative)
+                .into_iter()
+                .map(From::from)
+                .collect(),
+            GeometryRef::Segment(segment) => segment
+                .intersections_arc_segment_tol(self.inner, self.epsilon, self.max_relative)
+                .into_iter()
+                .map(From::from)
+                .collect(),
+            GeometryRef::BoundingBox(bounding_box) => {
+                let c = crate::contour::Contour::from(bounding_box);
+                c.intersections_primitive_par_tol::<ArcSegment>(
+                    self.inner,
+                    self.epsilon,
+                    self.max_relative,
+                )
+                .collect()
+            }
+            GeometryRef::Polysegment(polysegment) => polysegment
+                .intersections_primitive_par_tol::<ArcSegment>(
+                    self.inner,
+                    self.epsilon,
+                    self.max_relative,
+                )
+                .collect(),
+            GeometryRef::Contour(contour) => contour
+                .intersections_primitive_par_tol::<ArcSegment>(
+                    self.inner,
+                    self.epsilon,
+                    self.max_relative,
+                )
+                .collect(),
+            GeometryRef::Shape(shape) => shape
+                .intersections_primitive_par_tol::<ArcSegment>(
+                    self.inner,
+                    self.epsilon,
+                    self.max_relative,
+                )
+                .collect(),
+        }
+    }
+}
+impl PrimitiveWithTol for ArcSegment {
+    fn covers_point_tol(&self, point: &[f64; 2], epsilon: f64, max_relative: f64) -> bool {
+        if relative_eq!(
+            self.start(),
+            point,
+            epsilon = epsilon,
+            max_relative = max_relative
+        ) {
+            return true;
+        }
+        if relative_eq!(
+            self.stop(),
+            point,
+            epsilon = epsilon,
+            max_relative = max_relative
+        ) {
+            return true;
+        }
+
+        // Quick first check: If point p is outside the segment bounding box, it
+        // can't be part of the arc segment.
+        if !BoundingBox::from(self).approx_covers_point(*point, epsilon) {
+            return false;
+        }
+
+        let shifted_pt = [point[0] - self.center()[0], point[1] - self.center()[1]];
+
+        if relative_eq!(
+            self.radius().powi(2),
+            shifted_pt[0].powi(2) + shifted_pt[1].powi(2),
+            epsilon = epsilon,
+            max_relative = max_relative
+        ) {
+            let angle = shifted_pt[1].atan2(shifted_pt[0]);
+            return self.covers_angle(angle);
+        } else {
+            return false;
+        }
+    }
+
+    fn covers_arc_segment_tol(&self, arc_segment: &Self, epsilon: f64, max_relative: f64) -> bool {
+        if std::ptr::eq(self, arc_segment) {
+            return true;
+        }
+
+        // Special treatment of a full circle: other is contained if center and
+        // radius are identical to that of self.
+        if relative_ne!(
+            self.center(),
+            arc_segment.center(),
+            epsilon = epsilon,
+            max_relative = max_relative
+        ) || relative_ne!(
+            self.radius(),
+            arc_segment.radius(),
+            epsilon = epsilon,
+            max_relative = max_relative
+        ) {
+            return false;
+        }
+        if self.is_circle() {
+            return true;
+        }
+        if arc_segment.is_circle() {
+            // Since self is not a circle, it cannot cover arc_segment if the
+            // latter is a circle
+            return false;
+        }
+
+        match self.intersections_arc_segment_tol(arc_segment, epsilon, max_relative) {
+            PrimitiveIntersections::Zero => false,
+            PrimitiveIntersections::One(_) => false,
+            PrimitiveIntersections::Two([pt1, pt2]) => {
+                let start = arc_segment.start();
+                let stop = arc_segment.stop();
+
+                if relative_ne!(start, pt1, epsilon = epsilon, max_relative = max_relative)
+                    && relative_ne!(stop, pt1, epsilon = epsilon, max_relative = max_relative)
+                {
+                    false
+                } else if relative_ne!(start, pt2, epsilon = epsilon, max_relative = max_relative)
+                    && relative_ne!(stop, pt2, epsilon = epsilon, max_relative = max_relative)
+                {
+                    false
+                } else {
+                    // Middle angle of other must be on self
+                    self.covers_angle(arc_segment.start_angle() + 0.5 * arc_segment.sweep_angle())
+                }
+            }
+        }
+    }
+
+    fn covers_line_segment_tol(
+        &self,
+        _line_segment: &crate::segment::LineSegment,
+        _epsilon: f64,
+        _max_relative: f64,
+    ) -> bool {
+        return false;
+    }
+
+    fn covers_line_tol(
+        &self,
+        _line: &crate::line::Line,
+        _epsilon: f64,
+        _max_relative: f64,
+    ) -> bool {
+        return false;
+    }
+
+    fn intersections_line_tol(
+        &self,
+        line: &crate::line::Line,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> PrimitiveIntersections {
+        line.intersections_arc_segment_tol(self, epsilon, max_relative)
+    }
+
+    fn intersections_line_segment_tol(
+        &self,
+        line_segment: &crate::segment::LineSegment,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> PrimitiveIntersections {
+        line_segment.intersections_arc_segment_tol(self, epsilon, max_relative)
+    }
+    fn intersections_arc_segment_tol(
+        &self,
+        arc_segment: &ArcSegment,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> PrimitiveIntersections {
+        // This function uses a modified version of the circle-circle intersection
+        // algorithm from cp-algorithms.com:
+        // <https://cp-algorithms.com/geometry/circle-circle-intersection.html>
+
+        // If the segments are identical, they do not intersect by definition
+        if std::ptr::eq(self, arc_segment) {
+            return PrimitiveIntersections::Zero;
+        }
+
+        /*
+        Compute intersection of two circles via radical axis reduction.
+
+        We derive a line (radical axis) in WORLD coordinates:
+
+            a x + b y + c = 0
+
+        where:
+            a = 2 (C1x - C2x)
+            b = 2 (C1y - C2y)
+            c = C2·C2 - C1·C1 + r1² - r2²
+
+        This line represents all points with equal power w.r.t. both circles.
+
+        IMPORTANT INVARIANT:
+        - No coordinate translation is performed here.
+        - This line is already in WORLD space.
+        - Any local coordinate handling is done inside `intersections_line_circle`.
+        */
+        let radius_arc1 = self.radius();
+        let radius_arc2 = arc_segment.radius();
+        let center_arc1 = self.center();
+        let center_arc2 = arc_segment.center();
+
+        // Circles are identical
+        if relative_eq!(
+            radius_arc1,
+            radius_arc2,
+            epsilon = epsilon,
+            max_relative = max_relative
+        ) && relative_eq!(
+            center_arc1,
+            center_arc2,
+            epsilon = epsilon,
+            max_relative = max_relative
+        ) {
+            let mut intersections = PrimitiveIntersections::Zero;
+            if self.covers_angle(arc_segment.start_angle()) {
+                intersections.push(arc_segment.start());
+            }
+            if self.covers_angle(arc_segment.stop_angle()) {
+                intersections.push(arc_segment.stop());
+            }
+            if intersections.len() == 2 {
+                return intersections;
+            }
+            if arc_segment.covers_angle(self.start_angle()) {
+                intersections.push(self.start());
+            }
+            if intersections.len() == 2 {
+                return intersections;
+            }
+            if arc_segment.covers_angle(self.stop_angle()) {
+                intersections.push(self.stop());
+            }
+            return intersections;
+        }
+
+        // Radical axis (WORLD coordinates)
+        let a = 2.0 * (center_arc1[0] - center_arc2[0]);
+        let b = 2.0 * (center_arc1[1] - center_arc2[1]);
+        let c = center_arc2[0].powi(2) + center_arc2[1].powi(2)
+            - center_arc1[0].powi(2)
+            - center_arc1[1].powi(2)
+            + radius_arc1.powi(2)
+            - radius_arc2.powi(2);
+
+        /*
+        General case:
+
+        1. Intersect radical axis (line) with THIS circle
+        2. This returns points in WORLD coordinates
+        3. Filter by whether points lie inside arc_segment
+        */
+        let mut intersections = PrimitiveIntersections::Zero;
+        for i in self.intersections_line_circle(a, b, c, epsilon, max_relative) {
+            if arc_segment.covers_point_tol(&i, epsilon, max_relative) {
+                intersections.push(i);
+            }
+        }
+        return intersections;
+    }
+
+    fn intersections_primitive_tol<T>(
+        &self,
+        primitive: &T,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> PrimitiveIntersections
+    where
+        T: PrimitiveWithTol,
+    {
+        return primitive.intersections_arc_segment_tol(self, epsilon, max_relative);
+    }
+}
+
+impl<'c> ToleranceContext<'c, ArcSegment> {
+    pub fn same_circle(&self, other: &ArcSegment) -> bool {
+        relative_eq!(
+            self.inner.center,
+            other.center,
+            epsilon = self.epsilon,
+            max_relative = self.max_relative
+        ) && relative_eq!(
+            self.inner.radius,
+            other.radius,
+            epsilon = self.epsilon,
+            max_relative = self.max_relative
+        )
+    }
+
+    pub fn is_tangent(&self, line_segment: &super::LineSegment) -> bool {
+        return line_segment
+            .with_tolerance(self.epsilon, self.max_relative)
+            .is_tangent(self.inner);
+    }
+
+    pub fn touches_segment<'a, T: Into<super::SegmentRef<'a>>>(&self, other: T) -> bool {
+        return self
+            .inner
+            .touches_and_intersections(other.into(), self.epsilon, self.max_relative)
+            .0;
+    }
 }

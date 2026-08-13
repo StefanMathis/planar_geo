@@ -112,7 +112,7 @@ fn test_intersection_cut() {
         .expect("valid arc");
         let contour = Contour::from(arc.clone());
         let cut = Polysegment::from_points([[-10.0, 0.00075], [10.0, 0.00075]].as_slice());
-        let separated_lines = contour.intersection_cut(&cut, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE);
+        let separated_lines = contour.intersection_cut(&cut);
         assert_eq!(separated_lines.len(), 2);
 
         let cut_seg = &separated_lines[0][1];
@@ -149,7 +149,7 @@ fn test_intersection_cut() {
 
         let cut = Polysegment::from_points([[-10.0, 1.0], [10.0, 1.0]].as_slice());
 
-        let separated_lines = contour.intersection_cut(&cut, 0.0, 0.0);
+        let separated_lines = contour.with_tolerance(0.0, 0.0).intersection_cut(&cut);
         assert_eq!(separated_lines.len(), 4);
 
         assert_eq!(separated_lines[0].num_segments(), 3);
@@ -202,44 +202,38 @@ fn test_circle() {
     }
     {
         let contour = planar_geo::prelude::Contour::circle([0.0, 0.0], 20.0);
-        assert!(contour.covers_point([0.0, 0.0], 0.0, 0.0).is_ok());
-        assert!(contour.covers_point([21.0, 0.0], 0.0, 0.0).is_err());
+        assert!(
+            contour
+                .with_tolerance(0.0, 0.0)
+                .covers_point(&[0.0, 0.0])
+                .is_ok()
+        );
+        assert!(
+            contour
+                .with_tolerance(0.0, 0.0)
+                .covers_point(&[21.0, 0.0])
+                .is_err()
+        );
 
         // Bug found with the interactive canvas
         assert!(
             contour
-                .covers_point(
-                    [0.055555555555542924, -0.9999923706054688],
-                    DEFAULT_EPSILON,
-                    DEFAULT_MAX_RELATIVE
-                )
+                .covers_point(&[0.055555555555542924, -0.9999923706054688],)
                 .is_ok()
         );
         assert!(
             contour
-                .covers_point(
-                    [12.055555555555543, -9.999992370605469],
-                    DEFAULT_EPSILON,
-                    DEFAULT_MAX_RELATIVE
-                )
+                .covers_point(&[12.055555555555543, -9.999992370605469],)
                 .is_ok()
         );
         assert!(
             contour
-                .covers_point(
-                    [8.055555555555543, -6.999992370605469],
-                    DEFAULT_EPSILON,
-                    DEFAULT_MAX_RELATIVE
-                )
+                .covers_point(&[8.055555555555543, -6.999992370605469],)
                 .is_ok()
         );
         assert!(
             contour
-                .covers_point(
-                    [14.055555555555543, -6.999992370605469],
-                    DEFAULT_EPSILON,
-                    DEFAULT_MAX_RELATIVE
-                )
+                .covers_point(&[14.055555555555543, -6.999992370605469],)
                 .is_ok()
         );
     }
@@ -352,23 +346,15 @@ fn test_area() {
 
 #[test]
 fn test_contains_point() {
-    let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_RELATIVE;
     {
         // Bug found in the test_inner_and_outer_rotor test of the stem_magnet crate
         let c = Contour::from(ArcSegment::circle([0.0, 0.0], 1.1 * 0.08).expect("radius larger 0"));
-        assert!(
-            c.contains_point([0.08, -1.959434878635765e-17], e, m)
-                .is_ok()
-        );
+        assert!(c.contains_point(&[0.08, -1.959434878635765e-17]).is_ok());
     }
     {
         // Bug found in the test_plot_inner_assembly test of the stem_magnet crate
         let c = Contour::from(ArcSegment::circle([0.0, 0.0], 0.025).expect("radius larger 0"));
-        assert!(
-            c.contains_point([0.01, -2.4492935982947064e-18], e, m)
-                .is_ok()
-        );
+        assert!(c.contains_point(&[0.01, -2.4492935982947064e-18]).is_ok());
     }
     {
         // Bug found in the test_polygon_air_gap_builder test of the stem_core crate
@@ -394,16 +380,31 @@ fn test_contains_point() {
         ]));
         assert!(
             polygon
-                .contains_point([0.06, -1.4695761589768237e-17], e, m)
+                .contains_point(&[0.06, -1.4695761589768237e-17])
                 .is_ok()
         );
     }
     {
         let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
         let contour = Contour::new(Polysegment::from_points(vertices));
-        assert!(contour.contains_point([0.5, 0.5], 0.0, 0.0).is_ok());
-        assert!(contour.contains_point([0.5, 1.0], 0.0, 0.0).is_err());
-        assert!(contour.contains_point([0.5, 1.5], 0.0, 0.0).is_err());
+        assert!(
+            contour
+                .with_tolerance(0.0, 0.0)
+                .contains_point(&[0.5, 0.5])
+                .is_ok()
+        );
+        assert!(
+            contour
+                .with_tolerance(0.0, 0.0)
+                .contains_point(&[0.5, 1.0])
+                .is_err()
+        );
+        assert!(
+            contour
+                .with_tolerance(0.0, 0.0)
+                .contains_point(&[0.5, 1.5])
+                .is_err()
+        );
     }
     {
         let vertices = &[
@@ -415,23 +416,63 @@ fn test_contains_point() {
             [1.0, 0.0],
         ];
         let contour = Contour::new(Polysegment::from_points(vertices));
-        assert!(contour.contains_point([0.5, 0.5], 0.0, 0.0).is_ok());
-        assert!(contour.contains_point([0.5, 1.0], 0.0, 0.0).is_err());
-        assert!(contour.contains_point([0.5, 1.5], 0.0, 0.0).is_err());
+        assert!(
+            contour
+                .with_tolerance(0.0, 0.0)
+                .contains_point(&[0.5, 0.5])
+                .is_ok()
+        );
+        assert!(
+            contour
+                .with_tolerance(0.0, 0.0)
+                .contains_point(&[0.5, 1.0])
+                .is_err()
+        );
+        assert!(
+            contour
+                .with_tolerance(0.0, 0.0)
+                .contains_point(&[0.5, 1.5])
+                .is_err()
+        );
     }
     {
         let vertices = &[[0.0, 0.0], [0.0, 0.5], [0.1, 0.5]];
         let contour = Contour::new(Polysegment::from_points(vertices));
-        assert!(contour.contains_point([0.5, 0.5], 0.0, 0.0).is_err());
-        assert!(contour.contains_point([0.5, 1.0], 0.0, 0.0).is_err());
-        assert!(contour.contains_point([0.5, 1.5], 0.0, 0.0).is_err());
+        assert!(
+            contour
+                .with_tolerance(0.0, 0.0)
+                .contains_point(&[0.5, 0.5])
+                .is_err()
+        );
+        assert!(
+            contour
+                .with_tolerance(0.0, 0.0)
+                .contains_point(&[0.5, 1.0])
+                .is_err()
+        );
+        assert!(contour.contains_point(&[0.5, 1.5]).is_err());
     }
     {
         let vertices = &[[0.0, 0.0], [0.0, 0.5], [1.0, 0.0]];
         let contour = Contour::new(Polysegment::from_points(vertices));
-        assert!(contour.contains_point([0.5, 0.5], 0.0, 0.0).is_err());
-        assert!(contour.contains_point([0.5, 1.0], 0.0, 0.0).is_err());
-        assert!(contour.contains_point([0.5, 1.5], 0.0, 0.0).is_err());
+        assert!(
+            contour
+                .with_tolerance(0.0, 0.0)
+                .contains_point(&[0.5, 0.5])
+                .is_err()
+        );
+        assert!(
+            contour
+                .with_tolerance(0.0, 0.0)
+                .contains_point(&[0.5, 1.0])
+                .is_err()
+        );
+        assert!(
+            contour
+                .with_tolerance(0.0, 0.0)
+                .contains_point(&[0.5, 1.5])
+                .is_err()
+        );
     }
     {
         let vertices = &[
@@ -445,9 +486,24 @@ fn test_contains_point() {
             [0.0, 0.5],
         ];
         let contour = Contour::new(Polysegment::from_points(vertices));
-        assert!(contour.contains_point([0.5, 0.5], 0.0, 0.0).is_ok());
-        assert!(contour.contains_point([0.5, 1.0], 0.0, 0.0).is_err());
-        assert!(contour.contains_point([0.5, 1.5], 0.0, 0.0).is_err());
+        assert!(
+            contour
+                .with_tolerance(0.0, 0.0)
+                .contains_point(&[0.5, 0.5])
+                .is_ok()
+        );
+        assert!(
+            contour
+                .with_tolerance(0.0, 0.0)
+                .contains_point(&[0.5, 1.0])
+                .is_err()
+        );
+        assert!(
+            contour
+                .with_tolerance(0.0, 0.0)
+                .contains_point(&[0.5, 1.5])
+                .is_err()
+        );
     }
     {
         let mut ps = Polysegment::new();
@@ -468,16 +524,16 @@ fn test_contains_point() {
         ps.extend_back([0.5, 0.0]);
         let c = Contour::new(ps);
 
-        assert!(c.contains_point([-1.5, 0.0], e, m).is_ok());
-        assert!(c.contains_point([0.0, 0.1], e, m).is_ok());
-        assert!(c.contains_point([0.0, 0.0], e, m).is_err());
-        assert!(c.contains_point([-1.5, 0.5], e, m).is_ok());
-        assert!(c.contains_point([-1.0, 0.0], e, m).is_err());
-        assert!(c.contains_point([-2.0, 0.1], e, m).is_ok());
-        assert!(c.contains_point([-3.0, -1.0], e, m).is_err());
-        assert!(c.contains_point([-2.0, -0.2], e, m).is_ok());
-        assert!(c.contains_point([0.0, -1.0], e, m).is_err());
-        assert!(c.contains_point([-5.0, -1.0], e, m).is_err());
+        assert!(c.contains_point(&[-1.5, 0.0]).is_ok());
+        assert!(c.contains_point(&[0.0, 0.1]).is_ok());
+        assert!(c.contains_point(&[0.0, 0.0]).is_err());
+        assert!(c.contains_point(&[-1.5, 0.5]).is_ok());
+        assert!(c.contains_point(&[-1.0, 0.0]).is_err());
+        assert!(c.contains_point(&[-2.0, 0.1]).is_ok());
+        assert!(c.contains_point(&[-3.0, -1.0]).is_err());
+        assert!(c.contains_point(&[-2.0, -0.2]).is_ok());
+        assert!(c.contains_point(&[0.0, -1.0]).is_err());
+        assert!(c.contains_point(&[-5.0, -1.0]).is_err());
     }
     {
         let mut ps = Polysegment::new();
@@ -492,9 +548,9 @@ fn test_contains_point() {
                 .into(),
         );
         let c = Contour::new(ps);
-        assert!(c.contains_point([0.1, 0.0], e, m).is_ok());
-        assert!(c.contains_point([0.1, 1e-25], e, m).is_ok());
-        assert!(c.contains_point([0.1, -1e-25], e, m).is_ok());
+        assert!(c.contains_point(&[0.1, 0.0]).is_ok());
+        assert!(c.contains_point(&[0.1, 1e-25]).is_ok());
+        assert!(c.contains_point(&[0.1, -1e-25]).is_ok());
     }
     {
         let mut ps = Polysegment::new();
@@ -510,9 +566,9 @@ fn test_contains_point() {
         );
         ps.extend_back([0.0, -1.0]);
         let c = Contour::new(ps);
-        assert!(c.contains_point([0.1, 0.0], e, m).is_ok());
-        assert!(c.contains_point([0.1, 1e-25], e, m).is_ok());
-        assert!(c.contains_point([0.1, -1e-25], e, m).is_ok());
+        assert!(c.contains_point(&[0.1, 0.0]).is_ok());
+        assert!(c.contains_point(&[0.1, 1e-25]).is_ok());
+        assert!(c.contains_point(&[0.1, -1e-25]).is_ok());
     }
     {
         let mut ps = Polysegment::new();
@@ -528,18 +584,15 @@ fn test_contains_point() {
         );
         ps.extend_back([0.0, -1.0]);
         let c = Contour::new(ps);
-        assert!(c.contains_point([0.1, 0.0], e, m).is_ok());
-        assert!(c.contains_point([0.1, 1e-25], e, m).is_ok());
-        assert!(c.contains_point([0.1, -1e-25], e, m).is_ok());
+        assert!(c.contains_point(&[0.1, 0.0]).is_ok());
+        assert!(c.contains_point(&[0.1, 1e-25]).is_ok());
+        assert!(c.contains_point(&[0.1, -1e-25]).is_ok());
     }
 }
 
 #[test]
 fn test_contains_point_core_contour() {
     // Test of a bug found in the stem_core crate
-
-    let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_RELATIVE;
 
     let mut ps = Polysegment::new();
     ps.push_back(
@@ -640,51 +693,52 @@ fn test_contains_point_core_contour() {
     );
     let c = Contour::from(ps);
 
+    assert!(c.contains_point(&[0.0085, 0.0027499999999999994]).is_ok());
     assert!(
-        c.contains_point([0.0085, 0.0027499999999999994], e, m)
+        c.contains_point(&[0.010499999999999999, 0.0007499999999999998])
             .is_ok()
     );
     assert!(
-        c.contains_point([0.010499999999999999, 0.0007499999999999998], e, m)
+        c.contains_point(&[0.013499999999999998, 0.01774999999999992])
             .is_ok()
     );
+    assert!(c.contains_point(&[0.0165, 0.014750000000000001]).is_ok());
     assert!(
-        c.contains_point([0.013499999999999998, 0.01774999999999992], e, m)
+        c.contains_point(&[0.014499999999999999, 0.0007499999999999998])
             .is_ok()
     );
+    assert!(c.contains_point(&[0.012499999999999999, 0.00075]).is_ok());
     assert!(
-        c.contains_point([0.0165, 0.014750000000000001], e, m)
+        c.contains_point(&[0.016499999999999997, 0.0027499999999999985])
             .is_ok()
     );
-    assert!(
-        c.contains_point([0.014499999999999999, 0.0007499999999999998], e, m)
-            .is_ok()
-    );
-    assert!(
-        c.contains_point([0.012499999999999999, 0.00075], e, m)
-            .is_ok()
-    );
-    assert!(
-        c.contains_point([0.016499999999999997, 0.0027499999999999985], e, m)
-            .is_ok()
-    );
-    assert!(
-        c.contains_point([-2.0, 0.0027499999999999994], e, m)
-            .is_err()
-    );
-    assert!(c.contains_point([0.0, 0.00275], e, m).is_err());
+    assert!(c.contains_point(&[-2.0, 0.0027499999999999994]).is_err());
+    assert!(c.contains_point(&[0.0, 0.00275]).is_err());
 }
 
 #[test]
 fn test_covers_point() {
-    let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_RELATIVE;
     {
         let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
         let contour = Contour::new(Polysegment::from_points(vertices));
-        assert!(contour.covers_point([0.5, 0.5], 0.0, 0.0).is_ok());
-        assert!(contour.covers_point([0.5, 1.0], 0.0, 0.0).is_ok());
-        assert!(contour.covers_point([0.5, 1.5], 0.0, 0.0).is_err());
+        assert!(
+            contour
+                .with_tolerance(0.0, 0.0)
+                .covers_point(&[0.5, 0.5])
+                .is_ok()
+        );
+        assert!(
+            contour
+                .with_tolerance(0.0, 0.0)
+                .covers_point(&[0.5, 1.0])
+                .is_ok()
+        );
+        assert!(
+            contour
+                .with_tolerance(0.0, 0.0)
+                .covers_point(&[0.5, 1.5])
+                .is_err()
+        );
     }
     {
         let vertices = &[
@@ -696,23 +750,68 @@ fn test_covers_point() {
             [1.0, 0.0],
         ];
         let contour = Contour::new(Polysegment::from_points(vertices));
-        assert!(contour.covers_point([0.5, 0.5], 0.0, 0.0).is_ok());
-        assert!(contour.covers_point([0.5, 1.0], 0.0, 0.0).is_ok());
-        assert!(contour.covers_point([0.5, 1.5], 0.0, 0.0).is_err());
+        assert!(
+            contour
+                .with_tolerance(0.0, 0.0)
+                .covers_point(&[0.5, 0.5])
+                .is_ok()
+        );
+        assert!(
+            contour
+                .with_tolerance(0.0, 0.0)
+                .covers_point(&[0.5, 1.0])
+                .is_ok()
+        );
+        assert!(
+            contour
+                .with_tolerance(0.0, 0.0)
+                .covers_point(&[0.5, 1.5])
+                .is_err()
+        );
     }
     {
         let vertices = &[[0.0, 0.0], [0.0, 0.5], [0.1, 0.5]];
         let contour = Contour::new(Polysegment::from_points(vertices));
-        assert!(contour.covers_point([0.5, 0.5], 0.0, 0.0).is_err());
-        assert!(contour.covers_point([0.5, 1.0], 0.0, 0.0).is_err());
-        assert!(contour.covers_point([0.5, 1.5], 0.0, 0.0).is_err());
+        assert!(
+            contour
+                .with_tolerance(0.0, 0.0)
+                .covers_point(&[0.5, 0.5])
+                .is_err()
+        );
+        assert!(
+            contour
+                .with_tolerance(0.0, 0.0)
+                .covers_point(&[0.5, 1.0])
+                .is_err()
+        );
+        assert!(
+            contour
+                .with_tolerance(0.0, 0.0)
+                .covers_point(&[0.5, 1.5])
+                .is_err()
+        );
     }
     {
         let vertices = &[[0.0, 0.0], [0.0, 0.5], [1.0, 0.0]];
         let contour = Contour::new(Polysegment::from_points(vertices));
-        assert!(contour.covers_point([0.5, 0.5], 0.0, 0.0).is_err());
-        assert!(contour.covers_point([0.5, 1.0], 0.0, 0.0).is_err());
-        assert!(contour.covers_point([0.5, 1.5], 0.0, 0.0).is_err());
+        assert!(
+            contour
+                .with_tolerance(0.0, 0.0)
+                .covers_point(&[0.5, 0.5])
+                .is_err()
+        );
+        assert!(
+            contour
+                .with_tolerance(0.0, 0.0)
+                .covers_point(&[0.5, 1.0])
+                .is_err()
+        );
+        assert!(
+            contour
+                .with_tolerance(0.0, 0.0)
+                .covers_point(&[0.5, 1.5])
+                .is_err()
+        );
     }
     {
         let vertices = &[
@@ -726,9 +825,24 @@ fn test_covers_point() {
             [0.0, 0.5],
         ];
         let contour = Contour::new(Polysegment::from_points(vertices));
-        assert!(contour.covers_point([0.5, 0.5], 0.0, 0.0).is_ok());
-        assert!(contour.covers_point([0.5, 1.0], 0.0, 0.0).is_ok());
-        assert!(contour.covers_point([0.5, 1.5], 0.0, 0.0).is_err());
+        assert!(
+            contour
+                .with_tolerance(0.0, 0.0)
+                .covers_point(&[0.5, 0.5])
+                .is_ok()
+        );
+        assert!(
+            contour
+                .with_tolerance(0.0, 0.0)
+                .covers_point(&[0.5, 1.0])
+                .is_ok()
+        );
+        assert!(
+            contour
+                .with_tolerance(0.0, 0.0)
+                .covers_point(&[0.5, 1.5])
+                .is_err()
+        );
     }
     {
         let mut ps = Polysegment::new();
@@ -749,25 +863,25 @@ fn test_covers_point() {
         ps.extend_back([0.5, 0.0]);
         let c = Contour::new(ps);
 
-        assert!(c.covers_point([0.0, 0.1], e, m).is_ok());
-        assert!(c.covers_point([0.0, 0.0], e, m).is_ok());
-        assert!(c.covers_point([-1.5, 0.0], e, m).is_ok());
-        assert!(c.covers_point([-1.0, 0.0], e, m).is_ok());
-        assert!(c.covers_point([-2.0, 0.1], e, m).is_ok());
-        assert!(c.covers_point([-3.0, -1.0], e, m).is_ok());
-        assert!(c.covers_point([-2.0, -0.2], e, m).is_ok());
-        assert!(c.covers_point([0.0, -1.0], e, m).is_ok());
-        assert!(c.covers_point([-5.0, -1.0], e, m).is_err());
+        assert!(c.covers_point(&[0.0, 0.1]).is_ok());
+        assert!(c.covers_point(&[0.0, 0.0]).is_ok());
+        assert!(c.covers_point(&[-1.5, 0.0]).is_ok());
+        assert!(c.covers_point(&[-1.0, 0.0]).is_ok());
+        assert!(c.covers_point(&[-2.0, 0.1]).is_ok());
+        assert!(c.covers_point(&[-3.0, -1.0]).is_ok());
+        assert!(c.covers_point(&[-2.0, -0.2]).is_ok());
+        assert!(c.covers_point(&[0.0, -1.0]).is_ok());
+        assert!(c.covers_point(&[-5.0, -1.0]).is_err());
     }
     {
         let c: Contour = Polysegment::from(
             ArcSegment::from_start_center_angle([1.0, 0.0], [0.0, 0.0], PI).unwrap(),
         )
         .into();
-        assert!(c.covers_point([0.0, 0.0], e, m).is_ok());
-        assert!(c.covers_point([0.9, 0.9], e, m).is_err());
-        assert!(c.covers_point([0.999999999, 0.999999999], e, m).is_err());
-        assert!(c.covers_point([1.0, 1.0], e, m).is_err());
+        assert!(c.covers_point(&[0.0, 0.0]).is_ok());
+        assert!(c.covers_point(&[0.9, 0.9]).is_err());
+        assert!(c.covers_point(&[0.999999999, 0.999999999]).is_err());
+        assert!(c.covers_point(&[1.0, 1.0]).is_err());
     }
     {
         let mut ps = Polysegment::new();
@@ -779,9 +893,9 @@ fn test_covers_point() {
         ps.extend_back([-1.0, 2.0]);
         ps.extend_back([1.0, 2.0]);
         let c = Contour::new(ps);
-        assert!(c.covers_point([-1.0, 1.0], e, m).is_ok());
-        assert!(c.covers_point([1.0, 1.0], e, m).is_ok());
-        assert!(c.covers_point([0.5, 1.0], e, m).is_ok());
+        assert!(c.covers_point(&[-1.0, 1.0]).is_ok());
+        assert!(c.covers_point(&[1.0, 1.0]).is_ok());
+        assert!(c.covers_point(&[0.5, 1.0]).is_ok());
     }
 }
 
@@ -804,7 +918,7 @@ fn test_self_intersection() {
         )
         .unwrap();
         let c: Contour = Polysegment::from_iter([arc1.into(), arc2.into()].into_iter()).into();
-        let intersections = c.intersections_contour(&c, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE);
+        let intersections = c.intersections_contour(&c);
         assert_eq!(intersections.count(), 0);
     }
     // Open polysegment
@@ -813,18 +927,18 @@ fn test_self_intersection() {
             Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]).into();
 
         // Intersect the line with itself
-        let intersections = c.intersections_contour(&c, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE);
+        let intersections = c.intersections_contour(&c);
         assert_eq!(intersections.count(), 0);
 
         // Intersect the line with itself
-        let intersections = c.intersections_contour_par(&c, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE);
+        let intersections = c.intersections_contour_par(&c);
         assert_eq!(intersections.count(), 0);
 
         // Intersect the line with itself
-        let intersections = c.intersections(&c, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE);
+        let intersections = c.intersections(&c);
         assert_eq!(intersections.len(), 0);
 
-        let intersections = c.intersections_par(&c, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE);
+        let intersections = c.intersections_par(&c);
         assert_eq!(intersections.len(), 0);
     }
 
@@ -834,11 +948,11 @@ fn test_self_intersection() {
             Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]).into();
 
         // Intersect the line with itself
-        let intersections = c.intersections_contour(&c, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE);
+        let intersections = c.intersections_contour(&c);
         assert_eq!(intersections.count(), 0);
 
         // Intersect the line with itself
-        let intersections = c.intersections_contour_par(&c, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE);
+        let intersections = c.intersections_contour_par(&c);
         assert_eq!(intersections.count(), 0);
     }
 }
@@ -928,8 +1042,6 @@ fn test_centroid() {
 
 #[test]
 fn test_intersects() {
-    let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_RELATIVE;
     let c1: Contour =
         Polysegment::from(ArcSegment::from_start_center_angle([0.0, 0.0], [0.0, 1.0], PI).unwrap())
             .into();
@@ -944,15 +1056,13 @@ fn test_intersects() {
     )
     .into();
 
-    assert_eq!(c1.intersection_cut(c2.polysegment(), e, m).len(), 4);
-    assert_eq!(c1.intersection_cut(c3.polysegment(), e, m).len(), 1);
-    assert_eq!(c1.intersection_cut(c4.polysegment(), e, m).len(), 2);
+    assert_eq!(c1.intersection_cut(c2.polysegment()).len(), 4);
+    assert_eq!(c1.intersection_cut(c3.polysegment()).len(), 1);
+    assert_eq!(c1.intersection_cut(c4.polysegment()).len(), 2);
 }
 
 #[test]
 fn test_covers_line_segment() {
-    let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_RELATIVE;
     {
         let c = Contour::new(Polysegment::from_points(&[
             [0.0, 0.0],
@@ -962,11 +1072,11 @@ fn test_covers_line_segment() {
             [0.5, 0.5],
         ]));
         assert!(
-            c.covers_segment(&LineSegment::new([0.0, 0.0], [0.0, 1.0]).unwrap(), e, m)
+            c.covers_segment(&LineSegment::new([0.0, 0.0], [0.0, 1.0]).unwrap())
                 .is_err()
         );
         assert!(
-            c.covers_segment(&LineSegment::new([0.0, 1.0], [0.0, 0.0]).unwrap(), e, m)
+            c.covers_segment(&LineSegment::new([0.0, 1.0], [0.0, 0.0]).unwrap())
                 .is_err()
         );
     }
@@ -978,39 +1088,39 @@ fn test_covers_line_segment() {
             [0.0, 1.0],
         ]));
         assert!(
-            c.covers_segment(&LineSegment::new([0.1, 0.1], [0.9, 0.9]).unwrap(), e, m)
+            c.covers_segment(&LineSegment::new([0.1, 0.1], [0.9, 0.9]).unwrap())
                 .is_ok()
         );
         assert!(
-            c.covers_segment(&LineSegment::new([-0.1, 0.5], [0.9, 0.5]).unwrap(), e, m)
+            c.covers_segment(&LineSegment::new([-0.1, 0.5], [0.9, 0.5]).unwrap())
                 .is_err()
         );
         assert!(
-            c.covers_segment(&LineSegment::new([-0.1, 0.5], [0.9, 1.5]).unwrap(), e, m)
+            c.covers_segment(&LineSegment::new([-0.1, 0.5], [0.9, 1.5]).unwrap())
                 .is_err()
         );
         assert!(
-            c.covers_segment(&LineSegment::new([0.1, 0.5], [0.9, 1.5]).unwrap(), e, m)
+            c.covers_segment(&LineSegment::new([0.1, 0.5], [0.9, 1.5]).unwrap())
                 .is_err()
         );
         assert!(
-            c.covers_segment(&LineSegment::new([0.0, 0.0], [1.0, 0.0]).unwrap(), e, m)
+            c.covers_segment(&LineSegment::new([0.0, 0.0], [1.0, 0.0]).unwrap())
                 .is_ok()
         );
         assert!(
-            c.covers_segment(&LineSegment::new([0.0, 0.0], [2.0, 0.0]).unwrap(), e, m)
+            c.covers_segment(&LineSegment::new([0.0, 0.0], [2.0, 0.0]).unwrap())
                 .is_err()
         );
         assert!(
-            c.covers_segment(&LineSegment::new([-1.0, 0.0], [1.0, 0.0]).unwrap(), e, m)
+            c.covers_segment(&LineSegment::new([-1.0, 0.0], [1.0, 0.0]).unwrap())
                 .is_err()
         );
         assert!(
-            c.covers_segment(&LineSegment::new([0.0, 1.0], [1.0, 1.0]).unwrap(), e, m)
+            c.covers_segment(&LineSegment::new([0.0, 1.0], [1.0, 1.0]).unwrap())
                 .is_ok()
         );
         assert!(
-            c.covers_segment(&LineSegment::new([0.0, 0.5], [1.0, 1.5]).unwrap(), e, m)
+            c.covers_segment(&LineSegment::new([0.0, 0.5], [1.0, 1.5]).unwrap())
                 .is_err()
         );
     }
@@ -1020,31 +1130,31 @@ fn test_covers_line_segment() {
         )
         .into();
         assert!(
-            c.covers_segment(&LineSegment::new([-1.0, 0.0], [1.0, 0.0]).unwrap(), e, m)
+            c.covers_segment(&LineSegment::new([-1.0, 0.0], [1.0, 0.0]).unwrap())
                 .is_ok()
         );
         assert!(
-            c.covers_segment(&LineSegment::new([0.0, 0.0], [1.0, 0.0]).unwrap(), e, m)
+            c.covers_segment(&LineSegment::new([0.0, 0.0], [1.0, 0.0]).unwrap())
                 .is_ok()
         );
         assert!(
-            c.covers_segment(&LineSegment::new([-0.5, 0.1], [0.5, 0.1]).unwrap(), e, m)
+            c.covers_segment(&LineSegment::new([-0.5, 0.1], [0.5, 0.1]).unwrap())
                 .is_ok()
         );
         assert!(
-            c.covers_segment(&LineSegment::new([-0.5, -0.1], [0.5, -0.1]).unwrap(), e, m)
+            c.covers_segment(&LineSegment::new([-0.5, -0.1], [0.5, -0.1]).unwrap())
                 .is_err()
         );
         assert!(
-            c.covers_segment(&LineSegment::new([0.0, 0.1], [0.0, 1.1]).unwrap(), e, m)
+            c.covers_segment(&LineSegment::new([0.0, 0.1], [0.0, 1.1]).unwrap())
                 .is_err()
         );
         assert!(
-            c.covers_segment(&LineSegment::new([0.0, 0.1], [0.0, 1.0]).unwrap(), e, m)
+            c.covers_segment(&LineSegment::new([0.0, 0.1], [0.0, 1.0]).unwrap())
                 .is_ok()
         );
         assert!(
-            c.covers_segment(&LineSegment::new([0.0, 0.0], [1.0, 1.0]).unwrap(), e, m)
+            c.covers_segment(&LineSegment::new([0.0, 0.0], [1.0, 1.0]).unwrap())
                 .is_err()
         );
     }
@@ -1059,15 +1169,15 @@ fn test_covers_line_segment() {
         ps.extend_back([1.0, 2.0]);
         let c = Contour::new(ps);
         assert!(
-            c.covers_segment(&LineSegment::new([-1.0, 1.0], [1.0, 1.0]).unwrap(), e, m)
+            c.covers_segment(&LineSegment::new([-1.0, 1.0], [1.0, 1.0]).unwrap())
                 .is_ok()
         );
         assert!(
-            c.covers_segment(&LineSegment::new([-0.1, 1.0], [0.1, 1.0]).unwrap(), e, m)
+            c.covers_segment(&LineSegment::new([-0.1, 1.0], [0.1, 1.0]).unwrap())
                 .is_ok()
         );
         assert!(
-            c.covers_segment(&LineSegment::new([-0.1, 0.9], [0.1, 0.9]).unwrap(), e, m)
+            c.covers_segment(&LineSegment::new([-0.1, 0.9], [0.1, 0.9]).unwrap())
                 .is_err()
         );
     }
@@ -1075,8 +1185,6 @@ fn test_covers_line_segment() {
 
 #[test]
 fn test_contains_line_segment() {
-    let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_RELATIVE;
     {
         let c = Contour::new(Polysegment::from_points(&[
             [0.0, 0.0],
@@ -1085,39 +1193,39 @@ fn test_contains_line_segment() {
             [0.0, 1.0],
         ]));
         assert!(
-            c.contains_segment(&LineSegment::new([0.1, 0.1], [0.9, 0.9]).unwrap(), e, m)
+            c.contains_segment(&LineSegment::new([0.1, 0.1], [0.9, 0.9]).unwrap())
                 .is_ok()
         );
         assert!(
-            c.contains_segment(&LineSegment::new([-0.1, 0.5], [0.9, 0.5]).unwrap(), e, m)
+            c.contains_segment(&LineSegment::new([-0.1, 0.5], [0.9, 0.5]).unwrap())
                 .is_err()
         );
         assert!(
-            c.contains_segment(&LineSegment::new([-0.1, 0.5], [0.9, 1.5]).unwrap(), e, m)
+            c.contains_segment(&LineSegment::new([-0.1, 0.5], [0.9, 1.5]).unwrap())
                 .is_err()
         );
         assert!(
-            c.contains_segment(&LineSegment::new([0.1, 0.5], [0.9, 1.5]).unwrap(), e, m)
+            c.contains_segment(&LineSegment::new([0.1, 0.5], [0.9, 1.5]).unwrap())
                 .is_err()
         );
         assert!(
-            c.contains_segment(&LineSegment::new([0.0, 0.0], [1.0, 0.0]).unwrap(), e, m)
+            c.contains_segment(&LineSegment::new([0.0, 0.0], [1.0, 0.0]).unwrap())
                 .is_err()
         );
         assert!(
-            c.contains_segment(&LineSegment::new([0.0, 0.0], [2.0, 0.0]).unwrap(), e, m)
+            c.contains_segment(&LineSegment::new([0.0, 0.0], [2.0, 0.0]).unwrap())
                 .is_err()
         );
         assert!(
-            c.contains_segment(&LineSegment::new([-1.0, 0.0], [1.0, 0.0]).unwrap(), e, m)
+            c.contains_segment(&LineSegment::new([-1.0, 0.0], [1.0, 0.0]).unwrap())
                 .is_err()
         );
         assert!(
-            c.contains_segment(&LineSegment::new([0.0, 1.0], [1.0, 1.0]).unwrap(), e, m)
+            c.contains_segment(&LineSegment::new([0.0, 1.0], [1.0, 1.0]).unwrap())
                 .is_err()
         );
         assert!(
-            c.contains_segment(&LineSegment::new([0.0, 0.5], [1.0, 1.5]).unwrap(), e, m)
+            c.contains_segment(&LineSegment::new([0.0, 0.5], [1.0, 1.5]).unwrap())
                 .is_err()
         );
     }
@@ -1127,31 +1235,31 @@ fn test_contains_line_segment() {
         )
         .into();
         assert!(
-            c.contains_segment(&LineSegment::new([-1.0, 0.0], [1.0, 0.0]).unwrap(), e, m)
+            c.contains_segment(&LineSegment::new([-1.0, 0.0], [1.0, 0.0]).unwrap())
                 .is_err()
         );
         assert!(
-            c.contains_segment(&LineSegment::new([0.0, 0.0], [1.0, 0.0]).unwrap(), e, m)
+            c.contains_segment(&LineSegment::new([0.0, 0.0], [1.0, 0.0]).unwrap())
                 .is_err()
         );
         assert!(
-            c.contains_segment(&LineSegment::new([-0.5, 0.1], [0.5, 0.1]).unwrap(), e, m)
+            c.contains_segment(&LineSegment::new([-0.5, 0.1], [0.5, 0.1]).unwrap())
                 .is_ok()
         );
         assert!(
-            c.contains_segment(&LineSegment::new([-0.5, -0.1], [0.5, -0.1]).unwrap(), e, m)
+            c.contains_segment(&LineSegment::new([-0.5, -0.1], [0.5, -0.1]).unwrap())
                 .is_err()
         );
         assert!(
-            c.contains_segment(&LineSegment::new([0.0, 0.1], [0.0, 1.1]).unwrap(), e, m)
+            c.contains_segment(&LineSegment::new([0.0, 0.1], [0.0, 1.1]).unwrap())
                 .is_err()
         );
         assert!(
-            c.contains_segment(&LineSegment::new([0.0, 0.1], [0.0, 1.0]).unwrap(), e, m)
+            c.contains_segment(&LineSegment::new([0.0, 0.1], [0.0, 1.0]).unwrap())
                 .is_err()
         );
         assert!(
-            c.contains_segment(&LineSegment::new([0.0, 0.0], [1.0, 1.0]).unwrap(), e, m)
+            c.contains_segment(&LineSegment::new([0.0, 0.0], [1.0, 1.0]).unwrap())
                 .is_err()
         );
     }
@@ -1166,15 +1274,15 @@ fn test_contains_line_segment() {
         ps.extend_back([1.0, 2.0]);
         let c = Contour::new(ps);
         assert!(
-            c.contains_segment(&LineSegment::new([-1.0, 1.0], [1.0, 1.0]).unwrap(), e, m)
+            c.contains_segment(&LineSegment::new([-1.0, 1.0], [1.0, 1.0]).unwrap())
                 .is_err()
         );
         assert!(
-            c.contains_segment(&LineSegment::new([-0.1, 1.0], [0.1, 1.0]).unwrap(), e, m)
+            c.contains_segment(&LineSegment::new([-0.1, 1.0], [0.1, 1.0]).unwrap())
                 .is_err()
         );
         assert!(
-            c.contains_segment(&LineSegment::new([-0.1, 0.9], [0.1, 0.9]).unwrap(), e, m)
+            c.contains_segment(&LineSegment::new([-0.1, 0.9], [0.1, 0.9]).unwrap())
                 .is_err()
         );
     }
@@ -1182,8 +1290,6 @@ fn test_contains_line_segment() {
 
 #[test]
 fn test_covers_arc_segment() {
-    let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_RELATIVE;
     {
         let c = Contour::new(Polysegment::from_points(&[
             [0.0, 0.0],
@@ -1192,23 +1298,21 @@ fn test_covers_arc_segment() {
             [0.0, 1.0],
         ]));
         assert!(
-            c.covers_segment(&ArcSegment::circle([0.5, 0.5], 0.5).unwrap(), e, m)
+            c.covers_segment(&ArcSegment::circle([0.5, 0.5], 0.5).unwrap())
                 .is_ok()
         );
         assert!(
-            c.covers_segment(&ArcSegment::circle([0.5, 0.5], 0.4).unwrap(), e, m)
+            c.covers_segment(&ArcSegment::circle([0.5, 0.5], 0.4).unwrap())
                 .is_ok()
         );
         assert!(
-            c.covers_segment(&ArcSegment::circle([0.5, 0.5], 0.6).unwrap(), e, m)
+            c.covers_segment(&ArcSegment::circle([0.5, 0.5], 0.6).unwrap())
                 .is_err()
         );
         assert!(
             c.covers_segment(
                 &ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 1.0, 0.0, FRAC_PI_2,)
                     .unwrap(),
-                e,
-                m
             )
             .is_ok()
         );
@@ -1216,8 +1320,6 @@ fn test_covers_arc_segment() {
             c.covers_segment(
                 &ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 1.0, 0.1, FRAC_PI_2,)
                     .unwrap(),
-                e,
-                m
             )
             .is_err()
         );
@@ -1230,8 +1332,6 @@ fn test_covers_arc_segment() {
                     FRAC_PI_2,
                 )
                 .unwrap(),
-                e,
-                m
             )
             .is_err()
         );
@@ -1239,8 +1339,6 @@ fn test_covers_arc_segment() {
             c.covers_segment(
                 &ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 1.0, PI, FRAC_PI_2,)
                     .unwrap(),
-                e,
-                m
             )
             .is_err()
         );
@@ -1253,8 +1351,6 @@ fn test_covers_arc_segment() {
                     PI,
                 )
                 .unwrap(),
-                e,
-                m
             )
             .is_ok()
         );
@@ -1262,8 +1358,6 @@ fn test_covers_arc_segment() {
             c.covers_segment(
                 &ArcSegment::from_center_radius_start_sweep_angle([0.5, 0.5], 0.5, FRAC_PI_2, PI,)
                     .unwrap(),
-                e,
-                m
             )
             .is_ok()
         );
@@ -1271,16 +1365,12 @@ fn test_covers_arc_segment() {
             c.covers_segment(
                 &ArcSegment::from_center_radius_start_sweep_angle([0.5, 0.5], 0.5, 0.0, PI)
                     .unwrap(),
-                e,
-                m
             )
             .is_ok()
         );
         assert!(
             c.covers_segment(
                 &ArcSegment::from_center_radius_start_sweep_angle([0.5, 0.5], 0.5, PI, PI).unwrap(),
-                e,
-                m
             )
             .is_ok()
         );
@@ -1293,24 +1383,18 @@ fn test_covers_arc_segment() {
         assert!(
             c.covers_segment(
                 &ArcSegment::from_start_center_angle([1.0, 0.0], [0.0, 0.0], PI).unwrap(),
-                e,
-                m
             )
             .is_ok()
         );
         assert!(
             c.covers_segment(
                 &ArcSegment::from_start_center_angle([0.0, 1.0], [1.0, 1.0], PI).unwrap(),
-                e,
-                m
             )
             .is_err()
         );
         assert!(
             c.covers_segment(
                 &ArcSegment::from_start_center_angle([0.0, 1.0], [1.0, 1.0], FRAC_PI_2).unwrap(),
-                e,
-                m
             )
             .is_ok()
         );
@@ -1331,24 +1415,18 @@ fn test_covers_arc_segment() {
         assert!(
             c.covers_segment(
                 &ArcSegment::from_start_center_angle([1.0, 0.0], [0.0, 0.0], PI).unwrap(),
-                e,
-                m
             )
             .is_ok()
         );
         assert!(
             c.covers_segment(
                 &ArcSegment::from_start_center_angle([0.0, 1.0], [1.0, 1.0], PI).unwrap(),
-                e,
-                m
             )
             .is_err()
         );
         assert!(
             c.covers_segment(
                 &ArcSegment::from_start_center_angle([0.0, 1.0], [1.0, 1.0], FRAC_PI_2).unwrap(),
-                e,
-                m
             )
             .is_ok()
         );
@@ -1356,8 +1434,6 @@ fn test_covers_arc_segment() {
             c.covers_segment(
                 &ArcSegment::from_start_center_angle([0.0, 1.0], [1.0, 1.0], FRAC_PI_2 + 0.1)
                     .unwrap(),
-                e,
-                m
             )
             .is_err()
         );
@@ -1365,8 +1441,6 @@ fn test_covers_arc_segment() {
             c.covers_segment(
                 &ArcSegment::from_start_center_angle([1.0, 2.0], [1.0, 1.0], FRAC_PI_2 + 0.1)
                     .unwrap(),
-                e,
-                m
             )
             .is_err()
         );
@@ -1376,16 +1450,12 @@ fn test_covers_arc_segment() {
         assert!(
             c.covers_segment(
                 &ArcSegment::from_start_center_angle([1.0, 0.0], [0.0, 0.0], PI).unwrap(),
-                e,
-                m
             )
             .is_ok()
         );
         assert!(
             c.covers_segment(
                 &ArcSegment::from_start_center_angle([2.0, 0.0], [0.0, 0.0], PI).unwrap(),
-                e,
-                m
             )
             .is_ok()
         );
@@ -1393,8 +1463,6 @@ fn test_covers_arc_segment() {
             c.covers_segment(
                 &ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 2.0, 0.5, PI)
                     .unwrap(),
-                e,
-                m
             )
             .is_ok()
         );
@@ -1402,8 +1470,6 @@ fn test_covers_arc_segment() {
             c.covers_segment(
                 &ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 2.1, 0.5, PI)
                     .unwrap(),
-                e,
-                m
             )
             .is_err()
         );
@@ -1411,8 +1477,6 @@ fn test_covers_arc_segment() {
             c.covers_segment(
                 &ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 1.9, 0.5, PI)
                     .unwrap(),
-                e,
-                m
             )
             .is_ok()
         );
@@ -1420,8 +1484,6 @@ fn test_covers_arc_segment() {
             c.covers_segment(
                 &ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 2.0, PI - 0.1, PI,)
                     .unwrap(),
-                e,
-                m
             )
             .is_ok()
         );
@@ -1429,8 +1491,6 @@ fn test_covers_arc_segment() {
             c.covers_segment(
                 &ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 2.0, FRAC_PI_2, PI,)
                     .unwrap(),
-                e,
-                m
             )
             .is_ok()
         );
@@ -1450,8 +1510,6 @@ fn test_covers_arc_segment() {
                     FRAC_PI_2,
                 )
                 .unwrap(),
-                e,
-                m
             )
             .is_ok()
         );
@@ -1471,8 +1529,6 @@ fn test_covers_arc_segment() {
                     FRAC_PI_2,
                 )
                 .unwrap(),
-                e,
-                m
             )
             .is_ok()
         );
@@ -1486,8 +1542,6 @@ fn test_covers_arc_segment() {
             c.covers_segment(
                 &ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 1.0, 0.1, PI - 0.2,)
                     .unwrap(),
-                e,
-                m
             )
             .is_ok()
         );
@@ -1501,10 +1555,7 @@ fn test_circle_contains_circle() {
     let c1 = Contour::from(ArcSegment::circle([0.0, 0.0], r).expect("radius larger 0"));
     let c2 = Contour::from(ArcSegment::circle([0.0, 0.0], 1.1 * r).expect("radius larger 0"));
 
-    assert!(
-        c2.contains_contour(&c1, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
-            .is_ok()
-    );
+    assert!(c2.contains_contour(&c1,).is_ok());
 }
 
 #[test]
@@ -1532,20 +1583,12 @@ fn test_polygon_contains_circle() {
     ]));
 
     let circle = Contour::from(ArcSegment::circle([0.0, 0.0], 0.06).expect("radius larger 0"));
-    polygon
-        .contains_contour(&circle, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
-        .unwrap();
-    assert!(
-        polygon
-            .contains_contour(&circle, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
-            .is_ok()
-    );
+    polygon.contains_contour(&circle).unwrap();
+    assert!(polygon.contains_contour(&circle,).is_ok());
 }
 
 #[test]
 fn test_contains_arc_segment() {
-    let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_RELATIVE;
     {
         let c = Contour::new(Polysegment::from_points(&[
             [0.0, 0.0],
@@ -1554,23 +1597,21 @@ fn test_contains_arc_segment() {
             [0.0, 1.0],
         ]));
         assert!(
-            c.contains_segment(&ArcSegment::circle([0.5, 0.5], 0.5).unwrap(), e, m)
+            c.contains_segment(&ArcSegment::circle([0.5, 0.5], 0.5).unwrap())
                 .is_err()
         );
         assert!(
-            c.contains_segment(&ArcSegment::circle([0.5, 0.5], 0.4).unwrap(), e, m)
+            c.contains_segment(&ArcSegment::circle([0.5, 0.5], 0.4).unwrap())
                 .is_ok()
         );
         assert!(
-            c.contains_segment(&ArcSegment::circle([0.5, 0.5], 0.6).unwrap(), e, m)
+            c.contains_segment(&ArcSegment::circle([0.5, 0.5], 0.6).unwrap())
                 .is_err()
         );
         assert!(
             c.contains_segment(
                 &ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 1.0, 0.0, FRAC_PI_2,)
                     .unwrap(),
-                e,
-                m
             )
             .is_err()
         );
@@ -1578,8 +1619,6 @@ fn test_contains_arc_segment() {
             c.contains_segment(
                 &ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 1.0, 0.1, FRAC_PI_2,)
                     .unwrap(),
-                e,
-                m
             )
             .is_err()
         );
@@ -1592,8 +1631,6 @@ fn test_contains_arc_segment() {
                     FRAC_PI_2,
                 )
                 .unwrap(),
-                e,
-                m
             )
             .is_err()
         );
@@ -1601,8 +1638,6 @@ fn test_contains_arc_segment() {
             c.contains_segment(
                 &ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 1.0, PI, FRAC_PI_2,)
                     .unwrap(),
-                e,
-                m
             )
             .is_err()
         );
@@ -1615,24 +1650,18 @@ fn test_contains_arc_segment() {
         assert!(
             c.contains_segment(
                 &ArcSegment::from_start_center_angle([1.0, 0.0], [0.0, 0.0], PI).unwrap(),
-                e,
-                m
             )
             .is_err()
         );
         assert!(
             c.contains_segment(
                 &ArcSegment::from_start_center_angle([0.0, 1.0], [1.0, 1.0], PI).unwrap(),
-                e,
-                m
             )
             .is_err()
         );
         assert!(
             c.contains_segment(
                 &ArcSegment::from_start_center_angle([0.0, 1.0], [1.0, 1.0], FRAC_PI_2).unwrap(),
-                e,
-                m
             )
             .is_err()
         );
@@ -1653,24 +1682,18 @@ fn test_contains_arc_segment() {
         assert!(
             c.contains_segment(
                 &ArcSegment::from_start_center_angle([1.0, 0.0], [0.0, 0.0], PI).unwrap(),
-                e,
-                m
             )
             .is_err()
         );
         assert!(
             c.contains_segment(
                 &ArcSegment::from_start_center_angle([0.0, 1.0], [1.0, 1.0], PI).unwrap(),
-                e,
-                m
             )
             .is_err()
         );
         assert!(
             c.contains_segment(
                 &ArcSegment::from_start_center_angle([0.0, 1.0], [1.0, 1.0], FRAC_PI_2).unwrap(),
-                e,
-                m
             )
             .is_err()
         );
@@ -1678,8 +1701,6 @@ fn test_contains_arc_segment() {
             c.contains_segment(
                 &ArcSegment::from_start_center_angle([0.0, 1.0], [1.0, 1.0], FRAC_PI_2 + 0.1)
                     .unwrap(),
-                e,
-                m
             )
             .is_err()
         );
@@ -1687,8 +1708,6 @@ fn test_contains_arc_segment() {
             c.contains_segment(
                 &ArcSegment::from_start_center_angle([1.0, 2.0], [1.0, 1.0], FRAC_PI_2 + 0.1)
                     .unwrap(),
-                e,
-                m
             )
             .is_err()
         );
@@ -1698,16 +1717,12 @@ fn test_contains_arc_segment() {
         assert!(
             c.contains_segment(
                 &ArcSegment::from_start_center_angle([1.0, 0.0], [0.0, 0.0], PI).unwrap(),
-                e,
-                m
             )
             .is_ok()
         );
         assert!(
             c.contains_segment(
                 &ArcSegment::from_start_center_angle([2.0, 0.0], [0.0, 0.0], PI).unwrap(),
-                e,
-                m
             )
             .is_err()
         );
@@ -1715,8 +1730,6 @@ fn test_contains_arc_segment() {
             c.contains_segment(
                 &ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 2.0, 0.5, PI)
                     .unwrap(),
-                e,
-                m
             )
             .is_err()
         );
@@ -1724,8 +1737,6 @@ fn test_contains_arc_segment() {
             c.contains_segment(
                 &ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 2.1, 0.5, PI)
                     .unwrap(),
-                e,
-                m
             )
             .is_err()
         );
@@ -1733,8 +1744,6 @@ fn test_contains_arc_segment() {
             c.contains_segment(
                 &ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 1.9, 0.5, PI)
                     .unwrap(),
-                e,
-                m
             )
             .is_ok()
         );
@@ -1742,8 +1751,6 @@ fn test_contains_arc_segment() {
             c.contains_segment(
                 &ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 2.0, PI - 0.1, PI,)
                     .unwrap(),
-                e,
-                m
             )
             .is_err()
         );
@@ -1752,9 +1759,6 @@ fn test_contains_arc_segment() {
 
 #[test]
 fn test_covers_contour() {
-    let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_RELATIVE;
-
     // A countour shares a side with another one
     {
         let c1 = Contour::new(Polysegment::from_points(&[
@@ -1769,7 +1773,7 @@ fn test_covers_contour() {
             [1.5, 2.0],
             [1.5, 1.0],
         ]));
-        assert!(c1.covers_contour(&c2, e, m).is_ok())
+        assert!(c1.covers_contour(&c2).is_ok())
     }
     // A countour covers itself
     {
@@ -1779,7 +1783,7 @@ fn test_covers_contour() {
             [2.0, 2.0],
             [2.0, 1.0],
         ]));
-        assert!(c.covers_contour(&c, e, m).is_ok())
+        assert!(c.covers_contour(&c).is_ok())
     }
     {
         // large contains small
@@ -1797,8 +1801,8 @@ fn test_covers_contour() {
         ]));
 
         assert!(BoundingBox::from(&large).contains(&BoundingBox::from(&small)));
-        assert_eq!(large.intersections_composite(&small, e, m).count(), 0);
-        assert!(large.covers_contour(&small, e, m).is_ok());
+        assert_eq!(large.intersections(&small).len(), 0);
+        assert!(large.covers_contour(&small).is_ok());
     }
     {
         // large does not contain small, but they do not intersect and the
@@ -1816,8 +1820,8 @@ fn test_covers_contour() {
         ]));
 
         assert!(BoundingBox::from(&large).contains(&BoundingBox::from(&small)));
-        assert_eq!(large.intersections_composite(&small, e, m).count(), 0);
-        assert!(large.covers_contour(&small, e, m).is_err());
+        assert_eq!(large.intersections(&small).len(), 0);
+        assert!(large.covers_contour(&small).is_err());
     }
     {
         let c1: Contour = Polysegment::from(
@@ -1829,7 +1833,7 @@ fn test_covers_contour() {
                 .unwrap(),
         )
         .into();
-        assert!(c1.covers_contour(&c2, e, m).is_ok());
+        assert!(c1.covers_contour(&c2).is_ok());
     }
     {
         let c1: Contour = Polysegment::from(
@@ -1846,7 +1850,7 @@ fn test_covers_contour() {
             .unwrap(),
         )
         .into();
-        assert!(c1.covers_contour(&c2, e, m).is_ok());
+        assert!(c1.covers_contour(&c2).is_ok());
     }
     {
         let c1: Contour = Polysegment::from(
@@ -1858,7 +1862,7 @@ fn test_covers_contour() {
                 .unwrap(),
         )
         .into();
-        assert!(c1.covers_contour(&c2, e, m).is_ok());
+        assert!(c1.covers_contour(&c2).is_ok());
     }
     {
         let c1: Contour = Polysegment::from(
@@ -1875,7 +1879,7 @@ fn test_covers_contour() {
             .unwrap(),
         )
         .into();
-        assert!(c1.covers_contour(&c2, e, m).is_ok());
+        assert!(c1.covers_contour(&c2).is_ok());
     }
     {
         let c1 = Contour::new(Polysegment::from_points(&[
@@ -1885,8 +1889,8 @@ fn test_covers_contour() {
             [-1.0, 1.0],
         ]));
         let c2 = Contour::from(ArcSegment::circle([0.0, 0.0], 1.0).unwrap());
-        assert!(c1.covers_contour(&c2, e, m).is_ok());
-        assert!(c2.covers_contour(&c1, e, m).is_err());
+        assert!(c1.covers_contour(&c2).is_ok());
+        assert!(c2.covers_contour(&c1).is_err());
     }
     {
         let c1 = Contour::new(Polysegment::from_points(&[
@@ -1896,23 +1900,20 @@ fn test_covers_contour() {
             [-1.0, 1.0],
         ]));
         let c2 = Contour::from(ArcSegment::circle([0.0, 0.0], SQRT_2).unwrap());
-        assert!(c1.covers_contour(&c2, e, m).is_err());
-        assert!(c2.covers_contour(&c1, e, m).is_ok());
+        assert!(c1.covers_contour(&c2).is_err());
+        assert!(c2.covers_contour(&c1).is_ok());
     }
 }
 
 #[test]
 fn test_contains_contour() {
-    let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_RELATIVE;
-
     {
         let c1 = Contour::rectangle([0.0, 0.0], [0.15, 0.25]);
         let c2 = Contour::rectangle(
             [0.008499999999999999, 0.0007499999999999998],
             [0.0165, 0.01774999999999992],
         );
-        assert!(c1.contains_contour(&c2, e, m).is_ok());
+        assert!(c1.contains_contour(&c2).is_ok());
     }
     {
         let pts = &[
@@ -1936,7 +1937,7 @@ fn test_contains_contour() {
         ];
         let radii = &[0.1, 0.1, 0.1, 0.1];
         let c2 = Polysegment::from_fillet_chain(pts, radii).into();
-        assert!(c1.contains_contour(&c2, e, m).is_ok());
+        assert!(c1.contains_contour(&c2).is_ok());
     }
     {
         let mut ps = Polysegment::new();
@@ -1951,7 +1952,7 @@ fn test_contains_contour() {
         ps.extend_back([1.0, 0.0]);
         let c1 = Contour::from(ps);
         let c2 = Contour::rectangle([0.5, 0.2], [0.8, 0.8]);
-        assert!(c1.contains_contour(&c2, e, m).is_ok());
+        assert!(c1.contains_contour(&c2).is_ok());
     }
 
     // A countour shares a side with another one
@@ -1968,7 +1969,7 @@ fn test_contains_contour() {
             [1.5, 2.0],
             [1.5, 1.0],
         ]));
-        assert!(c1.contains_contour(&c2, e, m).is_err());
+        assert!(c1.contains_contour(&c2).is_err());
     }
     // A countour does not contain itself
     {
@@ -1978,7 +1979,7 @@ fn test_contains_contour() {
             [2.0, 2.0],
             [2.0, 1.0],
         ]));
-        assert!(c.contains_contour(&c, e, m).is_err());
+        assert!(c.contains_contour(&c).is_err());
     }
     {
         // large contains small
@@ -1996,8 +1997,8 @@ fn test_contains_contour() {
         ]));
 
         assert!(BoundingBox::from(&large).contains(&BoundingBox::from(&small)));
-        assert_eq!(large.intersections_composite(&small, e, m).count(), 0);
-        assert!(large.contains_contour(&small, e, m).is_ok());
+        assert_eq!(large.intersections(&small).len(), 0);
+        assert!(large.contains_contour(&small).is_ok());
     }
     {
         // large does not contain small, but they do not intersect and the
@@ -2015,8 +2016,8 @@ fn test_contains_contour() {
         ]));
 
         assert!(BoundingBox::from(&large).contains(&BoundingBox::from(&small)));
-        assert_eq!(large.intersections_composite(&small, e, m).count(), 0);
-        assert!(large.contains_contour(&small, e, m).is_err());
+        assert_eq!(large.intersections(&small).len(), 0);
+        assert!(large.contains_contour(&small).is_err());
     }
     {
         let c1: Contour = Polysegment::from(
@@ -2028,17 +2029,13 @@ fn test_contains_contour() {
                 .unwrap(),
         )
         .into();
-        assert!(c1.contains_contour(&c2, e, m).is_err());
+        assert!(c1.contains_contour(&c2).is_err());
     }
 }
 
 #[test]
 fn test_contains_segments() {
     // Test of a bug found in the stem_core crate
-
-    let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_RELATIVE;
-
     let mut ps = Polysegment::new();
     ps.push_back(
         LineSegment::new([0.0, 0.025], [0.15, 0.025])
@@ -2145,8 +2142,6 @@ fn test_contains_segments() {
                 [0.014499999999999999, 0.0007499999999999998],
             )
             .unwrap(),
-            e,
-            m
         )
         .is_ok()
     );
@@ -2159,8 +2154,6 @@ fn test_contains_segments() {
                 1.5707963267948966,
             )
             .unwrap(),
-            e,
-            m
         )
         .is_ok()
     );
@@ -2171,8 +2164,6 @@ fn test_contains_segments() {
                 [0.0165, 0.014750000000000001],
             )
             .unwrap(),
-            e,
-            m
         )
         .is_ok()
     );
@@ -2185,8 +2176,6 @@ fn test_contains_segments() {
                 1.5707963267948963,
             )
             .unwrap(),
-            e,
-            m
         )
         .is_ok()
     );
@@ -2197,8 +2186,6 @@ fn test_contains_segments() {
                 [0.0115, 0.01774999999999992],
             )
             .unwrap(),
-            e,
-            m
         )
         .is_ok()
     );
@@ -2211,8 +2198,6 @@ fn test_contains_segments() {
                 1.5707963267948963,
             )
             .unwrap(),
-            e,
-            m
         )
         .is_ok()
     );
@@ -2223,8 +2208,6 @@ fn test_contains_segments() {
                 [0.0085, 0.0027499999999999985],
             )
             .unwrap(),
-            e,
-            m
         )
         .is_ok()
     );
@@ -2237,8 +2220,6 @@ fn test_contains_segments() {
                 1.5707963267948966,
             )
             .unwrap(),
-            e,
-            m
         )
         .is_ok()
     );
@@ -2249,8 +2230,6 @@ fn test_contains_segments() {
                 [0.012499999999999999, 0.00075],
             )
             .unwrap(),
-            e,
-            m
         )
         .is_ok()
     );
@@ -2258,8 +2237,6 @@ fn test_contains_segments() {
 
 #[test]
 fn test_overlaps_line_segment() {
-    let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_RELATIVE;
     {
         let c = Contour::new(Polysegment::from_points(&[
             [0.0, 0.0],
@@ -2268,35 +2245,35 @@ fn test_overlaps_line_segment() {
             [1.0, 0.0],
         ]));
         assert!(
-            c.contains_any_segment(&LineSegment::new([0.0, 0.0], [1.0, 1.0]).unwrap(), e, m)
+            c.contains_any_segment(&LineSegment::new([0.0, 0.0], [1.0, 1.0]).unwrap())
                 .is_ok()
         );
         assert!(
-            c.contains_any_segment(&LineSegment::new([-0.5, 0.5], [0.5, 0.5]).unwrap(), e, m)
+            c.contains_any_segment(&LineSegment::new([-0.5, 0.5], [0.5, 0.5]).unwrap())
                 .is_ok()
         );
         assert!(
-            c.contains_any_segment(&LineSegment::new([-1.0, 2.0], [1.0, 0.0]).unwrap(), e, m)
+            c.contains_any_segment(&LineSegment::new([-1.0, 2.0], [1.0, 0.0]).unwrap())
                 .is_ok()
         );
         assert!(
-            c.contains_any_segment(&LineSegment::new([-1.0, 2.0], [0.5, 0.5]).unwrap(), e, m)
+            c.contains_any_segment(&LineSegment::new([-1.0, 2.0], [0.5, 0.5]).unwrap())
                 .is_ok()
         );
         assert!(
-            c.contains_any_segment(&LineSegment::new([0.5, -0.5], [1.5, 0.5]).unwrap(), e, m)
+            c.contains_any_segment(&LineSegment::new([0.5, -0.5], [1.5, 0.5]).unwrap())
                 .is_err()
         );
         assert!(
-            c.contains_any_segment(&LineSegment::new([0.0, 0.0], [0.0, 1.0]).unwrap(), e, m)
+            c.contains_any_segment(&LineSegment::new([0.0, 0.0], [0.0, 1.0]).unwrap())
                 .is_err()
         );
         assert!(
-            c.contains_any_segment(&LineSegment::new([0.0, -1.0], [0.0, 0.0]).unwrap(), e, m)
+            c.contains_any_segment(&LineSegment::new([0.0, -1.0], [0.0, 0.0]).unwrap())
                 .is_err()
         );
         assert!(
-            c.contains_any_segment(&LineSegment::new([0.0, -2.0], [0.0, -1.0]).unwrap(), e, m)
+            c.contains_any_segment(&LineSegment::new([0.0, -2.0], [0.0, -1.0]).unwrap())
                 .is_err()
         );
     }
@@ -2304,8 +2281,6 @@ fn test_overlaps_line_segment() {
 
 #[test]
 fn test_overlaps_arc_segment() {
-    let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_RELATIVE;
     {
         let c = Contour::new(Polysegment::from_points(&[
             [0.0, 0.0],
@@ -2326,8 +2301,6 @@ fn test_overlaps_arc_segment() {
                         FRAC_PI_2,
                     )
                     .unwrap(),
-                    e,
-                    m
                 )
                 .is_ok()
             );
@@ -2340,8 +2313,6 @@ fn test_overlaps_arc_segment() {
                         FRAC_PI_2,
                     )
                     .unwrap(),
-                    e,
-                    m
                 )
                 .is_ok()
             );
@@ -2354,8 +2325,6 @@ fn test_overlaps_arc_segment() {
                         FRAC_PI_2 - 0.2,
                     )
                     .unwrap(),
-                    e,
-                    m
                 )
                 .is_ok()
             );
@@ -2368,8 +2337,6 @@ fn test_overlaps_arc_segment() {
                         FRAC_PI_2 + 0.1,
                     )
                     .unwrap(),
-                    e,
-                    m
                 )
                 .is_ok()
             );
@@ -2382,8 +2349,6 @@ fn test_overlaps_arc_segment() {
                         FRAC_PI_2,
                     )
                     .unwrap(),
-                    e,
-                    m
                 )
                 .is_err()
             );
@@ -2405,8 +2370,6 @@ fn test_overlaps_arc_segment() {
                     FRAC_PI_2,
                 )
                 .unwrap(),
-                e,
-                m
             )
             .is_err()
         );
@@ -2424,15 +2387,13 @@ fn test_overlaps_arc_segment() {
             [0.9, 0.9],
             [0.9, 0.1],
         ]));
-        assert!(c1.contains_any_contour(&c2, e, m).is_ok());
-        assert!(c2.contains_any_contour(&c1, e, m).is_ok());
+        assert!(c1.contains_any_contour(&c2).is_ok());
+        assert!(c2.contains_any_contour(&c1).is_ok());
     }
 }
 
 #[test]
 fn test_overlaps_contour() {
-    let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_RELATIVE;
     {
         let c1 = Contour::new(Polysegment::from_points(&[
             [0.0, 0.0],
@@ -2459,16 +2420,16 @@ fn test_overlaps_contour() {
             [0.9, 0.1],
         ]));
 
-        assert!(c1.contains_any_contour(&c1, e, m).is_ok());
+        assert!(c1.contains_any_contour(&c1).is_ok());
 
-        assert!(c1.contains_any_contour(&c2, e, m).is_ok());
-        assert!(c2.contains_any_contour(&c1, e, m).is_ok());
+        assert!(c1.contains_any_contour(&c2).is_ok());
+        assert!(c2.contains_any_contour(&c1).is_ok());
 
-        assert!(c1.contains_any_contour(&c3, e, m).is_err());
-        assert!(c3.contains_any_contour(&c1, e, m).is_err());
+        assert!(c1.contains_any_contour(&c3).is_err());
+        assert!(c3.contains_any_contour(&c1).is_err());
 
-        assert!(c1.contains_any_contour(&c4, e, m).is_ok());
-        assert!(c4.contains_any_contour(&c1, e, m).is_ok());
+        assert!(c1.contains_any_contour(&c4).is_ok());
+        assert!(c4.contains_any_contour(&c1).is_ok());
     }
     {
         let c1 = Contour::new(Polysegment::from_points(&[
@@ -2481,37 +2442,37 @@ fn test_overlaps_contour() {
             [1.0, 0.0],
             [1.0, 1.0],
         ]));
-        assert!(c1.contains_any_contour(&c2, e, m).is_err());
-        assert!(c2.contains_any_contour(&c1, e, m).is_err());
+        assert!(c1.contains_any_contour(&c2).is_err());
+        assert!(c2.contains_any_contour(&c1).is_err());
     }
     {
         let c1 = Contour::from(ArcSegment::circle([0.0, 0.0], 1.0).unwrap());
-        assert!(c1.contains_any_contour(&c1, e, m).is_ok());
+        assert!(c1.contains_any_contour(&c1).is_ok());
 
         let c2 = Contour::from(ArcSegment::circle([2.0, 0.0], 1.0).unwrap());
-        assert!(c1.contains_any_contour(&c2, e, m).is_err());
-        assert!(c2.contains_any_contour(&c1, e, m).is_err());
+        assert!(c1.contains_any_contour(&c2).is_err());
+        assert!(c2.contains_any_contour(&c1).is_err());
 
         let c3 = Contour::from(
             ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 1.0, 0.0, FRAC_PI_2)
                 .unwrap(),
         );
-        assert!(c1.contains_any_contour(&c3, e, m).is_ok());
-        assert!(c3.contains_any_contour(&c1, e, m).is_ok());
+        assert!(c1.contains_any_contour(&c3).is_ok());
+        assert!(c3.contains_any_contour(&c1).is_ok());
 
         let c4 = Contour::from(
             ArcSegment::from_center_radius_start_sweep_angle([0.2, 0.0], 1.0, 0.0, FRAC_PI_2)
                 .unwrap(),
         );
-        assert!(c1.contains_any_contour(&c4, e, m).is_ok());
-        assert!(c4.contains_any_contour(&c1, e, m).is_ok());
+        assert!(c1.contains_any_contour(&c4).is_ok());
+        assert!(c4.contains_any_contour(&c1).is_ok());
 
         let c5 = Contour::from(
             ArcSegment::from_center_radius_start_sweep_angle([0.2, 0.0], 1.0, FRAC_PI_2, FRAC_PI_2)
                 .unwrap(),
         );
-        assert!(c1.contains_any_contour(&c5, e, m).is_ok());
-        assert!(c5.contains_any_contour(&c1, e, m).is_ok());
+        assert!(c1.contains_any_contour(&c5).is_ok());
+        assert!(c5.contains_any_contour(&c1).is_ok());
     }
     {
         let c1 = Contour::from(
@@ -2521,7 +2482,7 @@ fn test_overlaps_contour() {
             ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 1.0, 0.5 + PI, PI)
                 .unwrap(),
         );
-        assert!(c1.contains_any_contour(&c2, e, m).is_err());
-        assert!(c2.contains_any_contour(&c1, e, m).is_err());
+        assert!(c1.contains_any_contour(&c2).is_err());
+        assert!(c2.contains_any_contour(&c1).is_err());
     }
 }

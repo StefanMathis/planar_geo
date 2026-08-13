@@ -198,7 +198,7 @@ fn test_single_cut() {
     let cut_vertices = vec![[0.5, -0.5], [0.5, 0.5]];
     let cut = Polysegment::from_points(&cut_vertices);
 
-    let separated_lines = line.intersection_cut(&cut, 0.0, 0.0);
+    let separated_lines = line.with_tolerance(0.0, 0.0).intersection_cut(&cut);
 
     // This cut results in three separate entitites
     assert_eq!(separated_lines.len(), 2);
@@ -229,7 +229,7 @@ fn test_cutted_slot_contour() {
         [0.015307337294603592, 0.001],
     ]);
 
-    let separated_lines = line.intersection_cut(&cutter, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE);
+    let separated_lines = line.intersection_cut(&cutter);
     assert_eq!(separated_lines.len(), 5);
 
     let vertices = &[
@@ -257,8 +257,7 @@ fn test_cut_vertical_horizontal() {
     let horizontal_line = Polysegment::from_points(&[[-0.5, 0.5], [0.5, 0.5]]);
 
     // Cut the vertical line with the horizontal line
-    let separated_lines =
-        vertical_line.intersection_cut(&horizontal_line, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE);
+    let separated_lines = vertical_line.intersection_cut(&horizontal_line);
 
     let verts: Vec<[f64; 2]> = separated_lines[0].points().collect();
     assert_eq!(verts[0], [0.0, 0.0]);
@@ -269,8 +268,7 @@ fn test_cut_vertical_horizontal() {
     assert_eq!(verts[1], [0.0, 1.0]);
 
     // Cut the horizontal line with the vertical line
-    let separated_lines =
-        horizontal_line.intersection_cut(&vertical_line, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE);
+    let separated_lines = horizontal_line.intersection_cut(&vertical_line);
 
     let verts: Vec<[f64; 2]> = separated_lines[0].points().collect();
     assert_eq!(verts[0], [-0.5, 0.5]);
@@ -289,7 +287,7 @@ fn test_second_segment_intersection_before_first() {
     let cut_vertices = vec![[1.5, 1.0], [1.5, -1.0], [0.5, -1.0], [0.5, 1.0]];
     let cut = Polysegment::from_points(&cut_vertices);
 
-    let separated_lines = cutted.intersection_cut(&cut, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE);
+    let separated_lines = cutted.intersection_cut(&cut);
 
     assert_eq!(separated_lines.len(), 3);
 
@@ -315,7 +313,7 @@ fn test_second_segment_intersection_before_first() {
     let cut_vertices = vec![[0.5, 1.0], [0.0, 0.0], [1.0, 0.5]];
     let mut cut = Polysegment::from_points(&cut_vertices);
 
-    let separated_lines = cutted.intersection_cut(&cut, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE);
+    let separated_lines = cutted.intersection_cut(&cut);
     assert_eq!(separated_lines.len(), 3);
 
     let verts: Vec<[f64; 2]> = separated_lines[0].points().collect();
@@ -335,7 +333,7 @@ fn test_second_segment_intersection_before_first() {
     // Invert the cut
     cut.reverse();
 
-    let separated_lines = cutted.intersection_cut(&cut, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE);
+    let separated_lines = cutted.intersection_cut(&cut);
     assert_eq!(separated_lines.len(), 3);
 
     let verts: Vec<[f64; 2]> = separated_lines[0].points().collect();
@@ -368,7 +366,7 @@ fn test_intersection_cut() {
     let cut_vertices = vec![[0.5, 1.0], [1.0, 0.0], [1.0, -0.5], [0.5, -0.5], [0.5, 0.5]];
     let cut = Polysegment::from_points(&cut_vertices);
 
-    let separated_lines = polysegment.intersection_cut(&cut, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE);
+    let separated_lines = polysegment.intersection_cut(&cut);
 
     // This cut results in four separate entitites
     assert_eq!(separated_lines.len(), 4);
@@ -407,11 +405,7 @@ fn test_self_intersection() {
         polysegment.extend_front([0.0, 0.0]);
 
         // Intersect the line with itself
-        let intersections = polysegment.intersections_polysegment(
-            &polysegment,
-            DEFAULT_EPSILON,
-            DEFAULT_MAX_RELATIVE,
-        );
+        let intersections = polysegment.intersections_polysegment(&polysegment);
 
         // No self-intersection
         assert_eq!(intersections.count(), 0);
@@ -429,27 +423,17 @@ fn test_self_intersection() {
         polysegment.extend_back([0.0, 0.0]);
 
         // Intersect the line with itself
-        let intersections = polysegment.intersections_polysegment(
-            &polysegment,
-            DEFAULT_EPSILON,
-            DEFAULT_MAX_RELATIVE,
-        );
+        let intersections = polysegment.intersections_polysegment(&polysegment);
         assert_eq!(intersections.count(), 1);
 
         // Intersect the line with itself
-        let intersections = polysegment.intersections_polysegment_par(
-            &polysegment,
-            DEFAULT_EPSILON,
-            DEFAULT_MAX_RELATIVE,
-        );
+        let intersections = polysegment.intersections_polysegment_par(&polysegment);
         assert_eq!(intersections.count(), 1);
     }
 }
 
 #[test]
 fn test_intersections_primitive() {
-    let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_RELATIVE;
     {
         let mut ps = Polysegment::new();
         ps.push_back(
@@ -469,24 +453,24 @@ fn test_intersections_primitive() {
         ps.extend_back([0.5, 0.0]);
 
         let ls = LineSegment::new([-1.5, 0.0], [-10.0, 0.0]).unwrap();
-        let mut intersections = ps.intersections_primitive(&ls, e, m);
+        let intersections: Vec<_> = ps.intersections_segment(&ls).collect();
         assert_eq!(
-            intersections.next(),
-            Some(Intersection {
+            intersections[0],
+            Intersection {
                 point: [-3.0, 0.0],
                 left: SegmentKey::from_segment_idx(2),
                 right: SegmentKey::from_segment_idx(0)
-            })
+            }
         );
         assert_eq!(
-            intersections.next(),
-            Some(Intersection {
+            intersections[1],
+            Intersection {
                 point: [-3.0, 0.0],
                 left: SegmentKey::from_segment_idx(3),
                 right: SegmentKey::from_segment_idx(0)
-            })
+            }
         );
-        assert_eq!(intersections.next(), None);
+        assert_eq!(intersections.len(), 2);
     }
 }
 
@@ -533,11 +517,7 @@ fn test_append() {
 fn test_intersection_cut_fillets() {
     fn cut_by_height(polysegment: &Polysegment, height: f64) {
         let bounding_box = BoundingBox::new(-2.0, 2.0, height, 4.0);
-        let new_polylines = polysegment.intersection_cut(
-            &Polysegment::from(&bounding_box),
-            DEFAULT_EPSILON,
-            DEFAULT_MAX_RELATIVE,
-        );
+        let new_polylines = polysegment.intersection_cut(&Polysegment::from(&bounding_box));
         assert_eq!(3, new_polylines.len());
 
         // Connect the third and first line
@@ -708,22 +688,82 @@ fn test_straight_line_polysegment() {
     let polysegment = Polysegment::from_points(&vertices);
 
     // Points which are covered in the first segment
-    assert!(polysegment.covers_point([0.5, 0.0], 0.0, 0.0).is_ok());
-    assert!(polysegment.covers_point([0.5, 0.1], 0.0, 0.0).is_err());
-    assert!(polysegment.covers_point([0.5, 0.1], 0.11, 0.0).is_ok());
-    assert!(polysegment.covers_point([0.5, 0.2], 0.11, 0.0).is_err());
+    assert!(
+        polysegment
+            .with_tolerance(0.0, 0.0)
+            .covers_point(&[0.5, 0.0])
+            .is_ok()
+    );
+    assert!(
+        polysegment
+            .with_tolerance(0.0, 0.0)
+            .covers_point(&[0.5, 0.1])
+            .is_err()
+    );
+    assert!(
+        polysegment
+            .with_tolerance(0.11, 0.0)
+            .covers_point(&[0.5, 0.1])
+            .is_ok()
+    );
+    assert!(
+        polysegment
+            .with_tolerance(0.11, 0.0)
+            .covers_point(&[0.5, 0.2])
+            .is_err()
+    );
 
     // Points which are covered in the second segment
-    assert!(polysegment.covers_point([1.0, 0.5], 0.0, 0.0).is_ok());
-    assert!(polysegment.covers_point([1.1, 0.5], 0.0, 0.0).is_err());
-    assert!(polysegment.covers_point([1.1, 0.5], 0.11, 0.0).is_ok());
-    assert!(polysegment.covers_point([1.2, 0.5], 0.11, 0.0).is_err());
+    assert!(
+        polysegment
+            .with_tolerance(0.0, 0.0)
+            .covers_point(&[1.0, 0.5])
+            .is_ok()
+    );
+    assert!(
+        polysegment
+            .with_tolerance(0.0, 0.0)
+            .covers_point(&[1.1, 0.5])
+            .is_err()
+    );
+    assert!(
+        polysegment
+            .with_tolerance(0.11, 0.0)
+            .covers_point(&[1.1, 0.5])
+            .is_ok()
+    );
+    assert!(
+        polysegment
+            .with_tolerance(0.11, 0.0)
+            .covers_point(&[1.2, 0.5])
+            .is_err()
+    );
 
     // Points which are covered in both segments
-    assert!(polysegment.covers_point([1.0, 0.0], 0.0, 0.0).is_ok());
-    assert!(polysegment.covers_point([0.98, 0.02], 0.0, 0.0).is_err());
-    assert!(polysegment.covers_point([0.98, 0.02], 0.11, 0.0).is_ok());
-    assert!(polysegment.covers_point([1.1, -0.1], 0.11, 0.0).is_err());
+    assert!(
+        polysegment
+            .with_tolerance(0.0, 0.0)
+            .covers_point(&[1.0, 0.0])
+            .is_ok()
+    );
+    assert!(
+        polysegment
+            .with_tolerance(0.0, 0.0)
+            .covers_point(&[0.98, 0.02])
+            .is_err()
+    );
+    assert!(
+        polysegment
+            .with_tolerance(0.11, 0.0)
+            .covers_point(&[0.98, 0.02])
+            .is_ok()
+    );
+    assert!(
+        polysegment
+            .with_tolerance(0.11, 0.0)
+            .covers_point(&[1.1, -0.1])
+            .is_err()
+    );
 }
 
 #[test]
@@ -731,7 +771,10 @@ fn test_intersection_polysegments() {
     let first = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]);
     let second = Polysegment::from_points(&[[0.0, 0.5], [2.0, 0.5]]);
 
-    let vec: Vec<_> = first.intersections_polysegment(&second, 0.0, 0.0).collect();
+    let vec: Vec<_> = first
+        .with_tolerance(0.0, 0.0)
+        .intersections_polysegment(&second)
+        .collect();
     assert_eq!(vec.len(), 1);
 
     let i = vec[0];
@@ -753,7 +796,8 @@ fn test_intersection_line_polysegment() {
     let line = Line::from_point_angle([0.5, 0.5], 0.0);
 
     {
-        let mut intersections = polysegment.intersections_primitive(&line, 0.0, 0.0);
+        let tolerance = polysegment.with_tolerance(0.0, 0.0);
+        let mut intersections = tolerance.intersections_line(&line);
 
         approx::assert_abs_diff_eq!(
             intersections.next(),
@@ -774,7 +818,10 @@ fn test_intersection_line_polysegment() {
         assert!(intersections.next().is_none());
     }
     {
-        let mut intersections = polysegment.intersections(&line, 0.0, 0.0).into_iter();
+        let mut intersections = polysegment
+            .with_tolerance(0.0, 0.0)
+            .intersections(&line)
+            .into_iter();
 
         approx::assert_abs_diff_eq!(
             intersections.next(),
@@ -798,9 +845,6 @@ fn test_intersection_line_polysegment() {
 
 #[test]
 fn covers_segment() {
-    let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_RELATIVE;
-
     let mut polyseg = Polysegment::new();
     polyseg.push_back(
         ArcSegment::from_start_center_angle([-1.0, 0.0], [0.0, 0.0], 0.5 * -PI)
@@ -821,78 +865,78 @@ fn covers_segment() {
         // Contains line segment
         assert!(
             polyseg
-                .covers_segment(&LineSegment::new([1.0, 0.0], [2.0, 0.0]).unwrap(), e, m)
+                .covers_segment(&LineSegment::new([1.0, 0.0], [2.0, 0.0]).unwrap())
                 .is_ok()
         );
         assert!(
             polyseg
-                .covers_segment(&LineSegment::new([2.0, 0.0], [1.0, 0.0]).unwrap(), e, m)
-                .is_ok()
-        );
-
-        assert!(
-            polyseg
-                .covers_segment(&LineSegment::new([1.5, 0.0], [2.5, 0.0]).unwrap(), e, m)
-                .is_ok()
-        );
-        assert!(
-            polyseg
-                .covers_segment(&LineSegment::new([2.5, 0.0], [1.5, 0.0]).unwrap(), e, m)
+                .covers_segment(&LineSegment::new([2.0, 0.0], [1.0, 0.0]).unwrap())
                 .is_ok()
         );
 
         assert!(
             polyseg
-                .covers_segment(&LineSegment::new([1.0, 0.0], [4.0, 0.0]).unwrap(), e, m)
+                .covers_segment(&LineSegment::new([1.5, 0.0], [2.5, 0.0]).unwrap())
                 .is_ok()
         );
         assert!(
             polyseg
-                .covers_segment(&LineSegment::new([4.0, 0.0], [1.0, 0.0]).unwrap(), e, m)
-                .is_ok()
-        );
-
-        assert!(
-            polyseg
-                .covers_segment(&LineSegment::new([2.1, 0.0], [3.9, 0.0]).unwrap(), e, m)
-                .is_ok()
-        );
-        assert!(
-            polyseg
-                .covers_segment(&LineSegment::new([3.9, 0.0], [2.1, 0.0]).unwrap(), e, m)
+                .covers_segment(&LineSegment::new([2.5, 0.0], [1.5, 0.0]).unwrap())
                 .is_ok()
         );
 
         assert!(
             polyseg
-                .covers_segment(&LineSegment::new([1.0, 0.2], [2.0, 0.0]).unwrap(), e, m)
+                .covers_segment(&LineSegment::new([1.0, 0.0], [4.0, 0.0]).unwrap())
+                .is_ok()
+        );
+        assert!(
+            polyseg
+                .covers_segment(&LineSegment::new([4.0, 0.0], [1.0, 0.0]).unwrap())
+                .is_ok()
+        );
+
+        assert!(
+            polyseg
+                .covers_segment(&LineSegment::new([2.1, 0.0], [3.9, 0.0]).unwrap())
+                .is_ok()
+        );
+        assert!(
+            polyseg
+                .covers_segment(&LineSegment::new([3.9, 0.0], [2.1, 0.0]).unwrap())
+                .is_ok()
+        );
+
+        assert!(
+            polyseg
+                .covers_segment(&LineSegment::new([1.0, 0.2], [2.0, 0.0]).unwrap())
                 .is_err()
         );
         assert!(
             polyseg
-                .covers_segment(&LineSegment::new([1.0, 0.2], [2.0, 0.2]).unwrap(), e, m)
+                .covers_segment(&LineSegment::new([1.0, 0.2], [2.0, 0.2]).unwrap())
                 .is_err()
         );
 
         assert!(
             polyseg
-                .covers_segment(&LineSegment::new([4.0, 4.0], [4.0, 0.0]).unwrap(), e, m)
+                .covers_segment(&LineSegment::new([4.0, 4.0], [4.0, 0.0]).unwrap())
                 .is_ok()
         );
         assert!(
             polyseg
-                .covers_segment(&LineSegment::new([4.0, 0.0], [4.0, 4.0]).unwrap(), e, m)
+                .covers_segment(&LineSegment::new([4.0, 0.0], [4.0, 4.0]).unwrap())
                 .is_ok()
         );
 
         assert!(
             polyseg
-                .covers_segment(&LineSegment::new([4.0, 4.0], [4.0, 3.0]).unwrap(), e, m)
+                .covers_segment(&LineSegment::new([4.0, 4.0], [4.0, 3.0]).unwrap())
                 .is_ok()
         );
         assert!(
             polyseg
-                .covers_segment(&LineSegment::new([4.0, 3.0], [4.0, 4.0]).unwrap(), e, m)
+                .covers_segment(&LineSegment::new([4.0, 3.0], [4.0, 4.0]).unwrap())
                 .is_ok()
         );
     }
@@ -900,41 +944,38 @@ fn covers_segment() {
         // Contains arc segment
         let quarter_arc =
             ArcSegment::from_start_center_angle([-1.0, 0.0], [0.0, 0.0], 0.5 * -PI).unwrap();
-        assert!(polyseg.covers_segment(&quarter_arc, e, m).is_ok());
+        assert!(polyseg.covers_segment(&quarter_arc).is_ok());
 
         let quarter_arc_shifted =
             ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 1.0, 0.75 * PI, -0.5 * PI)
                 .unwrap();
-        assert!(polyseg.covers_segment(&quarter_arc_shifted, e, m).is_ok());
+        assert!(polyseg.covers_segment(&quarter_arc_shifted).is_ok());
     }
 }
 
 #[test]
 fn covers_segment_circle() {
-    let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_RELATIVE;
-
     let circle = ArcSegment::circle([0.0, 0.0], 1.0).unwrap();
     let polyseg = Polysegment::from(circle);
 
     let arc = ArcSegment::from_start_center_angle([-1.0, 0.0], [0.0, 0.0], 0.5 * -PI).unwrap();
-    assert!(polyseg.covers_segment(&arc, e, m).is_ok());
+    assert!(polyseg.covers_segment(&arc).is_ok());
 
     let arc = ArcSegment::from_start_center_angle([1.0, 0.0], [0.0, 0.0], 1.5 * -PI).unwrap();
-    assert!(polyseg.covers_segment(&arc, e, m).is_ok());
+    assert!(polyseg.covers_segment(&arc).is_ok());
 
     let arc = ArcSegment::from_start_center_angle([1.0, 0.0], [0.0, 0.0], 1.5 * PI).unwrap();
-    assert!(polyseg.covers_segment(&arc, e, m).is_ok());
+    assert!(polyseg.covers_segment(&arc).is_ok());
 
     let arc = ArcSegment::from_center_radius_start_stop_angle([0.0, 0.0], 1.0, -1.0, 1.0).unwrap();
-    assert!(polyseg.covers_segment(&arc, e, m).is_ok());
+    assert!(polyseg.covers_segment(&arc).is_ok());
 
     let arc = ArcSegment::from_center_radius_start_stop_angle([0.0, 0.0], 1.0, 1.0, -1.0).unwrap();
-    assert!(polyseg.covers_segment(&arc, e, m).is_ok());
+    assert!(polyseg.covers_segment(&arc).is_ok());
 
     let arc = ArcSegment::from_center_radius_start_stop_angle([0.0, 0.0], 2.0, 1.0, -1.0).unwrap();
-    assert!(polyseg.covers_segment(&arc, e, m).is_err());
+    assert!(polyseg.covers_segment(&arc).is_err());
 
     let arc = ArcSegment::from_center_radius_start_stop_angle([0.5, 0.0], 1.0, 1.0, -1.0).unwrap();
-    assert!(polyseg.covers_segment(&arc, e, m).is_err());
+    assert!(polyseg.covers_segment(&arc).is_err());
 }

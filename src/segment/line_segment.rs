@@ -16,9 +16,16 @@ usage.
 
 use std::f64::INFINITY;
 
+use rayon::prelude::*;
+
 use crate::{
-    primitive::{Primitive, PrimitiveIntersections},
-    {CentroidData, Rotation2, Transformation},
+    CentroidData, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE, Rotation2, ToleranceContext,
+    Transformation,
+    composite::CompositeWithTol,
+    geometry::GeometryRef,
+    line::Line,
+    primitive::{Primitive, PrimitiveIntersections, PrimitiveWithTol},
+    segment::{ArcSegment, SegmentRef},
 };
 
 use approx::relative_eq;
@@ -281,7 +288,7 @@ impl LineSegment {
     assert_eq!(line.euclidian_distance_to_point([0.5, -0.5]), 0.0);
     ```
      */
-    pub fn euclidian_distance_to_point(&self, point: [f64; 2]) -> f64 {
+    pub fn euclidian_distance_to_point(&self, point: &[f64; 2]) -> f64 {
         let start = self.start;
         let stop = self.stop;
 
@@ -505,6 +512,24 @@ impl LineSegment {
         return self.polygonize(super::SegmentPolygonizer::InnerSegments(1));
     }
 
+    /// Wraps `self` in a [`ToleranceContext`] using the specified `epsilon` and
+    /// `max_relative` tolerances.
+    ///
+    /// The [`ToleranceContext`] applies these tolerances to floating-point
+    /// comparisons performed by geometric operations, such as finding
+    /// intersections. See [`ToleranceContext`] for details and examples.
+    pub fn with_tolerance<'a>(
+        &'a self,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> ToleranceContext<'a, Self> {
+        ToleranceContext {
+            inner: self,
+            epsilon,
+            max_relative,
+        }
+    }
+
     /// Returns whether `self` and `other` are touching.
     ///
     /// Two segments are touching if they are intersecting but not dividing each
@@ -546,14 +571,9 @@ impl LineSegment {
     /// // l5 divides l1
     /// assert!(!l1.touches_segment(&l5, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
     /// ```
-    pub fn touches_segment<'a, T: Into<super::SegmentRef<'a>>>(
-        &self,
-        other: T,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> bool {
+    pub fn touches_segment<'a, T: Into<super::SegmentRef<'a>>>(&self, other: T) -> bool {
         return self
-            .touches_and_intersections(other.into(), epsilon, max_relative)
+            .touches_and_intersections(other.into(), DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
             .0;
     }
 
@@ -581,7 +601,7 @@ impl LineSegment {
             ) || relative_eq!(pt, s.stop(), epsilon = epsilon, max_relative = max_relative);
         }
 
-        let intersections = self.intersections_primitive(&other, epsilon, max_relative);
+        let intersections = self.intersections_segment_tol(other.clone(), epsilon, max_relative);
         let touches = match other {
             super::SegmentRef::LineSegment(line_segment) => match intersections {
                 PrimitiveIntersections::Zero => false,
@@ -596,7 +616,9 @@ impl LineSegment {
                 PrimitiveIntersections::One(i) => {
                     ep_ls(self, i, epsilon, max_relative)
                         || ep_as(arc_segment, i, epsilon, max_relative)
-                        || self.is_tangent(arc_segment, epsilon, max_relative)
+                        || self
+                            .with_tolerance(epsilon, max_relative)
+                            .is_tangent(arc_segment)
                 }
                 PrimitiveIntersections::Two([i1, i2]) => {
                     // Are the intersections end points?
@@ -638,46 +660,9 @@ impl LineSegment {
     assert!(!ls.is_tangent(&arc, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
     ```
      */
-    pub fn is_tangent(
-        &self,
-        arc_segment: &super::ArcSegment,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> bool {
-        let [x1, y1] = self.start();
-        let [x2, y2] = self.stop();
-
-        let [cx, cy] = arc_segment.center();
-        let r = arc_segment.radius();
-
-        // Direction vector of the segment
-        let dx = x2 - x1;
-        let dy = y2 - y1;
-
-        let len_sq = dx * dx + dy * dy;
-
-        // Project center onto the line (parameter t)
-        let t = ((cx - x1) * dx + (cy - y1) * dy) / len_sq;
-
-        // Closest point on the infinite line
-        let px = x1 + t * dx;
-        let py = y1 + t * dy;
-
-        if !arc_segment.covers_point([px, py], epsilon, max_relative) {
-            return false;
-        }
-
-        // Distance from center to projection
-        let dist = ((px - cx).powi(2) + (py - cy).powi(2)).sqrt();
-
-        // Check tangency
-        if approx::relative_ne!(dist, r, epsilon = epsilon, max_relative = max_relative) {
-            return false;
-        }
-
-        // Check if projection lies within the segment
-        // (t must be between 0 and 1)
-        t >= -epsilon && t <= 1.0 + epsilon
+    pub fn is_tangent(&self, arc_segment: &super::ArcSegment) -> bool {
+        self.with_tolerance(DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+            .is_tangent(arc_segment)
     }
 
     /**
@@ -688,19 +673,19 @@ impl LineSegment {
      */
     fn nearest_endpoint(&self, other: &LineSegment) -> [f64; 2] {
         let mut nearest_pt = self.start;
-        let mut min_dist = other.euclidian_distance_to_point(self.start);
+        let mut min_dist = other.euclidian_distance_to_point(&self.start);
 
-        let dist = other.euclidian_distance_to_point(self.stop);
+        let dist = other.euclidian_distance_to_point(&self.stop);
         if dist < min_dist {
             min_dist = dist;
             nearest_pt = self.stop;
         }
-        let dist = self.euclidian_distance_to_point(other.start);
+        let dist = self.euclidian_distance_to_point(&other.start);
         if dist < min_dist {
             min_dist = dist;
             nearest_pt = other.start;
         }
-        let dist = self.euclidian_distance_to_point(other.stop);
+        let dist = self.euclidian_distance_to_point(&other.stop);
         if dist < min_dist {
             nearest_pt = other.stop;
         }
@@ -914,10 +899,298 @@ impl std::fmt::Display for LineSegment {
 impl crate::primitive::private::Sealed for LineSegment {}
 
 impl Primitive for LineSegment {
-    fn covers_point(&self, p: [f64; 2], epsilon: f64, max_relative: f64) -> bool {
+    fn covers_point(&self, point: &[f64; 2]) -> bool {
+        self.covers_point_tol(point, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn covers_arc_segment(&self, arc_segment: &ArcSegment) -> bool {
+        self.covers_arc_segment_tol(arc_segment, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn covers_line_segment(&self, line_segment: &LineSegment) -> bool {
+        self.covers_line_segment_tol(line_segment, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn covers_line(&self, line: &Line) -> bool {
+        self.covers_line_tol(line, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn covers<'a, T>(&self, other: T) -> bool
+    where
+        Self: Sized,
+        T: Into<GeometryRef<'a>>,
+    {
+        self.covers_tol(other, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn intersections_point(&self, point: &[f64; 2]) -> PrimitiveIntersections {
+        self.intersections_point_tol(point, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn intersections_line(&self, line: &Line) -> PrimitiveIntersections {
+        self.intersections_line_tol(line, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn intersections_line_segment(&self, line_segment: &LineSegment) -> PrimitiveIntersections {
+        self.intersections_line_segment_tol(line_segment, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn intersections_arc_segment(&self, arc_segment: &ArcSegment) -> PrimitiveIntersections {
+        self.intersections_arc_segment_tol(arc_segment, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn intersections_segment<'a, T>(&self, segment: T) -> PrimitiveIntersections
+    where
+        T: Into<SegmentRef<'a>>,
+    {
+        self.intersections_segment_tol(segment, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    fn intersections_primitive<'a, T: Primitive>(&self, other: &'a T) -> PrimitiveIntersections
+    where
+        &'a T: Into<GeometryRef<'a>>,
+        Self: Sized,
+    {
+        let geo_ref: GeometryRef = other.into();
+        match geo_ref {
+            GeometryRef::Point(pt) => {
+                pt.intersections_line_segment_tol(self, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+            }
+            GeometryRef::ArcSegment(arc_segment) => arc_segment.intersections_line_segment_tol(
+                self,
+                DEFAULT_EPSILON,
+                DEFAULT_MAX_RELATIVE,
+            ),
+            GeometryRef::LineSegment(line_segment) => line_segment.intersections_line_segment_tol(
+                self,
+                DEFAULT_EPSILON,
+                DEFAULT_MAX_RELATIVE,
+            ),
+            GeometryRef::Line(line) => {
+                line.intersections_line_segment_tol(self, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+            }
+            GeometryRef::Segment(segment) => {
+                segment.intersections_line_segment_tol(self, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+            }
+            _ => unreachable!(
+                "since other is a Primitive and Primitive is sealed, it cannot be another type"
+            ),
+        }
+    }
+
+    fn intersections<'a, T>(&self, other: T) -> Vec<crate::composite::Intersection>
+    where
+        Self: Sized,
+        for<'b> &'b Self: Into<GeometryRef<'b>>,
+        T: Into<GeometryRef<'a>>,
+    {
+        let geo_ref: GeometryRef<'_> = other.into();
+        match geo_ref {
+            GeometryRef::Point(pt) => pt
+                .intersections_line_segment_tol(self, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+                .into_iter()
+                .map(From::from)
+                .collect(),
+            GeometryRef::ArcSegment(arc_segment) => arc_segment
+                .intersections_line_segment_tol(self, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+                .into_iter()
+                .map(From::from)
+                .collect(),
+            GeometryRef::LineSegment(line_segment) => line_segment
+                .intersections_line_segment_tol(self, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+                .into_iter()
+                .map(From::from)
+                .collect(),
+            GeometryRef::Line(line) => line
+                .intersections_line_segment_tol(self, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+                .into_iter()
+                .map(From::from)
+                .collect(),
+            GeometryRef::Segment(segment) => segment
+                .intersections_line_segment_tol(self, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+                .into_iter()
+                .map(From::from)
+                .collect(),
+            GeometryRef::BoundingBox(bounding_box) => {
+                let c = crate::contour::Contour::from(bounding_box);
+                c.intersections_segment_tol(self, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+                    .collect()
+            }
+            GeometryRef::Polysegment(polysegment) => polysegment
+                .intersections_segment_tol(self, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+                .collect(),
+            GeometryRef::Contour(contour) => contour
+                .intersections_segment_tol(self, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+                .collect(),
+            GeometryRef::Shape(shape) => shape
+                .intersections_segment_tol(self, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+                .collect(),
+        }
+    }
+}
+
+impl<'c> Primitive for ToleranceContext<'c, LineSegment> {
+    fn covers_point(&self, point: &[f64; 2]) -> bool {
+        self.inner
+            .covers_point_tol(point, self.epsilon, self.max_relative)
+    }
+
+    fn covers_arc_segment(&self, arc_segment: &ArcSegment) -> bool {
+        self.inner
+            .covers_arc_segment_tol(arc_segment, self.epsilon, self.max_relative)
+    }
+
+    fn covers_line_segment(&self, line_segment: &LineSegment) -> bool {
+        self.inner
+            .covers_line_segment_tol(line_segment, self.epsilon, self.max_relative)
+    }
+
+    fn covers_line(&self, line: &Line) -> bool {
+        self.inner
+            .covers_line_tol(line, self.epsilon, self.max_relative)
+    }
+
+    fn covers<'a, T>(&self, other: T) -> bool
+    where
+        Self: Sized,
+        T: Into<GeometryRef<'a>>,
+    {
+        self.inner
+            .covers_tol(other, self.epsilon, self.max_relative)
+    }
+
+    fn intersections_point(&self, point: &[f64; 2]) -> PrimitiveIntersections {
+        self.inner
+            .intersections_point_tol(point, self.epsilon, self.max_relative)
+    }
+
+    fn intersections_line(&self, line: &Line) -> PrimitiveIntersections {
+        self.inner
+            .intersections_line_tol(line, self.epsilon, self.max_relative)
+    }
+
+    fn intersections_line_segment(&self, line_segment: &LineSegment) -> PrimitiveIntersections {
+        self.inner
+            .intersections_line_segment_tol(line_segment, self.epsilon, self.max_relative)
+    }
+
+    fn intersections_arc_segment(&self, arc_segment: &ArcSegment) -> PrimitiveIntersections {
+        self.inner
+            .intersections_arc_segment_tol(arc_segment, self.epsilon, self.max_relative)
+    }
+
+    fn intersections_segment<'a, T>(&self, segment: T) -> PrimitiveIntersections
+    where
+        T: Into<SegmentRef<'a>>,
+    {
+        self.inner
+            .intersections_segment_tol(segment, self.epsilon, self.max_relative)
+    }
+
+    fn intersections_primitive<'a, T: Primitive>(&self, other: &'a T) -> PrimitiveIntersections
+    where
+        &'a T: Into<GeometryRef<'a>>,
+        Self: Sized,
+    {
+        let geo_ref: GeometryRef = other.into();
+        match geo_ref {
+            GeometryRef::Point(pt) => {
+                pt.intersections_line_segment_tol(self.inner, self.epsilon, self.max_relative)
+            }
+            GeometryRef::ArcSegment(arc_segment) => arc_segment.intersections_line_segment_tol(
+                self.inner,
+                self.epsilon,
+                self.max_relative,
+            ),
+            GeometryRef::LineSegment(line_segment) => line_segment.intersections_line_segment_tol(
+                self.inner,
+                self.epsilon,
+                self.max_relative,
+            ),
+            GeometryRef::Line(line) => {
+                line.intersections_line_segment_tol(self.inner, self.epsilon, self.max_relative)
+            }
+            GeometryRef::Segment(segment) => {
+                segment.intersections_line_segment_tol(self.inner, self.epsilon, self.max_relative)
+            }
+            _ => unreachable!(
+                "since other is a Primitive and Primitive is sealed, it cannot be another type"
+            ),
+        }
+    }
+
+    fn intersections<'a, T>(&self, other: T) -> Vec<crate::composite::Intersection>
+    where
+        Self: Sized,
+        for<'b> &'b Self: Into<GeometryRef<'b>>,
+        T: Into<GeometryRef<'a>>,
+    {
+        let geo_ref: GeometryRef<'_> = other.into();
+        match geo_ref {
+            GeometryRef::Point(pt) => pt
+                .intersections_line_segment_tol(self.inner, self.epsilon, self.max_relative)
+                .into_iter()
+                .map(From::from)
+                .collect(),
+            GeometryRef::ArcSegment(arc_segment) => arc_segment
+                .intersections_line_segment_tol(self.inner, self.epsilon, self.max_relative)
+                .into_iter()
+                .map(From::from)
+                .collect(),
+            GeometryRef::LineSegment(line_segment) => line_segment
+                .intersections_line_segment_tol(self.inner, self.epsilon, self.max_relative)
+                .into_iter()
+                .map(From::from)
+                .collect(),
+            GeometryRef::Line(line) => line
+                .intersections_line_segment_tol(self.inner, self.epsilon, self.max_relative)
+                .into_iter()
+                .map(From::from)
+                .collect(),
+            GeometryRef::Segment(segment) => segment
+                .intersections_line_segment_tol(self.inner, self.epsilon, self.max_relative)
+                .into_iter()
+                .map(From::from)
+                .collect(),
+            GeometryRef::BoundingBox(bounding_box) => {
+                let c = crate::contour::Contour::from(bounding_box);
+                c.intersections_primitive_par_tol::<LineSegment>(
+                    self.inner,
+                    self.epsilon,
+                    self.max_relative,
+                )
+                .collect()
+            }
+            GeometryRef::Polysegment(polysegment) => polysegment
+                .intersections_primitive_par_tol::<LineSegment>(
+                    self.inner,
+                    self.epsilon,
+                    self.max_relative,
+                )
+                .collect(),
+            GeometryRef::Contour(contour) => contour
+                .intersections_primitive_par_tol::<LineSegment>(
+                    self.inner,
+                    self.epsilon,
+                    self.max_relative,
+                )
+                .collect(),
+            GeometryRef::Shape(shape) => shape
+                .intersections_primitive_par_tol::<LineSegment>(
+                    self.inner,
+                    self.epsilon,
+                    self.max_relative,
+                )
+                .collect(),
+        }
+    }
+}
+
+impl PrimitiveWithTol for LineSegment {
+    fn covers_point_tol(&self, p: &[f64; 2], epsilon: f64, max_relative: f64) -> bool {
         // Quick first check: If point p is outside the segment bounding box, it can't
         // be contained.
-        if !BoundingBox::from(self).approx_covers_point(p, epsilon) {
+        if !BoundingBox::from(self).approx_covers_point(*p, epsilon) {
             return false;
         }
 
@@ -925,8 +1198,7 @@ impl Primitive for LineSegment {
         // can't be contained. If they are, p is contained, since it is also
         // inside the segment bounding box.
         if epsilon == 0.0 && max_relative == 0.0 {
-            return geometry_predicates::orient2d(self.start.into(), self.stop.into(), p.into())
-                == 0.0;
+            return geometry_predicates::orient2d(self.start, self.stop, *p) == 0.0;
         } else {
             // This is the solution from https://stackoverflow.com/questions/849211/shortest-distance-between-a-point-and-a-line-segment
             let len_sq = self.length_sq();
@@ -942,22 +1214,22 @@ impl Primitive for LineSegment {
         }
     }
 
-    fn covers_arc_segment(
+    fn covers_arc_segment_tol(
         &self,
-        _arc_segment: &crate::segment::ArcSegment,
+        _arc_segment: &ArcSegment,
         _epsilon: f64,
         _max_relative: f64,
     ) -> bool {
         return false;
     }
 
-    fn covers_line_segment(
+    fn covers_line_segment_tol(
         &self,
         line_segment: &LineSegment,
         epsilon: f64,
         max_relative: f64,
     ) -> bool {
-        match self.intersections_primitive(line_segment, epsilon, max_relative) {
+        match self.intersections_line_segment_tol(line_segment, epsilon, max_relative) {
             // Deal with special case where self and line_segment are identical
             PrimitiveIntersections::Zero => std::ptr::eq(self, line_segment),
             PrimitiveIntersections::One(_) => false,
@@ -973,20 +1245,20 @@ impl Primitive for LineSegment {
         }
     }
 
-    fn covers_line(&self, _line: &crate::line::Line, _epsilon: f64, _max_relative: f64) -> bool {
+    fn covers_line_tol(&self, _line: &Line, _epsilon: f64, _max_relative: f64) -> bool {
         return false;
     }
 
-    fn intersections_line(
+    fn intersections_line_tol(
         &self,
-        line: &crate::line::Line,
+        line: &Line,
         epsilon: f64,
         max_relative: f64,
     ) -> PrimitiveIntersections {
-        return line.intersections_line_segment(self, epsilon, max_relative);
+        return line.intersections_line_segment_tol(self, epsilon, max_relative);
     }
 
-    fn intersections_line_segment(
+    fn intersections_line_segment_tol(
         &self,
         line_segment: &LineSegment,
         epsilon: f64,
@@ -1153,7 +1425,7 @@ impl Primitive for LineSegment {
         }
     }
 
-    fn intersections_arc_segment(
+    fn intersections_arc_segment_tol(
         &self,
         arc_segment: &crate::segment::ArcSegment,
         epsilon: f64,
@@ -1180,19 +1452,73 @@ impl Primitive for LineSegment {
             .into_iter()
             .map(From::from)
         {
-            if self.covers_point(pt, epsilon, max_relative) {
+            if self.covers_point_tol(&pt, epsilon, max_relative) {
                 intersections.push(pt);
             }
         }
         return intersections;
     }
 
-    fn intersections_primitive<T: Primitive>(
+    fn intersections_primitive_tol<T>(
         &self,
-        other: &T,
+        primitive: &T,
         epsilon: f64,
         max_relative: f64,
-    ) -> PrimitiveIntersections {
-        other.intersections_line_segment(self, epsilon, max_relative)
+    ) -> PrimitiveIntersections
+    where
+        T: PrimitiveWithTol,
+    {
+        return primitive.intersections_line_segment_tol(self, epsilon, max_relative);
+    }
+}
+
+impl<'c> ToleranceContext<'c, LineSegment> {
+    pub fn touches_segment<'a, T: Into<super::SegmentRef<'a>>>(&self, other: T) -> bool {
+        return self
+            .inner
+            .touches_and_intersections(other.into(), self.epsilon, self.max_relative)
+            .0;
+    }
+
+    pub fn is_tangent(&self, arc_segment: &super::ArcSegment) -> bool {
+        let [x1, y1] = self.inner.start();
+        let [x2, y2] = self.inner.stop();
+
+        let [cx, cy] = arc_segment.center();
+        let r = arc_segment.radius();
+
+        // Direction vector of the segment
+        let dx = x2 - x1;
+        let dy = y2 - y1;
+
+        let len_sq = dx * dx + dy * dy;
+
+        // Project center onto the line (parameter t)
+        let t = ((cx - x1) * dx + (cy - y1) * dy) / len_sq;
+
+        // Closest point on the infinite line
+        let px = x1 + t * dx;
+        let py = y1 + t * dy;
+
+        if !arc_segment.covers_point_tol(&[px, py], self.epsilon, self.max_relative) {
+            return false;
+        }
+
+        // Distance from center to projection
+        let dist = ((px - cx).powi(2) + (py - cy).powi(2)).sqrt();
+
+        // Check tangency
+        if approx::relative_ne!(
+            dist,
+            r,
+            epsilon = self.epsilon,
+            max_relative = self.max_relative
+        ) {
+            return false;
+        }
+
+        // Check if projection lies within the segment
+        // (t must be between 0 and 1)
+        t >= -self.epsilon && t <= 1.0 + self.epsilon
     }
 }

@@ -14,8 +14,8 @@ fn test_covers_point() {
             [1.0000000000000002, 0.49999999999999944],
         )
         .unwrap();
-        assert!(arc.covers_point([0.5, 0.0], 0.0, 0.0));
-        assert!(arc.covers(&[0.5, 0.0], 0.0, 0.0));
+        assert!(arc.with_tolerance(0.0, 0.0).covers_point(&[0.5, 0.0]));
+        assert!(arc.with_tolerance(0.0, 0.0).covers(&[0.5, 0.0]));
 
         let center = [0.0, 1.0];
         let radius = 1.0;
@@ -33,9 +33,9 @@ fn test_covers_point() {
         let p1 = [1.0, 1.0];
         let p2 = [0.0, 0.0];
         let p3 = [1.5, 0.5];
-        assert!(arc.covers_point(p1, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
-        assert!(arc.covers_point(p2, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
-        assert!(!arc.covers_point(p3, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+        assert!(arc.covers_point(&p1));
+        assert!(arc.covers_point(&p2));
+        assert!(!arc.covers_point(&p3));
     }
     {
         let pt1 = [-0.9233365375660403, 9.999999999996123e-6];
@@ -44,37 +44,29 @@ fn test_covers_point() {
         let arc = ArcSegment::from_start_middle_stop(pt1, pt2, pt3).unwrap();
 
         // Due to floating point rounding errors, some points are not "exactly" included
-        assert!(!arc.covers_point(pt1, 0.0, 0.0));
-        assert!(!arc.covers_point(pt2, 0.0, 0.0));
-        assert!(!arc.covers_point(pt3, 0.0, 0.0));
-        assert!(arc.covers_point(pt1, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
-        assert!(arc.covers_point(pt2, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
-        assert!(arc.covers_point(pt3, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+        assert!(!arc.with_tolerance(0.0, 0.0).covers_point(&pt1));
+        assert!(!arc.with_tolerance(0.0, 0.0).covers_point(&pt2));
+        assert!(!arc.with_tolerance(0.0, 0.0).covers_point(&pt3));
+        assert!(arc.covers_point(&pt1));
+        assert!(arc.covers_point(&pt2));
+        assert!(arc.covers_point(&pt3));
 
         // Generic methods
-        assert!(arc.covers(&pt1, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
-        assert!(arc.covers(&pt2, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
-        assert!(arc.covers(&pt3, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+        assert!(arc.covers(&pt1));
+        assert!(arc.covers(&pt2));
+        assert!(arc.covers(&pt3));
 
         // Convert to segment and test again
         let s = Segment::from(arc);
-        assert!(s.covers(&pt1, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
-        assert!(s.covers(&pt2, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
-        assert!(s.covers(&pt3, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+        assert!(s.covers(&pt1));
+        assert!(s.covers(&pt2));
+        assert!(s.covers(&pt3));
     }
     {
         let arc = ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 1.0, 0.0, FRAC_PI_2)
             .unwrap();
-        assert!(arc.covers_point(
-            [0.99498743710662, 0.1],
-            DEFAULT_EPSILON,
-            DEFAULT_MAX_RELATIVE
-        ));
-        assert!(!arc.covers_point(
-            [-0.99498743710662, 0.1],
-            DEFAULT_EPSILON,
-            DEFAULT_MAX_RELATIVE
-        ));
+        assert!(arc.covers_point(&[0.99498743710662, 0.1]));
+        assert!(!arc.covers_point(&[-0.99498743710662, 0.1]));
     }
 }
 
@@ -96,8 +88,10 @@ fn test_arc_arc_intersection() {
         )
         .unwrap();
 
-        let intersections =
-            arc1.intersections_primitive(&arc2, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE);
+        let intersections = arc1.intersections_primitive(&arc2);
+        assert_eq!(intersections.len(), 2);
+
+        let intersections = arc1.intersections(&arc2);
         assert_eq!(intersections.len(), 2);
     }
     {
@@ -125,8 +119,7 @@ fn test_arc_arc_intersection() {
         )
         .unwrap();
 
-        let intersections =
-            arc1.intersections_primitive(&arc2, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE);
+        let intersections = arc1.intersections_primitive(&arc2);
         assert_eq!(intersections.len(), 0);
     }
     {
@@ -154,16 +147,14 @@ fn test_arc_arc_intersection() {
         )
         .unwrap();
 
-        let intersections =
-            arc1.intersections_primitive(&arc2, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE);
+        let intersections = arc1.intersections_primitive(&arc2);
         assert_eq!(intersections.len(), 1);
         assert_abs_diff_eq!(
             PrimitiveIntersections::One([3.0_f64.sqrt() / 2.0, 0.5]),
             intersections,
         );
 
-        let intersections =
-            arc2.intersections_primitive(&arc1, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE);
+        let intersections = arc2.intersections_primitive(&arc1);
         assert_eq!(intersections.len(), 1);
         assert_abs_diff_eq!(
             PrimitiveIntersections::One([3.0_f64.sqrt() / 2.0, 0.5]),
@@ -195,8 +186,7 @@ fn test_arc_arc_intersection() {
         )
         .unwrap();
 
-        let intersections =
-            arc1.intersections_primitive(&arc2, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE);
+        let intersections = arc1.intersections_primitive(&arc2);
         assert_eq!(intersections.len(), 2);
         assert_abs_diff_eq!(
             PrimitiveIntersections::Two([
@@ -215,13 +205,13 @@ fn test_arc_arc_intersection() {
 
         // Regular intersection
         assert_abs_diff_eq!(
-            line.intersections_arc_segment(&arc1, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE),
+            line.intersections_arc_segment(&arc1),
             PrimitiveIntersections::One([0.0, 2.0])
         );
 
         // Degenerate case
         assert_abs_diff_eq!(
-            arc1.intersections_arc_segment(&arc2, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE),
+            arc1.intersections_arc_segment(&arc2),
             PrimitiveIntersections::Two([[0.0, 2.0], [-2.0, 0.0]]),
             epsilon = DEFAULT_EPSILON
         );
@@ -243,19 +233,19 @@ fn test_arc_arc_intersection() {
         )
         .unwrap();
         assert_eq!(
-            arc1.intersections_arc_segment(&arc2, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE),
+            arc1.intersections_arc_segment(&arc2),
             PrimitiveIntersections::Zero
         );
         assert_eq!(
-            arc2.intersections_arc_segment(&arc1, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE),
+            arc2.intersections_arc_segment(&arc1),
             PrimitiveIntersections::Zero
         );
         assert_eq!(
-            arc1.intersections_primitive(&arc2, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE),
+            arc1.intersections_primitive(&arc2),
             PrimitiveIntersections::Zero
         );
         assert_eq!(
-            arc2.intersections_primitive(&arc1, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE),
+            arc2.intersections_primitive(&arc1),
             PrimitiveIntersections::Zero
         );
     }
@@ -275,8 +265,7 @@ fn test_line_segment_arc_intersection() {
         .into();
         let line: Segment = LineSegment::new([1.0, -10.0], [1.0, 10.0]).unwrap().into();
 
-        let intersections =
-            arc.intersections_primitive(&line, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE);
+        let intersections = arc.intersections_primitive(&line);
         assert_eq!(intersections.len(), 1);
         assert_abs_diff_eq!(PrimitiveIntersections::One([1.0, 0.0]), intersections,);
     }
@@ -291,8 +280,7 @@ fn test_line_segment_arc_intersection() {
         .into();
         let line: Segment = LineSegment::new([0.5, 1.0], [1.0, 0.0]).unwrap().into();
 
-        let intersections =
-            arc.intersections_primitive(&line, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE);
+        let intersections = arc.intersections_primitive(&line);
         assert_eq!(intersections.len(), 1);
         assert_abs_diff_eq!(
             PrimitiveIntersections::One([0.9000000000000001, 0.19999999999999984]),
@@ -314,8 +302,7 @@ fn test_line_segment_arc_intersection() {
         )
         .unwrap()
         .into();
-        let intersections =
-            arc.intersections_primitive(&line, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE);
+        let intersections = arc.intersections_primitive(&line);
         assert_eq!(intersections.len(), 1);
     }
     {
@@ -324,8 +311,7 @@ fn test_line_segment_arc_intersection() {
                 .unwrap()
                 .into();
         let line: Segment = LineSegment::new([0.0, 0.1], [-4.0, 0.1]).unwrap().into();
-        let intersections =
-            arc.intersections_primitive(&line, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE);
+        let intersections = arc.intersections_primitive(&line);
         assert_eq!(intersections.len(), 0);
     }
 }
@@ -342,7 +328,7 @@ fn test_arc_line_intersection() {
         .unwrap();
         let line = Line::new(79.9999999999994, -51.715728752538, 4668.629150101501);
         assert_eq!(
-            arc.intersections_primitive(&line, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE),
+            arc.intersections_primitive(&line),
             PrimitiveIntersections::Zero
         );
     }
@@ -354,14 +340,14 @@ fn self_intersection() {
 
     // Self-intersection
     assert_eq!(
-        arc.intersections_primitive(&arc, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE),
+        arc.intersections_primitive(&arc),
         PrimitiveIntersections::Zero
     );
 
     // Intersections with equal primitive
     let arc_cloned = arc.clone();
     assert_abs_diff_eq!(
-        arc.intersections_primitive(&arc_cloned, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE),
+        arc.intersections_primitive(&arc_cloned),
         PrimitiveIntersections::Two([[2.0, 0.0], [-2.0, 0.0]]),
         epsilon = DEFAULT_EPSILON
     );
@@ -970,15 +956,12 @@ fn test_covers_angle() {
 fn test_covers() {
     {
         let arc = ArcSegment::from_start_center_angle([-1.0, 0.0], [0.0, 0.0], 0.5 * -PI).unwrap();
-        assert!(arc.covers(&arc, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
-        assert!(arc.covers(&arc.clone(), DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+        assert!(arc.covers(&arc));
+        assert!(arc.covers(&arc.clone()));
     }
     {
         use planar_geo::prelude::*;
         use std::f64::consts::PI;
-
-        let e = DEFAULT_EPSILON;
-        let m = DEFAULT_MAX_RELATIVE;
 
         // A half-circle from -90° to 90° around [0.0, 1.0]
         let half = ArcSegment::from_start_center_angle([0.0, 0.0], [0.0, 1.0], PI).unwrap();
@@ -986,107 +969,105 @@ fn test_covers() {
         // Quarter-circle
         let quarter =
             ArcSegment::from_start_center_angle([0.0, 0.0], [0.0, 1.0], 0.5 * PI).unwrap();
-        assert!(half.covers(&half, e, m));
+        assert!(half.covers(&half));
 
         // Half-circle, but mirrored about the y-axis. Since arc is a half-circle,
         // arc_mirrored is the other half of the circle, which is not covered
         let mut half_mirrored = half.clone();
         half_mirrored.line_reflection([0.0, 0.0], [0.0, 1.0]);
-        assert!(!half.covers(&half_mirrored, e, m));
+        assert!(!half.covers(&half_mirrored));
 
         // A circle covers all of the arcs
         let circle = ArcSegment::circle([0.0, 1.0], 1.0).unwrap();
-        assert!(circle.covers(&half, e, m));
-        assert!(circle.covers(&quarter, e, m));
-        assert!(circle.covers(&half_mirrored, e, m));
+        assert!(circle.covers(&half));
+        assert!(circle.covers(&quarter));
+        assert!(circle.covers(&half_mirrored));
 
         // An arc with different center is obviously not covered
         let quarter_shifted =
             ArcSegment::from_start_center_angle([0.0, 0.0], [0.1, 1.0], 0.5 * PI).unwrap();
-        assert!(!half.covers(&quarter_shifted, e, m));
+        assert!(!half.covers(&quarter_shifted));
     }
     {
         let arc = ArcSegment::from_start_center_angle([1.0, 0.0], [0.0, 0.0], PI).unwrap();
-        assert!(arc.covers(&arc, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+        assert!(arc.covers(&arc));
 
         let arc_opposite_dir =
             ArcSegment::from_start_center_angle([1.0, 0.0], [0.0, 0.0], -PI).unwrap();
-        assert!(!arc.covers(&arc_opposite_dir, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
-        assert!(!arc_opposite_dir.covers(&arc, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+        assert!(!arc.covers(&arc_opposite_dir));
+        assert!(!arc_opposite_dir.covers(&arc));
 
         let arc_larger_radius =
             ArcSegment::from_start_center_angle([2.0, 0.0], [0.0, 0.0], PI).unwrap();
-        assert!(!arc.covers(&arc_larger_radius, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
-        assert!(!arc_larger_radius.covers(&arc, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+        assert!(!arc.covers(&arc_larger_radius));
+        assert!(!arc_larger_radius.covers(&arc));
 
         let arc_different_center =
             ArcSegment::from_start_center_angle([1.0, 0.0], [0.5, 0.0], PI).unwrap();
-        assert!(!arc.covers(&arc_different_center, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
-        assert!(!arc_different_center.covers(&arc, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+        assert!(!arc.covers(&arc_different_center));
+        assert!(!arc_different_center.covers(&arc));
 
         let circle = ArcSegment::circle([0.0, 0.0], 1.0).unwrap();
-        assert!(circle.covers(&arc, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
-        assert!(!arc.covers(&circle, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+        assert!(circle.covers(&arc));
+        assert!(!arc.covers(&circle));
     }
 }
 
 #[test]
 fn test_touches_arc_segment() {
-    let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_RELATIVE;
     {
         let c1 = ArcSegment::circle([4.0, 1.0], 2.0).unwrap();
         let c2 = ArcSegment::circle([0.0, 1.0], 2.0).unwrap();
-        assert!(c1.touches_segment(&c2, e, m));
-        assert!(c2.touches_segment(&c1, e, m));
-        assert!(c1.touches_segment(&c1, e, m));
-        assert!(c2.touches_segment(&c2, e, m));
+        assert!(c1.touches_segment(&c2));
+        assert!(c2.touches_segment(&c1));
+        assert!(c1.touches_segment(&c1));
+        assert!(c2.touches_segment(&c2));
     }
     {
         let c1 = ArcSegment::circle([3.0, 1.0], 2.0).unwrap();
         let c2 = ArcSegment::circle([0.0, 1.0], 2.0).unwrap();
-        assert!(!c1.touches_segment(&c2, e, m));
-        assert!(!c2.touches_segment(&c1, e, m));
+        assert!(!c1.touches_segment(&c2));
+        assert!(!c2.touches_segment(&c1));
     }
     {
         let c1 = ArcSegment::circle([5.0, 1.0], 2.0).unwrap();
         let c2 = ArcSegment::circle([0.0, 1.0], 2.0).unwrap();
-        assert!(!c1.touches_segment(&c2, e, m));
-        assert!(!c2.touches_segment(&c1, e, m));
+        assert!(!c1.touches_segment(&c2));
+        assert!(!c2.touches_segment(&c1));
     }
     {
         let a1 =
             ArcSegment::from_center_radius_start_sweep_angle([0.0, 1.0], 2.0, 1.0, 1.0).unwrap();
         let a2 =
             ArcSegment::from_center_radius_start_sweep_angle([4.0, 1.0], 2.0, 1.0, 1.0).unwrap();
-        assert!(!a1.touches_segment(&a2, e, m));
-        assert!(!a2.touches_segment(&a1, e, m));
+        assert!(!a1.touches_segment(&a2));
+        assert!(!a2.touches_segment(&a1));
     }
     {
         let a1 =
             ArcSegment::from_center_radius_start_sweep_angle([0.0, 1.0], 2.0, 1.0, 1.0).unwrap();
         let a2 =
             ArcSegment::from_center_radius_start_sweep_angle([0.0, 1.0], 2.0, 1.0, 1.0).unwrap();
-        assert!(a1.touches_segment(&a2, e, m));
-        assert!(a2.touches_segment(&a1, e, m));
+        assert!(a1.touches_segment(&a2));
+        assert!(a2.touches_segment(&a1));
     }
     {
         let c = ArcSegment::circle([0.0, 1.0], 2.0).unwrap();
         let a =
             ArcSegment::from_center_radius_start_sweep_angle([4.0, 1.0], 2.0, 1.0, 1.0).unwrap();
-        assert!(!c.touches_segment(&a, e, m));
-        assert!(!a.touches_segment(&c, e, m));
+        assert!(!c.touches_segment(&a));
+        assert!(!a.touches_segment(&c));
     }
     {
         let a1 = ArcSegment::from_start_center_angle([1.0, 0.0], [0.0, 0.0], PI).unwrap();
         let a2 = ArcSegment::from_start_center_angle([0.0, 1.0], [1.0, 1.0], FRAC_PI_2).unwrap();
-        assert!(a1.touches_segment(&a2, e, m));
-        assert!(a2.touches_segment(&a1, e, m));
+        assert!(a1.touches_segment(&a2));
+        assert!(a2.touches_segment(&a1));
     }
     {
         let a1 = ArcSegment::from_start_center_angle([0.0, 1.0], [0.0, 0.0], FRAC_PI_2).unwrap();
         let a2 = ArcSegment::from_start_center_angle([0.0, 1.0], [1.0, 1.0], FRAC_PI_2).unwrap();
-        assert!(a1.touches_segment(&a2, e, m));
-        assert!(a2.touches_segment(&a1, e, m));
+        assert!(a1.touches_segment(&a2));
+        assert!(a2.touches_segment(&a1));
     }
 }

@@ -119,6 +119,13 @@ fn test_intersects() {
     let bb1 = BoundingBox::new(0.0, 1.0, 0.0, 1.0);
     let bb2 = BoundingBox::new(std::f64::NEG_INFINITY, std::f64::INFINITY, 0.2, 0.8);
     assert!(bb1.intersects(&bb2));
+
+    let bb1 = BoundingBox::new(0.0, 1.0, 0.0, 1.0);
+    let bb2 = BoundingBox::new(0.5, 1.5, 0.5, 1.5);
+    let intersections = GeometryRef::from(&bb1).intersections(&bb2);
+    assert_eq!(intersections.len(), 2);
+    approx::assert_abs_diff_eq!(intersections[0].point, [1.0, 0.5], epsilon = 1e-3);
+    approx::assert_abs_diff_eq!(intersections[1].point, [0.5, 1.0], epsilon = 1e-3);
 }
 
 #[test]
@@ -146,14 +153,4 @@ fn test_touches() {
     let bb2: BoundingBox = BoundingBox::new(0.8, 2.0, 0.0, 1.0);
     assert!(!bb2.touches(&bb1));
     assert!(!bb1.touches(&bb2));
-}
-
-#[test]
-fn intersection() {
-    let bb1 = BoundingBox::new(0.0, 1.0, 0.0, 1.0);
-    let bb2 = BoundingBox::new(0.5, 1.5, 0.5, 1.5);
-    let intersections = GeometryRef::from(&bb1).intersections(&bb2, 0.0, 0.0);
-    assert_eq!(intersections.len(), 2);
-    approx::assert_abs_diff_eq!(intersections[0].point, [1.0, 0.5], epsilon = 1e-3);
-    approx::assert_abs_diff_eq!(intersections[1].point, [0.5, 1.0], epsilon = 1e-3);
 }

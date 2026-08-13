@@ -108,15 +108,15 @@ use bounding_box::{BoundingBox, ToBoundingBox};
 
 use rayon::prelude::*;
 
-use crate::Transformation;
-use crate::composite::{Composite, Intersection, SegmentKey};
+use crate::composite::{Composite, CompositeWithTol, Intersection, SegmentKey};
 use crate::contour::Contour;
 use crate::line::Line;
 use crate::polysegment::Polysegment;
 use crate::prelude::SegmentRef;
-use crate::primitive::Primitive;
+use crate::primitive::PrimitiveWithTol;
 use crate::segment::{ArcSegment, LineSegment, Segment};
 use crate::shape::Shape;
+use crate::{DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE, ToleranceContext, Transformation};
 
 /**
 A container enum for owned geometric types. See the
@@ -167,19 +167,32 @@ impl Geometry {
         }
     }
 
+    /// Wraps `self` in a [`ToleranceContext`] using the specified `epsilon` and
+    /// `max_relative` tolerances.
+    ///
+    /// The [`ToleranceContext`] applies these tolerances to floating-point
+    /// comparisons performed by geometric operations, such as finding
+    /// intersections. See [`ToleranceContext`] for details and examples.
+    pub fn with_tolerance<'a>(
+        &'a self,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> ToleranceContext<'a, Self> {
+        ToleranceContext {
+            inner: self,
+            epsilon,
+            max_relative,
+        }
+    }
+
     /**
     Returns all intersections between `self` and `other`.
 
     See [`GeometryRef::intersections`] for details and examples.
      */
-    pub fn intersections<'b, T: Into<GeometryRef<'b>>>(
-        &self,
-        other: T,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> Vec<Intersection> {
+    pub fn intersections<'b, T: Into<GeometryRef<'b>>>(&self, other: T) -> Vec<Intersection> {
         let this: GeometryRef = self.into();
-        this.intersections(other, epsilon, max_relative)
+        this.intersections(other)
     }
 
     /**
@@ -189,14 +202,21 @@ impl Geometry {
     docstring for details. It uses parallel variants of the specialized
     intersection algorithms, if available.
      */
-    pub fn intersections_par<'b, T: Into<GeometryRef<'b>>>(
-        &self,
-        other: T,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> Vec<Intersection> {
+    pub fn intersections_par<'b, T: Into<GeometryRef<'b>>>(&self, other: T) -> Vec<Intersection> {
         let this: GeometryRef = self.into();
-        this.intersections_par(other, epsilon, max_relative)
+        this.intersections_par(other)
+    }
+}
+
+impl<'a> ToleranceContext<'a, Geometry> {
+    pub fn intersections<'b, T: Into<GeometryRef<'b>>>(&self, other: T) -> Vec<Intersection> {
+        let this: GeometryRef = self.inner.into();
+        this.intersections_tol::<false, _>(other, self.epsilon, self.max_relative)
+    }
+
+    pub fn intersections_par<'b, T: Into<GeometryRef<'b>>>(&self, other: T) -> Vec<Intersection> {
+        let this: GeometryRef = self.inner.into();
+        this.intersections_tol::<true, _>(other, self.epsilon, self.max_relative)
     }
 }
 
@@ -371,7 +391,7 @@ impl From<Shape> for Geometry {
 A container enum for borrowed geometric types. See the
 [module-level documentation](crate::geometry) for more.
  */
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum GeometryRef<'a> {
     /// A borrowed point (`[f64; 2]`).
     Point(&'a [f64; 2]),
@@ -409,6 +429,20 @@ impl<'a> GeometryRef<'a> {
             GeometryRef::Polysegment(polysegment) => polysegment.segment(key),
             GeometryRef::Contour(contour) => contour.segment(key),
             GeometryRef::Shape(shape) => shape.segment(key),
+        }
+    }
+
+    /// Wraps `self` in a [`ToleranceContext`] using the specified `epsilon` and
+    /// `max_relative` tolerances.
+    ///
+    /// The [`ToleranceContext`] applies these tolerances to floating-point
+    /// comparisons performed by geometric operations, such as finding
+    /// intersections. See [`ToleranceContext`] for details and examples.
+    pub fn with_tolerance(&'a self, epsilon: f64, max_relative: f64) -> ToleranceContext<'a, Self> {
+        ToleranceContext {
+            inner: self,
+            epsilon,
+            max_relative,
         }
     }
 
@@ -468,44 +502,8 @@ impl<'a> GeometryRef<'a> {
     assert_eq!(intersections.len(), 4);
     ```
      */
-    pub fn intersections<'b, T: Into<GeometryRef<'b>>>(
-        &self,
-        other: T,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> Vec<Intersection> {
-        let geo_ref: GeometryRef = other.into();
-        match self {
-            GeometryRef::Point(elem) => {
-                geo_ref.intersections_primitive(*elem, epsilon, max_relative)
-            }
-            GeometryRef::BoundingBox(bounding_box) => geo_ref.intersections_composite(
-                &Contour::from(*bounding_box),
-                epsilon,
-                max_relative,
-            ),
-            GeometryRef::ArcSegment(elem) => {
-                geo_ref.intersections_primitive(*elem, epsilon, max_relative)
-            }
-            GeometryRef::LineSegment(elem) => {
-                geo_ref.intersections_primitive(*elem, epsilon, max_relative)
-            }
-            GeometryRef::Line(elem) => {
-                geo_ref.intersections_primitive(*elem, epsilon, max_relative)
-            }
-            GeometryRef::Segment(elem) => {
-                geo_ref.intersections_primitive(*elem, epsilon, max_relative)
-            }
-            GeometryRef::Polysegment(elem) => {
-                geo_ref.intersections_composite(*elem, epsilon, max_relative)
-            }
-            GeometryRef::Contour(elem) => {
-                geo_ref.intersections_composite(*elem, epsilon, max_relative)
-            }
-            GeometryRef::Shape(elem) => {
-                geo_ref.intersections_composite(*elem, epsilon, max_relative)
-            }
-        }
+    pub fn intersections<'b, T: Into<GeometryRef<'b>>>(&self, other: T) -> Vec<Intersection> {
+        self.intersections_tol::<false, _>(other, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
     }
 
     /**
@@ -515,189 +513,651 @@ impl<'a> GeometryRef<'a> {
     docstring for details. It uses parallel variants of the specialized
     intersection algorithms, if available.
      */
-    pub fn intersections_par<'b, T: Into<GeometryRef<'b>>>(
+    pub fn intersections_par<'b, T: Into<GeometryRef<'b>>>(&self, other: T) -> Vec<Intersection> {
+        self.intersections_tol::<true, _>(other, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    }
+
+    pub(crate) fn intersections_tol<'b, const PARALLEL: bool, T: Into<GeometryRef<'b>>>(
         &self,
         other: T,
         epsilon: f64,
         max_relative: f64,
     ) -> Vec<Intersection> {
-        let geo_ref: GeometryRef = other.into();
+        let other: GeometryRef = other.into();
         match self {
-            GeometryRef::Point(elem) => {
-                geo_ref.intersections_primitive(*elem, epsilon, max_relative)
-            }
-            GeometryRef::BoundingBox(bounding_box) => geo_ref.intersections_composite_par(
-                &Contour::from(*bounding_box),
-                epsilon,
-                max_relative,
-            ),
-            GeometryRef::ArcSegment(elem) => {
-                geo_ref.intersections_primitive(*elem, epsilon, max_relative)
-            }
-            GeometryRef::LineSegment(elem) => {
-                geo_ref.intersections_primitive(*elem, epsilon, max_relative)
-            }
-            GeometryRef::Line(elem) => {
-                geo_ref.intersections_primitive(*elem, epsilon, max_relative)
-            }
-            GeometryRef::Segment(elem) => {
-                geo_ref.intersections_primitive(*elem, epsilon, max_relative)
-            }
-            GeometryRef::Polysegment(elem) => {
-                geo_ref.intersections_composite_par(*elem, epsilon, max_relative)
-            }
-            GeometryRef::Contour(elem) => {
-                geo_ref.intersections_composite_par(*elem, epsilon, max_relative)
-            }
-            GeometryRef::Shape(elem) => {
-                geo_ref.intersections_composite_par(*elem, epsilon, max_relative)
-            }
-        }
-    }
-
-    pub(crate) fn intersections_primitive<T: Primitive>(
-        &self,
-        other: &T,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> Vec<Intersection> {
-        match self {
-            GeometryRef::Point(point) => {
-                if other.covers_point((*point).clone(), epsilon, max_relative) {
-                    return vec![(**point).into()];
+            GeometryRef::Point(pt_self) => match other {
+                GeometryRef::Point(pt_other) => {
+                    if pt_self.covers_point_tol(pt_other, epsilon, max_relative) {
+                        return vec![(**pt_self).into()];
+                    } else {
+                        return Vec::new();
+                    }
+                }
+                GeometryRef::BoundingBox(bounding_box) => {
+                    let c = Contour::from(bounding_box);
+                    if PARALLEL {
+                        c.intersections_point_tol(*pt_self, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    } else {
+                        c.intersections_point_par_tol(*pt_self, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    }
+                }
+                GeometryRef::ArcSegment(arc_segment) => pt_self
+                    .intersections_arc_segment_tol(arc_segment, epsilon, max_relative)
+                    .into_iter()
+                    .map(From::from)
+                    .collect(),
+                GeometryRef::LineSegment(line_segment) => pt_self
+                    .intersections_line_segment_tol(line_segment, epsilon, max_relative)
+                    .into_iter()
+                    .map(From::from)
+                    .collect(),
+                GeometryRef::Line(line) => pt_self
+                    .intersections_line_tol(line, epsilon, max_relative)
+                    .into_iter()
+                    .map(From::from)
+                    .collect(),
+                GeometryRef::Segment(segment) => pt_self
+                    .intersections_segment_tol(segment, epsilon, max_relative)
+                    .into_iter()
+                    .map(From::from)
+                    .collect(),
+                GeometryRef::Polysegment(polysegment) => {
+                    if PARALLEL {
+                        polysegment
+                            .intersections_point_tol(*pt_self, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    } else {
+                        polysegment
+                            .intersections_point_par_tol(*pt_self, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    }
+                }
+                GeometryRef::Contour(contour) => {
+                    if PARALLEL {
+                        contour
+                            .intersections_point_tol(*pt_self, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    } else {
+                        contour
+                            .intersections_point_par_tol(*pt_self, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    }
+                }
+                GeometryRef::Shape(shape) => {
+                    if PARALLEL {
+                        shape
+                            .intersections_point_tol(*pt_self, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    } else {
+                        shape
+                            .intersections_point_par_tol(*pt_self, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    }
+                }
+            },
+            GeometryRef::BoundingBox(bounding_box) => {
+                if PARALLEL {
+                    Contour::from(*bounding_box).intersections_tol(other, epsilon, max_relative)
                 } else {
-                    return Vec::new();
+                    Contour::from(*bounding_box).intersections_par_tol(other, epsilon, max_relative)
                 }
             }
-            GeometryRef::BoundingBox(bounding_box) => {
-                let contour = Contour::from(*bounding_box);
-                contour
-                    .intersections_primitive(other, epsilon, max_relative)
-                    .collect()
-            }
-            GeometryRef::ArcSegment(elem) => other
-                .intersections_primitive(*elem, epsilon, max_relative)
-                .into_iter()
-                .map(From::from)
-                .collect(),
-            GeometryRef::LineSegment(elem) => other
-                .intersections_primitive(*elem, epsilon, max_relative)
-                .into_iter()
-                .map(From::from)
-                .collect(),
-            GeometryRef::Line(elem) => other
-                .intersections_primitive(*elem, epsilon, max_relative)
-                .into_iter()
-                .map(From::from)
-                .collect(),
-            GeometryRef::Segment(elem) => other
-                .intersections_primitive(*elem, epsilon, max_relative)
-                .into_iter()
-                .map(From::from)
-                .collect(),
-            GeometryRef::Polysegment(elem) => elem
-                .intersections_primitive(other, epsilon, max_relative)
-                .collect(),
-            GeometryRef::Contour(elem) => elem
-                .intersections_primitive(other, epsilon, max_relative)
-                .collect(),
-            GeometryRef::Shape(elem) => elem
-                .intersections_primitive(other, epsilon, max_relative)
-                .collect(),
-        }
-    }
-
-    pub(crate) fn intersections_composite<T: Composite>(
-        &self,
-        other: &T,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> Vec<Intersection> {
-        match self {
-            GeometryRef::Point(point) => {
-                if other
-                    .covers_point((*point).clone(), epsilon, max_relative)
-                    .is_ok()
-                {
-                    return vec![(**point).into()];
-                } else {
-                    return Vec::new();
+            GeometryRef::ArcSegment(elem) => match other {
+                GeometryRef::Point(pt_other) => elem
+                    .intersections_point_tol(pt_other, epsilon, max_relative)
+                    .into_iter()
+                    .map(From::from)
+                    .collect(),
+                GeometryRef::BoundingBox(bounding_box) => {
+                    let c = Contour::from(bounding_box);
+                    if PARALLEL {
+                        c.intersections_segment_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    } else {
+                        c.intersections_segment_par_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    }
                 }
-            }
-            GeometryRef::BoundingBox(bounding_box) => {
-                let contour = Contour::from(*bounding_box);
-                contour
-                    .intersections_composite(other, epsilon, max_relative)
-                    .collect()
-            }
-            GeometryRef::ArcSegment(elem) => other
-                .intersections_primitive(*elem, epsilon, max_relative)
-                .collect(),
-            GeometryRef::LineSegment(elem) => other
-                .intersections_primitive(*elem, epsilon, max_relative)
-                .collect(),
-            GeometryRef::Line(elem) => other
-                .intersections_primitive(*elem, epsilon, max_relative)
-                .collect(),
-            GeometryRef::Segment(elem) => other
-                .intersections_primitive(*elem, epsilon, max_relative)
-                .collect(),
-            GeometryRef::Polysegment(elem) => other
-                .intersections_composite(*elem, epsilon, max_relative)
-                .collect(),
-            GeometryRef::Contour(elem) => other
-                .intersections_composite(*elem, epsilon, max_relative)
-                .collect(),
-            GeometryRef::Shape(elem) => other
-                .intersections_composite(*elem, epsilon, max_relative)
-                .collect(),
-        }
-    }
-
-    pub(crate) fn intersections_composite_par<T: Composite>(
-        &self,
-        other: &T,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> Vec<Intersection> {
-        match self {
-            GeometryRef::Point(point) => {
-                if other
-                    .covers_point((*point).clone(), epsilon, max_relative)
-                    .is_ok()
-                {
-                    return vec![(**point).into()];
-                } else {
-                    return Vec::new();
+                GeometryRef::ArcSegment(arc_segment) => elem
+                    .intersections_arc_segment_tol(arc_segment, epsilon, max_relative)
+                    .into_iter()
+                    .map(From::from)
+                    .collect(),
+                GeometryRef::LineSegment(line_segment) => elem
+                    .intersections_line_segment_tol(line_segment, epsilon, max_relative)
+                    .into_iter()
+                    .map(From::from)
+                    .collect(),
+                GeometryRef::Line(line) => elem
+                    .intersections_line_tol(line, epsilon, max_relative)
+                    .into_iter()
+                    .map(From::from)
+                    .collect(),
+                GeometryRef::Segment(segment) => elem
+                    .intersections_segment_tol(segment, epsilon, max_relative)
+                    .into_iter()
+                    .map(From::from)
+                    .collect(),
+                GeometryRef::Polysegment(polysegment) => {
+                    if PARALLEL {
+                        polysegment
+                            .intersections_segment_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    } else {
+                        polysegment
+                            .intersections_segment_par_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    }
                 }
-            }
-            GeometryRef::BoundingBox(bounding_box) => {
-                let contour = Contour::from(*bounding_box);
-                contour
-                    .intersections_composite_par(other, epsilon, max_relative)
-                    .collect()
-            }
-            GeometryRef::ArcSegment(elem) => other
-                .intersections_primitive(*elem, epsilon, max_relative)
-                .collect(),
-            GeometryRef::LineSegment(elem) => other
-                .intersections_primitive(*elem, epsilon, max_relative)
-                .collect(),
-            GeometryRef::Line(elem) => other
-                .intersections_primitive(*elem, epsilon, max_relative)
-                .collect(),
-            GeometryRef::Segment(elem) => other
-                .intersections_primitive(*elem, epsilon, max_relative)
-                .collect(),
-            GeometryRef::Polysegment(elem) => other
-                .intersections_composite_par(*elem, epsilon, max_relative)
-                .collect(),
-            GeometryRef::Contour(elem) => other
-                .intersections_composite_par(*elem, epsilon, max_relative)
-                .collect(),
-            GeometryRef::Shape(elem) => other
-                .intersections_composite_par(*elem, epsilon, max_relative)
-                .collect(),
+                GeometryRef::Contour(contour) => {
+                    if PARALLEL {
+                        contour
+                            .intersections_segment_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    } else {
+                        contour
+                            .intersections_segment_par_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    }
+                }
+                GeometryRef::Shape(shape) => {
+                    if PARALLEL {
+                        shape
+                            .intersections_segment_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    } else {
+                        shape
+                            .intersections_segment_par_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    }
+                }
+            },
+            GeometryRef::LineSegment(elem) => match other {
+                GeometryRef::Point(pt_other) => elem
+                    .intersections_point_tol(pt_other, epsilon, max_relative)
+                    .into_iter()
+                    .map(From::from)
+                    .collect(),
+                GeometryRef::BoundingBox(bounding_box) => {
+                    let c = Contour::from(bounding_box);
+                    if PARALLEL {
+                        c.intersections_segment_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    } else {
+                        c.intersections_segment_par_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    }
+                }
+                GeometryRef::ArcSegment(arc_segment) => elem
+                    .intersections_arc_segment_tol(arc_segment, epsilon, max_relative)
+                    .into_iter()
+                    .map(From::from)
+                    .collect(),
+                GeometryRef::LineSegment(line_segment) => elem
+                    .intersections_line_segment_tol(line_segment, epsilon, max_relative)
+                    .into_iter()
+                    .map(From::from)
+                    .collect(),
+                GeometryRef::Line(line) => elem
+                    .intersections_line_tol(line, epsilon, max_relative)
+                    .into_iter()
+                    .map(From::from)
+                    .collect(),
+                GeometryRef::Segment(segment) => elem
+                    .intersections_segment_tol(segment, epsilon, max_relative)
+                    .into_iter()
+                    .map(From::from)
+                    .collect(),
+                GeometryRef::Polysegment(polysegment) => {
+                    if PARALLEL {
+                        polysegment
+                            .intersections_segment_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    } else {
+                        polysegment
+                            .intersections_segment_par_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    }
+                }
+                GeometryRef::Contour(contour) => {
+                    if PARALLEL {
+                        contour
+                            .intersections_segment_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    } else {
+                        contour
+                            .intersections_segment_par_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    }
+                }
+                GeometryRef::Shape(shape) => {
+                    if PARALLEL {
+                        shape
+                            .intersections_segment_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    } else {
+                        shape
+                            .intersections_segment_par_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    }
+                }
+            },
+            GeometryRef::Line(elem) => match other {
+                GeometryRef::Point(pt_other) => elem
+                    .intersections_point_tol(pt_other, epsilon, max_relative)
+                    .into_iter()
+                    .map(From::from)
+                    .collect(),
+                GeometryRef::BoundingBox(bounding_box) => {
+                    let c = Contour::from(bounding_box);
+                    if PARALLEL {
+                        c.intersections_line_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    } else {
+                        c.intersections_line_par_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    }
+                }
+                GeometryRef::ArcSegment(arc_segment) => elem
+                    .intersections_arc_segment_tol(arc_segment, epsilon, max_relative)
+                    .into_iter()
+                    .map(From::from)
+                    .collect(),
+                GeometryRef::LineSegment(line_segment) => elem
+                    .intersections_line_segment_tol(line_segment, epsilon, max_relative)
+                    .into_iter()
+                    .map(From::from)
+                    .collect(),
+                GeometryRef::Line(line) => elem
+                    .intersections_line_tol(line, epsilon, max_relative)
+                    .into_iter()
+                    .map(From::from)
+                    .collect(),
+                GeometryRef::Segment(segment) => elem
+                    .intersections_segment_tol(segment, epsilon, max_relative)
+                    .into_iter()
+                    .map(From::from)
+                    .collect(),
+                GeometryRef::Polysegment(polysegment) => {
+                    if PARALLEL {
+                        polysegment
+                            .intersections_line_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    } else {
+                        polysegment
+                            .intersections_line_par_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    }
+                }
+                GeometryRef::Contour(contour) => {
+                    if PARALLEL {
+                        contour
+                            .intersections_line_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    } else {
+                        contour
+                            .intersections_line_par_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    }
+                }
+                GeometryRef::Shape(shape) => {
+                    if PARALLEL {
+                        shape
+                            .intersections_line_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    } else {
+                        shape
+                            .intersections_line_par_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    }
+                }
+            },
+            GeometryRef::Segment(elem) => match other {
+                GeometryRef::Point(pt_other) => elem
+                    .intersections_point_tol(pt_other, epsilon, max_relative)
+                    .into_iter()
+                    .map(From::from)
+                    .collect(),
+                GeometryRef::BoundingBox(bounding_box) => {
+                    let c = Contour::from(bounding_box);
+                    if PARALLEL {
+                        c.intersections_segment_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    } else {
+                        c.intersections_segment_par_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    }
+                }
+                GeometryRef::ArcSegment(arc_segment) => elem
+                    .intersections_arc_segment_tol(arc_segment, epsilon, max_relative)
+                    .into_iter()
+                    .map(From::from)
+                    .collect(),
+                GeometryRef::LineSegment(line_segment) => elem
+                    .intersections_line_segment_tol(line_segment, epsilon, max_relative)
+                    .into_iter()
+                    .map(From::from)
+                    .collect(),
+                GeometryRef::Line(line) => elem
+                    .intersections_line_tol(line, epsilon, max_relative)
+                    .into_iter()
+                    .map(From::from)
+                    .collect(),
+                GeometryRef::Segment(segment) => elem
+                    .intersections_segment_tol(segment, epsilon, max_relative)
+                    .into_iter()
+                    .map(From::from)
+                    .collect(),
+                GeometryRef::Polysegment(polysegment) => {
+                    if PARALLEL {
+                        polysegment
+                            .intersections_segment_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    } else {
+                        polysegment
+                            .intersections_segment_par_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    }
+                }
+                GeometryRef::Contour(contour) => {
+                    if PARALLEL {
+                        contour
+                            .intersections_segment_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    } else {
+                        contour
+                            .intersections_segment_par_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    }
+                }
+                GeometryRef::Shape(shape) => {
+                    if PARALLEL {
+                        shape
+                            .intersections_segment_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    } else {
+                        shape
+                            .intersections_segment_par_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    }
+                }
+            },
+            GeometryRef::Polysegment(elem) => match other {
+                GeometryRef::Point(pt_other) => elem
+                    .intersections_point_tol(pt_other, epsilon, max_relative)
+                    .into_iter()
+                    .map(From::from)
+                    .collect(),
+                GeometryRef::BoundingBox(bounding_box) => {
+                    let c = Contour::from(bounding_box);
+                    if PARALLEL {
+                        c.intersections_polysegment_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    } else {
+                        c.intersections_polysegment_par_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    }
+                }
+                GeometryRef::ArcSegment(arc_segment) => elem
+                    .intersections_segment_tol(arc_segment, epsilon, max_relative)
+                    .into_iter()
+                    .map(From::from)
+                    .collect(),
+                GeometryRef::LineSegment(line_segment) => elem
+                    .intersections_segment_tol(line_segment, epsilon, max_relative)
+                    .into_iter()
+                    .map(From::from)
+                    .collect(),
+                GeometryRef::Line(line) => elem
+                    .intersections_line_tol(line, epsilon, max_relative)
+                    .into_iter()
+                    .map(From::from)
+                    .collect(),
+                GeometryRef::Segment(segment) => elem
+                    .intersections_segment_tol(segment, epsilon, max_relative)
+                    .into_iter()
+                    .map(From::from)
+                    .collect(),
+                GeometryRef::Polysegment(polysegment) => {
+                    if PARALLEL {
+                        polysegment
+                            .intersections_polysegment_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    } else {
+                        polysegment
+                            .intersections_polysegment_par_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    }
+                }
+                GeometryRef::Contour(contour) => {
+                    if PARALLEL {
+                        contour
+                            .intersections_polysegment_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    } else {
+                        contour
+                            .intersections_polysegment_par_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    }
+                }
+                GeometryRef::Shape(shape) => {
+                    if PARALLEL {
+                        shape
+                            .intersections_polysegment_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    } else {
+                        shape
+                            .intersections_polysegment_par_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    }
+                }
+            },
+            GeometryRef::Contour(elem) => match other {
+                GeometryRef::Point(pt_other) => elem
+                    .intersections_point_tol(pt_other, epsilon, max_relative)
+                    .into_iter()
+                    .map(From::from)
+                    .collect(),
+                GeometryRef::BoundingBox(bounding_box) => {
+                    let c = Contour::from(bounding_box);
+                    if PARALLEL {
+                        c.intersections_contour_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    } else {
+                        c.intersections_contour_par_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    }
+                }
+                GeometryRef::ArcSegment(arc_segment) => elem
+                    .intersections_segment_tol(arc_segment, epsilon, max_relative)
+                    .into_iter()
+                    .map(From::from)
+                    .collect(),
+                GeometryRef::LineSegment(line_segment) => elem
+                    .intersections_segment_tol(line_segment, epsilon, max_relative)
+                    .into_iter()
+                    .map(From::from)
+                    .collect(),
+                GeometryRef::Line(line) => elem
+                    .intersections_line_tol(line, epsilon, max_relative)
+                    .into_iter()
+                    .map(From::from)
+                    .collect(),
+                GeometryRef::Segment(segment) => elem
+                    .intersections_segment_tol(segment, epsilon, max_relative)
+                    .into_iter()
+                    .map(From::from)
+                    .collect(),
+                GeometryRef::Polysegment(polysegment) => {
+                    if PARALLEL {
+                        polysegment
+                            .intersections_contour_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    } else {
+                        polysegment
+                            .intersections_contour_par_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    }
+                }
+                GeometryRef::Contour(contour) => {
+                    if PARALLEL {
+                        contour
+                            .intersections_contour_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    } else {
+                        contour
+                            .intersections_contour_par_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    }
+                }
+                GeometryRef::Shape(shape) => {
+                    if PARALLEL {
+                        shape
+                            .intersections_contour_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    } else {
+                        shape
+                            .intersections_contour_par_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    }
+                }
+            },
+            GeometryRef::Shape(elem) => match other {
+                GeometryRef::Point(pt_other) => elem
+                    .intersections_point_tol(pt_other, epsilon, max_relative)
+                    .into_iter()
+                    .map(From::from)
+                    .collect(),
+                GeometryRef::BoundingBox(bounding_box) => {
+                    let c = Contour::from(bounding_box);
+                    if PARALLEL {
+                        c.intersections_shape_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    } else {
+                        c.intersections_shape_par_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    }
+                }
+                GeometryRef::ArcSegment(arc_segment) => elem
+                    .intersections_segment_tol(arc_segment, epsilon, max_relative)
+                    .into_iter()
+                    .map(From::from)
+                    .collect(),
+                GeometryRef::LineSegment(line_segment) => elem
+                    .intersections_segment_tol(line_segment, epsilon, max_relative)
+                    .into_iter()
+                    .map(From::from)
+                    .collect(),
+                GeometryRef::Line(line) => elem
+                    .intersections_line_tol(line, epsilon, max_relative)
+                    .into_iter()
+                    .map(From::from)
+                    .collect(),
+                GeometryRef::Segment(segment) => elem
+                    .intersections_segment_tol(segment, epsilon, max_relative)
+                    .into_iter()
+                    .map(From::from)
+                    .collect(),
+                GeometryRef::Polysegment(polysegment) => {
+                    if PARALLEL {
+                        polysegment
+                            .intersections_shape_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    } else {
+                        polysegment
+                            .intersections_shape_par_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    }
+                }
+                GeometryRef::Contour(contour) => {
+                    if PARALLEL {
+                        contour
+                            .intersections_shape_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    } else {
+                        contour
+                            .intersections_shape_par_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    }
+                }
+                GeometryRef::Shape(shape) => {
+                    if PARALLEL {
+                        shape
+                            .intersections_shape_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    } else {
+                        shape
+                            .intersections_shape_par_tol(*elem, epsilon, max_relative)
+                            .map(Intersection::switch)
+                            .collect()
+                    }
+                }
+            },
         }
     }
 
@@ -707,6 +1167,18 @@ impl<'a> GeometryRef<'a> {
      */
     pub fn to_owned(&self) -> Geometry {
         Geometry::from(self.clone())
+    }
+}
+
+impl<'a> ToleranceContext<'a, GeometryRef<'a>> {
+    pub fn intersections<'b, T: Into<GeometryRef<'b>>>(&self, other: T) -> Vec<Intersection> {
+        let this: GeometryRef = (*self.inner).into();
+        this.intersections_tol::<false, _>(other, self.epsilon, self.max_relative)
+    }
+
+    pub fn intersections_par<'b, T: Into<GeometryRef<'b>>>(&self, other: T) -> Vec<Intersection> {
+        let this: GeometryRef = (*self.inner).into();
+        this.intersections_tol::<true, _>(other, self.epsilon, self.max_relative)
     }
 }
 
@@ -866,19 +1338,28 @@ impl<'a> GeometryCow<'a> {
         }
     }
 
+    /// Wraps `self` in a [`ToleranceContext`] using the specified `epsilon` and
+    /// `max_relative` tolerances.
+    ///
+    /// The [`ToleranceContext`] applies these tolerances to floating-point
+    /// comparisons performed by geometric operations, such as finding
+    /// intersections. See [`ToleranceContext`] for details and examples.
+    pub fn with_tolerance(&'a self, epsilon: f64, max_relative: f64) -> ToleranceContext<'a, Self> {
+        ToleranceContext {
+            inner: self,
+            epsilon,
+            max_relative,
+        }
+    }
+
     /**
     Returns all intersections between `self` and `other`.
 
     See [`GeometryRef::intersections`] for details and examples.
      */
-    pub fn intersections<'b, T: Into<GeometryRef<'b>>>(
-        &self,
-        other: T,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> Vec<Intersection> {
+    pub fn intersections<'b, T: Into<GeometryRef<'b>>>(&self, other: T) -> Vec<Intersection> {
         let this: GeometryRef = self.into();
-        this.intersections(other, epsilon, max_relative)
+        this.intersections(other)
     }
 
     /**
@@ -888,14 +1369,21 @@ impl<'a> GeometryCow<'a> {
     docstring for details. It uses parallel variants of the specialized
     intersection algorithms, if available.
      */
-    pub fn intersections_par<'b, T: Into<GeometryRef<'b>>>(
-        &self,
-        other: T,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> Vec<Intersection> {
+    pub fn intersections_par<'b, T: Into<GeometryRef<'b>>>(&self, other: T) -> Vec<Intersection> {
         let this: GeometryRef = self.into();
-        this.intersections_par(other, epsilon, max_relative)
+        this.intersections_par(other)
+    }
+}
+
+impl<'a> ToleranceContext<'a, GeometryCow<'a>> {
+    pub fn intersections<'b, T: Into<GeometryRef<'b>>>(&self, other: T) -> Vec<Intersection> {
+        let this: GeometryRef = self.inner.into();
+        this.intersections_tol::<false, _>(other, self.epsilon, self.max_relative)
+    }
+
+    pub fn intersections_par<'b, T: Into<GeometryRef<'b>>>(&self, other: T) -> Vec<Intersection> {
+        let this: GeometryRef = self.inner.into();
+        this.intersections_tol::<true, _>(other, self.epsilon, self.max_relative)
     }
 }
 

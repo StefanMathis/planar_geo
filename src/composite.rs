@@ -9,9 +9,12 @@ and implement the [`Composite`] trait). See the trait documentation for details.
 
 use rayon::prelude::*;
 
+use crate::ToleranceContext;
 use crate::contour::Contour;
+use crate::geometry::GeometryRef;
+use crate::line::Line;
 use crate::polysegment::Polysegment;
-use crate::primitive::Primitive;
+use crate::primitive::PrimitiveWithTol;
 use crate::segment::{Segment, SegmentPolygonizer, SegmentRef};
 use crate::shape::Shape;
 
@@ -735,12 +738,7 @@ pub trait Composite: private::Sealed + Sync {
     assert!(shape.contains_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_err());
     ```
      */
-    fn contains_point(
-        &self,
-        point: [f64; 2],
-        epsilon: f64,
-        max_relative: f64,
-    ) -> Result<Contained, NotContained>;
+    fn contains_point(&self, point: &[f64; 2]) -> Result<Contained, NotContained>;
 
     /**
     Returns whether `self` contains the given [`SegmentRef`].
@@ -774,8 +772,6 @@ pub trait Composite: private::Sealed + Sync {
     fn contains_segment<'a, T: Into<SegmentRef<'a>>>(
         &self,
         segment: T,
-        epsilon: f64,
-        max_relative: f64,
     ) -> Result<Contained, NotContained>;
 
     /**
@@ -807,22 +803,7 @@ pub trait Composite: private::Sealed + Sync {
     assert!(shape.contains_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_err());
     ```
      */
-    fn contains_polysegment(
-        &self,
-        polysegment: &Polysegment,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> Result<Contained, NotContained> {
-        if let Some(err) = polysegment.segments_par().find_map_any(|s| {
-            match self.contains_segment(s, epsilon, max_relative) {
-                Ok(_) => None,
-                Err(err) => Some(err),
-            }
-        }) {
-            return Err(err);
-        }
-        return Ok(Contained::Inside);
-    }
+    fn contains_polysegment(&self, polysegment: &Polysegment) -> Result<Contained, NotContained>;
 
     /**
     Returns whether `self` contains the given [`Contour`].
@@ -830,40 +811,21 @@ pub trait Composite: private::Sealed + Sync {
     This function just calls [`Composite::contains_polysegment`] on
     `contour.polysegment()`.
     */
-    fn contains_contour(
-        &self,
-        contour: &Contour,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> Result<Contained, NotContained> {
-        return self.contains_polysegment(contour.polysegment(), epsilon, max_relative);
-    }
+    fn contains_contour(&self, contour: &Contour) -> Result<Contained, NotContained>;
 
     /**
     Returns whether `self` contains the given [`Shape`].
 
     A shape is contained within `self` if its outer `contour` is contained.
     */
-    fn contains_shape(
-        &self,
-        shape: &Shape,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> Result<Contained, NotContained> {
-        return self.contains_contour(shape.contour(), epsilon, max_relative);
-    }
+    fn contains_shape(&self, shape: &Shape) -> Result<Contained, NotContained>;
 
     /**
-    Returns whether `self` contains the given [`Composite`].
+    Returns whether `self` contains the given [`Composite`] or [`Primitive`].
 
     This is a generalized interface to all specialized `contains_` functions.
      */
-    fn contains_composite<'a, T: Composite>(
-        &'a self,
-        other: &'a T,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> Result<Contained, NotContained>;
+    fn contains<'a, T: Into<GeometryRef<'a>>>(&self, other: T) -> Result<Contained, NotContained>;
 
     /**
     Returns whether `self` overlaps the given [`SegmentRef`].
@@ -897,8 +859,6 @@ pub trait Composite: private::Sealed + Sync {
     fn contains_any_segment<'a, T: Into<SegmentRef<'a>>>(
         &self,
         segment: T,
-        epsilon: f64,
-        max_relative: f64,
     ) -> Result<Overlap, NoOverlap>;
 
     /**
@@ -930,29 +890,7 @@ pub trait Composite: private::Sealed + Sync {
     assert!(shape.contains_any_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_err());
     ```
      */
-    fn contains_any_polysegment(
-        &self,
-        polysegment: &Polysegment,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> Result<Overlap, NoOverlap> {
-        let hit = polysegment
-            .segments_par()
-            .enumerate()
-            .find_map_any(|(segment_idx, s)| {
-                // Returns a segment of `polysegment` that overlaps with `self`.
-                // Therefore, `segment_of_self` is false.
-                match self.contains_any_segment(s, epsilon, max_relative) {
-                    Ok(_) => Some(Overlap::Segment {
-                        key: SegmentKey::from_segment_idx(segment_idx),
-                        key_of_self: false,
-                    }),
-                    Err(_) => None,
-                }
-            });
-
-        return hit.ok_or(NoOverlap::NoPointContained);
-    }
+    fn contains_any_polysegment(&self, polysegment: &Polysegment) -> Result<Overlap, NoOverlap>;
 
     /**
     Returns whether `self` overlaps the given [`Contour`].
@@ -978,12 +916,7 @@ pub trait Composite: private::Sealed + Sync {
     assert!(shape.contains_any_contour(&c, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_err());
     ```
      */
-    fn contains_any_contour(
-        &self,
-        contour: &Contour,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> Result<Overlap, NoOverlap>;
+    fn contains_any_contour(&self, contour: &Contour) -> Result<Overlap, NoOverlap>;
 
     /**
     Returns whether `self` overlaps the given [`Shape`].
@@ -1009,24 +942,15 @@ pub trait Composite: private::Sealed + Sync {
     assert!(shape.contains_any_shape(&s, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_err());
     ```
      */
-    fn contains_any_shape(
-        &self,
-        shape: &Shape,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> Result<Overlap, NoOverlap>;
+    fn contains_any_shape(&self, shape: &Shape) -> Result<Overlap, NoOverlap>;
 
     /**
-    Returns whether `self` overlaps the given [`Composite`].
+    Returns whether `self` overlaps the given [`Composite`] or [`Primitive`].
 
     This is a generalized interface to all specialized `overlaps_` functions.
      */
-    fn contains_any_composite<'a, T: Composite>(
-        &'a self,
-        other: &'a T,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> Result<Overlap, NoOverlap>;
+    fn contains_any<'a, T: Into<GeometryRef<'a>>>(&'a self, other: T)
+    -> Result<Overlap, NoOverlap>;
 
     /**
     Returns whether `self` covers the given point.
@@ -1060,12 +984,7 @@ pub trait Composite: private::Sealed + Sync {
     assert!(shape.covers_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_ok());
     ```
      */
-    fn covers_point(
-        &self,
-        point: [f64; 2],
-        epsilon: f64,
-        max_relative: f64,
-    ) -> Result<Covered, NotCovered>;
+    fn covers_point(&self, point: &[f64; 2]) -> Result<Covered, NotCovered>;
 
     /**
     Returns whether `self` covers the given [`SegmentRef`].
@@ -1099,8 +1018,6 @@ pub trait Composite: private::Sealed + Sync {
     fn covers_segment<'a, T: Into<SegmentRef<'a>>>(
         &self,
         segment: T,
-        epsilon: f64,
-        max_relative: f64,
     ) -> Result<Covered, NotCovered>;
 
     /**
@@ -1132,36 +1049,7 @@ pub trait Composite: private::Sealed + Sync {
     assert!(shape.covers_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_ok());
     ```
      */
-    fn covers_polysegment(
-        &self,
-        polysegment: &Polysegment,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> Result<Covered, NotCovered> {
-        let first_seg = polysegment.front().ok_or(NotCovered::Outside)?;
-        let first_cover = self.covers_segment(first_seg, epsilon, max_relative)?;
-
-        // Skip the first element, because we already tested it. If all other
-        // segments are covered as well, return the result of the first
-        // segment.
-        match polysegment
-            .segments_par()
-            .enumerate()
-            .skip(1)
-            .find_map_any(
-                |(i, s)| match self.covers_segment(s, epsilon, max_relative) {
-                    Ok(_) => None,
-                    Err(_) => Some(i),
-                },
-            ) {
-            Some(i) => {
-                return Err(NotCovered::SegmentNotCovered(SegmentKey::from_segment_idx(
-                    i,
-                )));
-            }
-            None => return Ok(first_cover),
-        }
-    }
+    fn covers_polysegment(&self, polysegment: &Polysegment) -> Result<Covered, NotCovered>;
 
     /**
     Returns whether `self` covers the given [`Contour`].
@@ -1169,40 +1057,38 @@ pub trait Composite: private::Sealed + Sync {
     This function just calls [`Composite::covers_polysegment`] on
     `contour.polysegment()`.
     */
-    fn covers_contour(
-        &self,
-        contour: &Contour,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> Result<Covered, NotCovered> {
-        return self.covers_polysegment(contour.polysegment(), epsilon, max_relative);
-    }
+    fn covers_contour(&self, contour: &Contour) -> Result<Covered, NotCovered>;
 
     /**
     Returns whether `self` covers the given [`Shape`].
 
     A shape is covered by `self` if its outer `contour` is covered.
     */
-    fn covers_shape(
-        &self,
-        shape: &Shape,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> Result<Covered, NotCovered> {
-        return self.covers_contour(shape.contour(), epsilon, max_relative);
-    }
+    fn covers_shape(&self, shape: &Shape) -> Result<Covered, NotCovered>;
 
     /**
-    Returns whether `self` covers the given [`Composite`].
+    Returns whether `self` covers the given [`Composite`] or [`Primitive`].
 
     This is a generalized interface to all specialized `covers_` functions.
      */
-    fn covers_composite<'a, T: Composite + Sync>(
+    fn covers<'a, T: Into<GeometryRef<'a>>>(&'a self, other: T) -> Result<Covered, NotCovered>;
+
+    fn intersections_point<'a>(
         &'a self,
-        other: &'a T,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> Result<Covered, NotCovered>;
+        point: &[f64; 2],
+    ) -> impl Iterator<Item = Intersection> + 'a;
+
+    fn intersections_point_par<'a>(
+        &'a self,
+        point: &[f64; 2],
+    ) -> impl ParallelIterator<Item = Intersection> + 'a;
+
+    fn intersections_line<'a>(&'a self, line: &'a Line) -> impl Iterator<Item = Intersection> + 'a;
+
+    fn intersections_line_par<'a>(
+        &'a self,
+        line: &'a Line,
+    ) -> impl ParallelIterator<Item = Intersection> + 'a;
 
     /**
     Returns an iterator over all intersections of `self` with the `primitive`.
@@ -1237,24 +1123,12 @@ pub trait Composite: private::Sealed + Sync {
     assert!(intersections.next().is_none());
     ```
      */
-    fn intersections_primitive<'a, T: Primitive>(
+    fn intersections_segment<'a, T>(
         &'a self,
-        primitive: &'a T,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> impl Iterator<Item = Intersection> + 'a {
-        self.iter()
-            .map(move |(k, s)| {
-                s.intersections_primitive(primitive, epsilon, max_relative)
-                    .into_iter()
-                    .map(move |point| Intersection {
-                        point,
-                        left: k,
-                        right: Default::default(),
-                    })
-            })
-            .flatten()
-    }
+        segment: T,
+    ) -> impl Iterator<Item = Intersection> + 'a
+    where
+        T: Into<SegmentRef<'a>>;
 
     /**
     Returns a parallelized iterator over all intersections of `self` with the
@@ -1263,25 +1137,12 @@ pub trait Composite: private::Sealed + Sync {
     This is the parallelized variant of [`Composite::intersections_primitive`].
     See its docstring for more information and examples.
      */
-    fn intersections_primitive_par<'a, T: Primitive>(
+    fn intersections_segment_par<'a, T>(
         &'a self,
-        primitive: &'a T,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> impl ParallelIterator<Item = Intersection> + 'a {
-        self.par_iter()
-            .map(move |(k, s)| {
-                s.intersections_primitive(primitive, epsilon, max_relative)
-                    .into_iter()
-                    .par_bridge()
-                    .map(move |point| Intersection {
-                        point,
-                        left: k,
-                        right: Default::default(),
-                    })
-            })
-            .flatten()
-    }
+        segment: T,
+    ) -> impl ParallelIterator<Item = Intersection> + 'a
+    where
+        T: Into<SegmentRef<'a>>;
 
     /**
     Returns a iterator over all intersections of `self` with the `polysegment`.
@@ -1329,8 +1190,6 @@ pub trait Composite: private::Sealed + Sync {
     fn intersections_polysegment<'a>(
         &'a self,
         polysegment: &'a Polysegment,
-        epsilon: f64,
-        max_relative: f64,
     ) -> impl Iterator<Item = Intersection> + 'a;
 
     /**
@@ -1343,8 +1202,6 @@ pub trait Composite: private::Sealed + Sync {
     fn intersections_polysegment_par<'a>(
         &'a self,
         polysegment: &'a Polysegment,
-        epsilon: f64,
-        max_relative: f64,
     ) -> impl ParallelIterator<Item = Intersection> + 'a;
 
     /**
@@ -1393,11 +1250,7 @@ pub trait Composite: private::Sealed + Sync {
     fn intersections_contour<'a>(
         &'a self,
         contour: &'a Contour,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> impl Iterator<Item = Intersection> + 'a {
-        self.intersections_polysegment(contour.polysegment(), epsilon, max_relative)
-    }
+    ) -> impl Iterator<Item = Intersection> + 'a;
 
     /**
     Returns a parallelized iterator over all intersections of `self` with the
@@ -1409,11 +1262,7 @@ pub trait Composite: private::Sealed + Sync {
     fn intersections_contour_par<'a>(
         &'a self,
         contour: &'a Contour,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> impl ParallelIterator<Item = Intersection> + 'a {
-        self.intersections_polysegment_par(contour.polysegment(), epsilon, max_relative)
-    }
+    ) -> impl ParallelIterator<Item = Intersection> + 'a;
 
     /**
     Returns an iterator over all intersections of `self` with the `shape`.
@@ -1462,8 +1311,6 @@ pub trait Composite: private::Sealed + Sync {
     fn intersections_shape<'a>(
         &'a self,
         shape: &'a Shape,
-        epsilon: f64,
-        max_relative: f64,
     ) -> impl Iterator<Item = Intersection> + 'a;
 
     /**
@@ -1477,59 +1324,6 @@ pub trait Composite: private::Sealed + Sync {
     fn intersections_shape_par<'a>(
         &'a self,
         shape: &'a Shape,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> impl ParallelIterator<Item = Intersection> + 'a;
-
-    /**
-    Returns the intersections between `self` and another type implementing
-    [`Composite`].
-
-    This is a generalized interface to all specialized intersection functions.
-    For example, if `self` is a [`Polysegment`], the implementation of this
-    function boils down to:
-
-    ```ignore
-    impl Composite for Polysegment {
-        // Implementations of the other methods ...
-
-        fn intersections_composite<'a, T: Composite>(
-            &'a self,
-            other: &'a T,
-            epsilon: f64,
-           max_relative: f64,
-        ) -> PrimitiveIntersections {
-            other.intersections_polysegment(self, epsilon, max_relative)
-        }
-    }
-    ```
-
-    It is recommended to use this function instead of the specialized methods
-    such as [`Composite::intersections_polysegment`] for composite intersection
-    to simplify the usage of this trait.
-
-    If eager collection of the returned [`Intersection`]s into a [`Vec`] is not
-    an issue, consider using the even more generic [`Composite::intersections`]
-    instead (which can deal with both [`Primitive`]s and [`Composite`]s).
-     */
-    fn intersections_composite<'a, T: Composite>(
-        &'a self,
-        other: &'a T,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> impl Iterator<Item = Intersection> + 'a;
-
-    /**
-    Returns a parallelized iterator over all intersections of `self` with `other`.
-
-    This is the parallelized variant of [`Composite::intersections_composite`].
-    See its docstring for more information and examples.
-     */
-    fn intersections_composite_par<'a, T: Composite>(
-        &'a self,
-        other: &'a T,
-        epsilon: f64,
-        max_relative: f64,
     ) -> impl ParallelIterator<Item = Intersection> + 'a;
 
     /**
@@ -1569,15 +1363,9 @@ pub trait Composite: private::Sealed + Sync {
     fn intersections<'a, T: Into<crate::geometry::GeometryRef<'a>>>(
         &self,
         other: T,
-        epsilon: f64,
-        max_relative: f64,
     ) -> Vec<Intersection>
     where
-        Self: Sized,
-    {
-        let geo_ref: crate::geometry::GeometryRef = other.into();
-        return geo_ref.intersections_composite(self, epsilon, max_relative);
-    }
+        Self: Sized;
 
     /**
     Returns the intersections between a [`Composite`] and any other geometric
@@ -1607,16 +1395,427 @@ pub trait Composite: private::Sealed + Sync {
     fn intersections_par<'a, T: Into<crate::geometry::GeometryRef<'a>>>(
         &self,
         other: T,
+    ) -> Vec<Intersection>
+    where
+        Self: Sized;
+}
+
+/// This trait provides the actual implementation for [`Composite`] methods
+/// where a tolerance is required for the underlying algorithm. For example, the
+/// implementation of [`Composite::contains_point`] looks like this for
+/// [`Polysegment`], [`Contour`] or [`Shape`]:
+///
+/// ```ignore
+/// fn contains_point(&self, point: [f64; 2]) -> Result<Contained, NotContained> {
+///     self.contains_point_tol(point, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+/// }
+/// ```
+/// If custom tolerances are needed, a [`ToleranceContext`] can be created
+/// with `with_tolerance` and the specified tolerances then replace
+/// [`DEFAULT_EPSILON`](crate::DEFAULT_EPSILON) and
+/// [`DEFAULT_MAX_RELATIVE`](crate::DEFAULT_MAX_RELATIVE) in that call:
+///
+/// `contour.with_tolerance(1e-9, 1e-8).contains_point(&self, point)
+///
+/// results in
+///
+/// `contour.contains_point_tol(&self, point, 1e-9, 1e-8)
+pub(crate) trait CompositeWithTol: Composite {
+    fn contains_point_tol(
+        &self,
+        point: &[f64; 2],
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Result<Contained, NotContained>;
+
+    fn contains_segment_tol<'a, T: Into<SegmentRef<'a>>>(
+        &self,
+        segment: T,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Result<Contained, NotContained>;
+
+    fn contains_polysegment_tol(
+        &self,
+        polysegment: &Polysegment,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Result<Contained, NotContained> {
+        if let Some(err) = polysegment.segments_par().find_map_any(|s| {
+            match self.contains_segment_tol(s, epsilon, max_relative) {
+                Ok(_) => None,
+                Err(err) => Some(err),
+            }
+        }) {
+            return Err(err);
+        }
+        return Ok(Contained::Inside);
+    }
+
+    fn contains_contour_tol(
+        &self,
+        contour: &Contour,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Result<Contained, NotContained> {
+        return self.contains_polysegment_tol(contour.polysegment(), epsilon, max_relative);
+    }
+
+    fn contains_shape_tol(
+        &self,
+        shape: &Shape,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Result<Contained, NotContained> {
+        return self.contains_contour_tol(shape.contour(), epsilon, max_relative);
+    }
+
+    fn contains_tol<'a, T: Into<GeometryRef<'a>>>(
+        &self,
+        other: T,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Result<Contained, NotContained>;
+
+    fn contains_any_segment_tol<'a, T: Into<SegmentRef<'a>>>(
+        &self,
+        segment: T,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Result<Overlap, NoOverlap>;
+
+    fn contains_any_polysegment_tol(
+        &self,
+        polysegment: &Polysegment,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Result<Overlap, NoOverlap> {
+        let hit = polysegment
+            .segments_par()
+            .enumerate()
+            .find_map_any(|(segment_idx, s)| {
+                // Returns a segment of `polysegment` that overlaps with `self`.
+                // Therefore, `segment_of_self` is false.
+                match self.contains_any_segment_tol(s, epsilon, max_relative) {
+                    Ok(_) => Some(Overlap::Segment {
+                        key: SegmentKey::from_segment_idx(segment_idx),
+                        key_of_self: false,
+                    }),
+                    Err(_) => None,
+                }
+            });
+
+        return hit.ok_or(NoOverlap::NoPointContained);
+    }
+
+    fn contains_any_contour_tol(
+        &self,
+        contour: &Contour,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Result<Overlap, NoOverlap>;
+
+    fn contains_any_shape_tol(
+        &self,
+        shape: &Shape,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Result<Overlap, NoOverlap>;
+
+    fn contains_any_tol<'a, T: Into<GeometryRef<'a>>>(
+        &self,
+        other: T,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Result<Overlap, NoOverlap>;
+
+    fn covers_point_tol(
+        &self,
+        point: &[f64; 2],
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Result<Covered, NotCovered>;
+
+    fn covers_segment_tol<'a, T: Into<SegmentRef<'a>>>(
+        &self,
+        segment: T,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Result<Covered, NotCovered>;
+
+    fn covers_polysegment_tol(
+        &self,
+        polysegment: &Polysegment,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Result<Covered, NotCovered> {
+        let first_seg = polysegment.front().ok_or(NotCovered::Outside)?;
+        let first_cover = self.covers_segment_tol(first_seg, epsilon, max_relative)?;
+
+        // Skip the first element, because we already tested it. If all other
+        // segments are covered as well, return the result of the first
+        // segment.
+        match polysegment
+            .segments_par()
+            .enumerate()
+            .skip(1)
+            .find_map_any(
+                |(i, s)| match self.covers_segment_tol(s, epsilon, max_relative) {
+                    Ok(_) => None,
+                    Err(_) => Some(i),
+                },
+            ) {
+            Some(i) => {
+                return Err(NotCovered::SegmentNotCovered(SegmentKey::from_segment_idx(
+                    i,
+                )));
+            }
+            None => return Ok(first_cover),
+        }
+    }
+
+    fn covers_contour_tol(
+        &self,
+        contour: &Contour,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Result<Covered, NotCovered> {
+        return self.covers_polysegment_tol(contour.polysegment(), epsilon, max_relative);
+    }
+
+    fn covers_shape_tol(
+        &self,
+        shape: &Shape,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Result<Covered, NotCovered> {
+        return self.covers_contour_tol(shape.contour(), epsilon, max_relative);
+    }
+
+    fn covers_tol<'a, T: Into<GeometryRef<'a>>>(
+        &self,
+        other: T,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Result<Covered, NotCovered>;
+
+    fn intersections_point_tol<'a>(
+        &'a self,
+        point: &[f64; 2],
+        epsilon: f64,
+        max_relative: f64,
+    ) -> impl Iterator<Item = Intersection> + 'a {
+        let point = point.clone();
+        self.iter()
+            .map(move |(k, s)| {
+                s.intersections_point_tol(&point, epsilon, max_relative)
+                    .into_iter()
+                    .map(move |point| Intersection {
+                        point,
+                        left: k,
+                        right: Default::default(),
+                    })
+            })
+            .flatten()
+    }
+
+    fn intersections_point_par_tol<'a>(
+        &'a self,
+        point: &[f64; 2],
+        epsilon: f64,
+        max_relative: f64,
+    ) -> impl ParallelIterator<Item = Intersection> + 'a {
+        let point = point.clone();
+        self.par_iter()
+            .map(move |(k, s)| {
+                s.intersections_point_tol(&point, epsilon, max_relative)
+                    .into_iter()
+                    .par_bridge()
+                    .map(move |point| Intersection {
+                        point,
+                        left: k,
+                        right: Default::default(),
+                    })
+            })
+            .flatten()
+    }
+
+    fn intersections_line_tol<'a>(
+        &'a self,
+        line: &'a Line,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> impl Iterator<Item = Intersection> + 'a {
+        self.iter()
+            .map(move |(k, s)| {
+                s.intersections_line_tol(line, epsilon, max_relative)
+                    .into_iter()
+                    .map(move |point| Intersection {
+                        point,
+                        left: k,
+                        right: Default::default(),
+                    })
+            })
+            .flatten()
+    }
+
+    fn intersections_line_par_tol<'a>(
+        &'a self,
+        line: &'a Line,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> impl ParallelIterator<Item = Intersection> + 'a {
+        self.par_iter()
+            .map(move |(k, s)| {
+                s.intersections_line_tol(line, epsilon, max_relative)
+                    .into_iter()
+                    .par_bridge()
+                    .map(move |point| Intersection {
+                        point,
+                        left: k,
+                        right: Default::default(),
+                    })
+            })
+            .flatten()
+    }
+
+    fn intersections_segment_tol<'a, T>(
+        &'a self,
+        segment: T,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> impl Iterator<Item = Intersection> + 'a
+    where
+        T: Into<SegmentRef<'a>>,
+    {
+        let segment_ref: SegmentRef = segment.into();
+        self.iter()
+            .map(move |(k, s)| {
+                s.intersections_segment_tol(segment_ref, epsilon, max_relative)
+                    .into_iter()
+                    .map(move |point| Intersection {
+                        point,
+                        left: k,
+                        right: Default::default(),
+                    })
+            })
+            .flatten()
+    }
+
+    fn intersections_segment_par_tol<'a, T>(
+        &'a self,
+        segment: T,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> impl ParallelIterator<Item = Intersection> + 'a
+    where
+        T: Into<SegmentRef<'a>>,
+    {
+        let segment_ref: SegmentRef = segment.into();
+        self.par_iter()
+            .map(move |(k, s)| {
+                s.intersections_segment_tol(segment_ref, epsilon, max_relative)
+                    .into_iter()
+                    .par_bridge()
+                    .map(move |point| Intersection {
+                        point,
+                        left: k,
+                        right: Default::default(),
+                    })
+            })
+            .flatten()
+    }
+
+    fn intersections_polysegment_tol<'a>(
+        &'a self,
+        polysegment: &'a Polysegment,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> impl Iterator<Item = Intersection> + 'a;
+
+    fn intersections_polysegment_par_tol<'a>(
+        &'a self,
+        polysegment: &'a Polysegment,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> impl ParallelIterator<Item = Intersection> + 'a;
+
+    fn intersections_contour_tol<'a>(
+        &'a self,
+        contour: &'a Contour,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> impl Iterator<Item = Intersection> + 'a {
+        self.intersections_polysegment_tol(contour.polysegment(), epsilon, max_relative)
+    }
+
+    fn intersections_contour_par_tol<'a>(
+        &'a self,
+        contour: &'a Contour,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> impl ParallelIterator<Item = Intersection> + 'a {
+        self.intersections_polysegment_par_tol(contour.polysegment(), epsilon, max_relative)
+    }
+
+    fn intersections_shape_tol<'a>(
+        &'a self,
+        shape: &'a Shape,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> impl Iterator<Item = Intersection> + 'a;
+
+    fn intersections_shape_par_tol<'a>(
+        &'a self,
+        shape: &'a Shape,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> impl ParallelIterator<Item = Intersection> + 'a;
+
+    fn intersections_primitive_par_tol<'a, T>(
+        &'a self,
+        primitive: &'a T,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> impl ParallelIterator<Item = Intersection> + 'a
+    where
+        &'a T: Into<GeometryRef<'a>>,
+        T: PrimitiveWithTol,
+    {
+        self.par_iter()
+            .map(move |(k, s)| {
+                s.intersections_primitive_tol(primitive, epsilon, max_relative)
+                    .into_iter()
+                    .par_bridge()
+                    .map(move |point| Intersection {
+                        point,
+                        left: k,
+                        right: Default::default(),
+                    })
+            })
+            .flatten()
+    }
+
+    fn intersections_tol<'a, T: Into<GeometryRef<'a>>>(
+        &self,
+        other: T,
         epsilon: f64,
         max_relative: f64,
     ) -> Vec<Intersection>
     where
-        Self: Sized,
-    {
-        let geo_ref: crate::geometry::GeometryRef = other.into();
-        return geo_ref.intersections_composite_par(self, epsilon, max_relative);
-    }
+        Self: Sized;
+
+    fn intersections_par_tol<'a, T: Into<crate::geometry::GeometryRef<'a>>>(
+        &self,
+        other: T,
+        epsilon: f64,
+        max_relative: f64,
+    ) -> Vec<Intersection>
+    where
+        Self: Sized;
 }
+
+impl<'c, T: CompositeWithTol> private::Sealed for ToleranceContext<'c, T> {}
 
 /**
 This enum defines how a [`Polysegment`] / [`Contour`] should be polygonized
