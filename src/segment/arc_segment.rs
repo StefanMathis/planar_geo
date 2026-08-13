@@ -1153,9 +1153,9 @@ impl ArcSegment {
     let a2 = ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 2.0, 0.0, 1.0).expect("valid_arc");
     let a3 = ArcSegment::from_center_radius_start_sweep_angle([1.0, 0.0], 2.0, 0.0, 1.5 * PI).expect("valid_arc");
 
-    assert!(a1.same_circle(&a2, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
-    assert!(!a1.same_circle(&a3, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
-    assert!(!a2.same_circle(&a3, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(a1.same_circle(&a2));
+    assert!(!a1.same_circle(&a3));
+    assert!(!a2.same_circle(&a3));
     ```
      */
     pub fn same_circle(&self, other: &ArcSegment) -> bool {
@@ -1180,23 +1180,23 @@ impl ArcSegment {
 
     // Horizontal line segment which touches the arc at [0.0, 2.0]
     let ls = LineSegment::new([-2.0, 2.0], [2.0, 2.0]).expect("valid_arc");
-    assert!(arc.is_tangent(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(arc.is_tangent(&ls));
 
     // The underlying line is a tangent, but point [0.0, 2.0] is not part of the line segment
     let ls = LineSegment::new([-2.0, 2.0], [-4.0, 2.0]).expect("valid_arc");
-    assert!(!arc.is_tangent(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(!arc.is_tangent(&ls));
 
     // Line segment intersects the arc twice
     let ls = LineSegment::new([-2.0, 1.9], [2.0, 1.9]).expect("valid_arc");
-    assert!(!arc.is_tangent(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(!arc.is_tangent(&ls));
 
     // Vertical line segment which touches the arc at [2.0, 0.0]
     let ls = LineSegment::new([2.0, 0.0], [2.0, 1.0]).expect("valid_arc");
-    assert!(arc.is_tangent(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(arc.is_tangent(&ls));
 
     // Line segment touches the arc at [2.0, 0.0], but is not perpendicular to [0.0, 0.0] - [2.0, 0.0]
     let ls = LineSegment::new([2.0, 0.0], [3.0, 1.0]).expect("valid_arc");
-    assert!(!arc.is_tangent(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(!arc.is_tangent(&ls));
     ```
      */
     pub fn is_tangent(&self, line_segment: &super::LineSegment) -> bool {
@@ -1244,16 +1244,16 @@ impl ArcSegment {
     /// let ls = LineSegment::new([-2.0, -2.0], [2.0, -2.0]).expect("valid_arc");
     ///
     /// // c1 and a1 lay on the same circle -> Touching
-    /// assert!(c1.touches_segment(&a1, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    /// assert!(c1.touches_segment(&a1));
     ///
     /// // c1 and c2 touch in a single point
-    /// assert!(c1.touches_segment(&c2, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    /// assert!(c1.touches_segment(&c2));
     ///
     /// // c1 and c3 overlap (two intersections)
-    /// assert!(!c1.touches_segment(&c3, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    /// assert!(!c1.touches_segment(&c3));
     ///
     /// // ls is a tangent of c1
-    /// assert!(c1.touches_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    /// assert!(c1.touches_segment(&ls));
     /// ```
     pub fn touches_segment<'a, T: Into<super::SegmentRef<'a>>>(&self, other: T) -> bool {
         return self

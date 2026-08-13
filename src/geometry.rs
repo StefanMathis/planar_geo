@@ -42,9 +42,6 @@ simplifies finding the intersections between any two geometric types.
 ```
 use planar_geo::prelude::*;
 
-let e = DEFAULT_EPSILON;
-let m = DEFAULT_MAX_RELATIVE;
-
 let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
 let contour = Contour::new(Polysegment::from_points(vertices));
 let vertices = &[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
@@ -56,16 +53,9 @@ let polysegment = Polysegment::from_points(vertices);
 
 let line = Line::from_point_angle([0.0, 0.5], 0.0);
 
-// Generic interface
-let intersections: Vec<Intersection> = polysegment.intersections(&shape, e, m);
+let intersections: Vec<Intersection> = polysegment.intersections(&shape);
 assert_eq!(intersections.len(), 4);
-let intersections: Vec<Intersection> = shape.intersections(&line, e, m);
-assert_eq!(intersections.len(), 4);
-
-// Specialized interface (note the explicit allocation from the iterators)
-let intersections: Vec<Intersection> = polysegment.intersections_composite(&shape, e, m).collect();
-assert_eq!(intersections.len(), 4);
-let intersections: Vec<Intersection> = shape.intersections_primitive(&line, e, m).collect();
+let intersections: Vec<Intersection> = shape.intersections(&line);
 assert_eq!(intersections.len(), 4);
 ```
 
@@ -486,19 +476,19 @@ impl<'a> GeometryRef<'a> {
     let line = Line::from_point_angle([0.0, 0.5], 0.0);
 
     // Using GeometryRef
-    let intersections: Vec<Intersection> = GeometryRef::from(&polysegment).intersections(&shape, e, m);
+    let intersections: Vec<Intersection> = GeometryRef::from(&polysegment).intersections(&shape);
     assert_eq!(intersections.len(), 4);
 
     // Since all of the geometric types in this crate provide an intersection
     // method themselves, it is not necesssary to convert them into GeometryRef
     // explicitly (the conversion happens under the hood)
-    let intersections: Vec<Intersection> = shape.intersections(&line, e, m);
+    let intersections: Vec<Intersection> = shape.intersections(&line);
     assert_eq!(intersections.len(), 4);
 
     // Parallelized variants
-    let intersections: Vec<Intersection> = polysegment.intersections_par(&shape, e, m);
+    let intersections: Vec<Intersection> = polysegment.intersections_par(&shape);
     assert_eq!(intersections.len(), 4);
-    let intersections: Vec<Intersection> = shape.intersections_par(&line, e, m);
+    let intersections: Vec<Intersection> = shape.intersections_par(&line);
     assert_eq!(intersections.len(), 4);
     ```
      */

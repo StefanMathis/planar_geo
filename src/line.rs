@@ -92,9 +92,9 @@ impl Line {
     // A line with a 45° angle going through [2.0, 0.0].
     let line = Line::from_point_angle([2.0, 0.0], 0.25 * PI);
 
-    assert!(line.covers_point([1.0, -1.0], DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
-    assert!(line.covers_point([2.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
-    assert!(line.covers_point([3.0, 1.0], DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(line.covers_point(&[1.0, -1.0]));
+    assert!(line.covers_point(&[2.0, 0.0]));
+    assert!(line.covers_point(&[3.0, 1.0]));
     ```
      */
     pub fn from_point_angle(pt: [f64; 2], angle: f64) -> Self {
@@ -117,9 +117,9 @@ impl Line {
     // A line with a 45° angle going through [2.0, 0.0].
     let line = Line::from_two_points([2.0, 0.0], [3.0, 1.0]).expect("points not identical");
 
-    assert!(line.covers_point([1.0, -1.0], DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
-    assert!(line.covers_point([2.0, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
-    assert!(line.covers_point([3.0, 1.0], DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(line.covers_point(&[1.0, -1.0]));
+    assert!(line.covers_point(&[2.0, 0.0]));
+    assert!(line.covers_point(&[3.0, 1.0]));
     ```
      */
     pub fn from_two_points(pt1: [f64; 2], pt2: [f64; 2]) -> Result<Self, crate::error::Error> {
@@ -157,9 +157,9 @@ impl Line {
     let line_1 = Line::from_point_angle([2.0, 0.0], 1.0);
     let line_2 = Line::from_point_angle([2.0, 1.0], 1.0);
     let line_3 = Line::from_point_angle([2.0, 0.0], -1.0);
-    assert!(line_1.parallel(&line_2, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
-    assert!(!line_1.parallel(&line_3, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
-    assert!(!line_2.parallel(&line_3, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(line_1.parallel(&line_2));
+    assert!(!line_1.parallel(&line_3));
+    assert!(!line_2.parallel(&line_3));
     ```
      */
     pub fn parallel(&self, other: &Self) -> bool {
@@ -180,9 +180,9 @@ impl Line {
     let line_1 = Line::from_point_angle([2.0, 0.0], 0.0);
     let line_2 = Line::from_point_angle([-3.0, 0.0], 0.0);
     let line_3 = Line::from_point_angle([2.0, 1.0], 0.0);
-    assert!(line_1.identical(&line_2, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
-    assert!(!line_1.identical(&line_3, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
-    assert!(!line_2.identical(&line_3, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(line_1.identical(&line_2));
+    assert!(!line_1.identical(&line_3));
+    assert!(!line_2.identical(&line_3));
     ```
      */
     pub fn identical(&self, other: &Self) -> bool {

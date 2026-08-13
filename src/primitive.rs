@@ -356,9 +356,9 @@ By definition, a primitive always covers itself.
 use planar_geo::prelude::*;
 
 let ls = LineSegment::new([0.0, 0.0], [1.0, 0.0]).unwrap();;
-assert!(ls.covers(&[0.5, 0.0], DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
-assert!(!ls.covers(&[0.5, 0.1], DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
-assert!(ls.covers(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+assert!(ls.covers(&[0.5, 0.0]));
+assert!(!ls.covers(&[0.5, 0.1]));
+assert!(ls.covers(&ls));
 ```
 
 # Intersection
@@ -386,14 +386,14 @@ let ls = LineSegment::new([0.0, 0.0], [1.0, 0.0]).unwrap();;
 
 // Self-intersection
 assert_eq!(
-    ls.intersections_primitive(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE),
+    ls.intersections_primitive(&ls),
     PrimitiveIntersections::Zero
 );
 
 // Intersections with equal primitive
 let ls_cloned = ls.clone();
 assert_eq!(
-    ls.intersections_primitive(&ls_cloned, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE),
+    ls.intersections_primitive(&ls_cloned),
     PrimitiveIntersections::Two([[0.0, 0.0], [1.0, 0.0]])
 );
 ```
@@ -420,15 +420,15 @@ pub trait Primitive: private::Sealed + Sync {
     let p3 = [1.5, 0.5];
 
     // Default tolerances for "intuitive" behaviour
-    assert!(ls.covers_point(p1, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
-    assert!(!ls.covers_point(p2, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
-    assert!(!ls.covers_point(p3, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(ls.covers_point(&p1));
+    assert!(!ls.covers_point(&p2));
+    assert!(!ls.covers_point(&p3));
 
     // By increasing the absolute tolerance `epsilon`, the behaviour of the
     // function is changed
-    assert!(ls.covers_point(p1, 10.0, DEFAULT_MAX_RELATIVE));
-    assert!(ls.covers_point(p2, 10.0, DEFAULT_MAX_RELATIVE));
-    assert!(ls.covers_point(p3, 10.0, DEFAULT_MAX_RELATIVE));
+    assert!(ls.with_tolerance(10.0, DEFAULT_MAX_RELATIVE).covers_point(&p1));
+    assert!(ls.with_tolerance(10.0, DEFAULT_MAX_RELATIVE).covers_point(&p2));
+    assert!(ls.with_tolerance(10.0, DEFAULT_MAX_RELATIVE).covers_point(&p3));
     ```
      */
     fn covers_point(&self, point: &[f64; 2]) -> bool;
@@ -442,15 +442,12 @@ pub trait Primitive: private::Sealed + Sync {
     use std::f64::consts::PI;
     use planar_geo::prelude::*;
 
-    let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_RELATIVE;
-
     let s1: Segment = ArcSegment::from_start_center_angle([0.0, 0.0], [0.0, 1.0], PI).unwrap().into();
     let quarter = ArcSegment::from_start_center_angle([0.0, 0.0], [0.0, 1.0], 0.5*PI).unwrap();
-    assert!(s1.covers_arc_segment(&quarter, e, m));
+    assert!(s1.covers_arc_segment(&quarter));
 
     let s2: Segment = LineSegment::new([0.0, 0.0], [1.0, 1.0]).unwrap().into();
-    assert!(!s2.covers_arc_segment(&quarter, e, m));
+    assert!(!s2.covers_arc_segment(&quarter));
     ```
      */
     fn covers_arc_segment(&self, arc_segment: &ArcSegment) -> bool;
@@ -464,15 +461,12 @@ pub trait Primitive: private::Sealed + Sync {
     use std::f64::consts::PI;
     use planar_geo::prelude::*;
 
-    let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_RELATIVE;
-
     let s1: Segment = LineSegment::new([0.0, 0.0], [1.0, 1.0]).unwrap().into();
     let ls_start_to_middle = LineSegment::new([0.0, 0.0], [0.5, 0.5]).unwrap();
-    assert!(s1.covers_line_segment(&ls_start_to_middle, e, m));
+    assert!(s1.covers_line_segment(&ls_start_to_middle));
 
     let s2: Segment = ArcSegment::from_start_center_angle([0.0, 0.0], [0.0, 1.0], PI).unwrap().into();
-    assert!(!s2.covers_line_segment(&ls_start_to_middle, e, m));
+    assert!(!s2.covers_line_segment(&ls_start_to_middle));
     ```
      */
     fn covers_line_segment(&self, line_segment: &LineSegment) -> bool;
@@ -489,19 +483,16 @@ pub trait Primitive: private::Sealed + Sync {
     ```
     use planar_geo::prelude::*;
 
-    let e = DEFAULT_EPSILON;
-    let m = DEFAULT_MAX_RELATIVE;
-
     let l1 = Line::from_point_angle([0.0, 0.0], 0.0);
     let l2 = Line::from_point_angle([1.0, 0.0], 0.0);
     let l3 = Line::from_point_angle([0.0, 0.0], 1.0);
 
     // l1 and l2 are identical
-    assert!(l1.covers_line(&l2, e, m));
-    assert!(l2.covers_line(&l1, e, m));
+    assert!(l1.covers_line(&l2));
+    assert!(l2.covers_line(&l1));
 
     // l3 is different
-    assert!(!l1.covers_line(&l3, e, m));
+    assert!(!l1.covers_line(&l3));
     ```
     */
     fn covers_line(&self, line: &Line) -> bool;
@@ -527,15 +518,15 @@ pub trait Primitive: private::Sealed + Sync {
     let p3 = [1.5, 0.5];
 
     // Default tolerances for "intuitive" behaviour
-    assert_eq!(ls.intersections_point(p1, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE), PrimitiveIntersections::One(p1));
-    assert_eq!(ls.intersections_point(p2, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE), PrimitiveIntersections::Zero);
-    assert_eq!(ls.intersections_point(p3, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE), PrimitiveIntersections::Zero);
+    assert_eq!(ls.intersections_point(&p1), PrimitiveIntersections::One(p1));
+    assert_eq!(ls.intersections_point(&p2), PrimitiveIntersections::Zero);
+    assert_eq!(ls.intersections_point(&p3), PrimitiveIntersections::Zero);
 
     // By increasing the absolute tolerance `epsilon`, the behaviour of the
     // function is changed
-    assert_eq!(ls.intersections_point(p1, 10.0, DEFAULT_MAX_RELATIVE), PrimitiveIntersections::One(p1));
-    assert_eq!(ls.intersections_point(p2, 10.0, DEFAULT_MAX_RELATIVE), PrimitiveIntersections::One(p2));
-    assert_eq!(ls.intersections_point(p3, 10.0, DEFAULT_MAX_RELATIVE), PrimitiveIntersections::One(p3));
+    assert_eq!(ls.with_tolerance(10.0, DEFAULT_MAX_RELATIVE).intersections_point(&p1), PrimitiveIntersections::One(p1));
+    assert_eq!(ls.with_tolerance(10.0, DEFAULT_MAX_RELATIVE).intersections_point(&p2), PrimitiveIntersections::One(p2));
+    assert_eq!(ls.with_tolerance(10.0, DEFAULT_MAX_RELATIVE).intersections_point(&p3), PrimitiveIntersections::One(p3));
     ```
      */
     fn intersections_point(&self, point: &[f64; 2]) -> PrimitiveIntersections;
@@ -579,21 +570,21 @@ pub trait Primitive: private::Sealed + Sync {
 
     // Non-degenerate cases
     assert_eq!(
-        line_2.intersections_line(&line_1, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE),
+        line_2.intersections_line(&line_1),
         PrimitiveIntersections::One([0.0, 0.0])
     );
     assert_eq!(
-        ls.intersections_line(&line_1, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE),
+        ls.intersections_line(&line_1),
         PrimitiveIntersections::One([0.0, 0.0])
     );
 
     // Degenerate cases
     assert_eq!(
-        line_1.intersections_line(&line_1, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE),
+        line_1.intersections_line(&line_1),
         PrimitiveIntersections::Zero
     );
     assert_eq!(
-        ls.intersections_line(&line_2, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE),
+        ls.intersections_line(&line_2),
         PrimitiveIntersections::Zero
     );
     ```
@@ -627,17 +618,17 @@ pub trait Primitive: private::Sealed + Sync {
 
     // Non-degenerate case
     assert_eq!(
-        ls1.intersections_line_segment(&ls2, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE),
+        ls1.intersections_line_segment(&ls2),
         PrimitiveIntersections::One([0.5, 0.0])
     );
 
     // Degenerate cases
     assert_eq!(
-        ls1.intersections_line_segment(&ls3, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE),
+        ls1.intersections_line_segment(&ls3),
         PrimitiveIntersections::Two([[1.0, 0.0], [1.5, 0.0]])
     );
     assert_eq!(
-        ls1.intersections_line_segment(&ls4, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE),
+        ls1.intersections_line_segment(&ls4),
         PrimitiveIntersections::Two([[1.0, 0.0], [2.0, 0.0]])
     );
     ```
@@ -668,13 +659,13 @@ pub trait Primitive: private::Sealed + Sync {
 
     // Regular intersection
     approx::assert_abs_diff_eq!(
-        line.intersections_arc_segment(&arc1, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE),
+        line.intersections_arc_segment(&arc1),
         PrimitiveIntersections::One([0.0, 2.0]), epsilon = DEFAULT_EPSILON
     );
 
     // Degenerate case
     approx::assert_abs_diff_eq!(
-        arc1.intersections_arc_segment(&arc2, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE),
+        arc1.intersections_arc_segment(&arc2),
         PrimitiveIntersections::Two([[0.0, 2.0], [-2.0, 0.0]]), epsilon = DEFAULT_EPSILON
     );
     ```
@@ -702,7 +693,7 @@ pub trait Primitive: private::Sealed + Sync {
     let arc: Segment = ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 1.0, -1.0, 1.0).unwrap().into();
 
     assert_eq!(
-        ls.intersections_segment(&arc, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE),
+        ls.intersections_segment(&arc),
         PrimitiveIntersections::One([1.0, 0.0])
     );
     ```
@@ -771,14 +762,14 @@ pub trait Primitive: private::Sealed + Sync {
     let arc1 = ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 2.0, 0.0, PI).unwrap();;
     let arc2 = ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 2.0, 0.5*PI, PI).unwrap();;
 
-    let intersections = arc1.intersections(&arc2, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE);
+    let intersections = arc1.intersections(&arc2);
     assert_eq!(intersections.len(), 2);
     approx::assert_abs_diff_eq!(intersections[0].point, [-2.0, 0.0], epsilon = DEFAULT_EPSILON);
     approx::assert_abs_diff_eq!(intersections[1].point, [0.0, 2.0], epsilon = DEFAULT_EPSILON);
 
     // Comparison to specialized function:
     approx::assert_abs_diff_eq!(
-        arc1.intersections_primitive(&arc2, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE),
+        arc1.intersections_primitive(&arc2),
         PrimitiveIntersections::Two([[0.0, 2.0], [-2.0, 0.0]]), epsilon = DEFAULT_EPSILON
     );
     ```

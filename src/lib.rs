@@ -34,7 +34,7 @@ doc = ::embed_doc_image::embed_image!("intersection_composites.svg", "docs/img/i
     doc = "**Doc images not enabled**. Compile docs with `cargo doc --features 'doc-images'` and Rust version >= 1.54."
 )]
 #![doc = include_str!("../docs/main.md")]
-// #![deny(missing_docs)]
+#![deny(missing_docs)]
 
 use bounding_box::BoundingBox;
 

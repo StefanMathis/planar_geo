@@ -553,7 +553,7 @@ use planar_geo::prelude::*;
 
 let sc = Polysegment::from_points(&[[0.0, 0.0], [1.0, 1.0], [1.0, 0.0], [0.0, 1.0], [0.0, 0.0]]);
 
-let mut iter = sc.intersections_polysegment(&sc, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE);
+let mut iter = sc.intersections_polysegment(&sc);
 
 // Intersection in the "cross" middle
 assert_eq!(iter.next().unwrap().point, [0.5, 0.5]);
@@ -565,7 +565,7 @@ assert!(iter.next().is_none());
 // By contrast, a contour is closed by default, hence start and end point are
 // connected and therefore are not an intersection
 let c = Contour::new(sc.clone());
-let mut iter = c.intersections_contour(&c, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE);
+let mut iter = c.intersections_contour(&c);
 
 // Intersection in the "cross" middle
 assert_eq!(iter.next().unwrap().point, [0.5, 0.5]);
@@ -726,16 +726,16 @@ pub trait Composite: private::Sealed + Sync {
     let pt = [0.5, 0.9];
 
     // A polysegment cannot contain a point ...
-    assert!(contour.polysegment().contains_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_err());
+    assert!(contour.polysegment().contains_point(&pt).is_err());
 
     // ... but the outer contour does contain the point
-    assert!(contour.contains_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_ok());
+    assert!(contour.contains_point(&pt).is_ok());
 
     // The point is not contained by the hole contour, because it is on the boundary segments
-    assert!(hole.contains_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_err());
+    assert!(hole.contains_point(&pt).is_err());
 
     // The point is not contained by the shape, because it is on the hole boundary
-    assert!(shape.contains_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_err());
+    assert!(shape.contains_point(&pt).is_err());
     ```
      */
     fn contains_point(&self, point: &[f64; 2]) -> Result<Contained, NotContained>;
@@ -760,13 +760,13 @@ pub trait Composite: private::Sealed + Sync {
     let ls = LineSegment::new([0.1, 0.1], [0.9, 0.1]).unwrap();
 
     // Contour contains line segment
-    assert!(contour.contains_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_ok());
+    assert!(contour.contains_segment(&ls).is_ok());
 
     // Hole does not contains line segment
-    assert!(hole.contains_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_err());
+    assert!(hole.contains_segment(&ls).is_err());
 
     // Shape does not contains line segment
-    assert!(shape.contains_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_err());
+    assert!(shape.contains_segment(&ls).is_err());
     ```
      */
     fn contains_segment<'a, T: Into<SegmentRef<'a>>>(
@@ -794,13 +794,13 @@ pub trait Composite: private::Sealed + Sync {
     let ps = Polysegment::from_points(&[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9]]);
 
     // Contour contains polysegment
-    assert!(contour.contains_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_ok());
+    assert!(contour.contains_polysegment(&ps).is_ok());
 
     // Hole does not contains polysegment
-    assert!(hole.contains_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_err());
+    assert!(hole.contains_polysegment(&ps).is_err());
 
     // Shape does not contains polysegment
-    assert!(shape.contains_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_err());
+    assert!(shape.contains_polysegment(&ps).is_err());
     ```
      */
     fn contains_polysegment(&self, polysegment: &Polysegment) -> Result<Contained, NotContained>;
@@ -846,14 +846,14 @@ pub trait Composite: private::Sealed + Sync {
 
     let ls = LineSegment::new([0.1, 0.1], [0.9, 0.1]).unwrap();
 
-    assert!(contour.contains_any_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_ok());
+    assert!(contour.contains_any_segment(&ls).is_ok());
 
     // Hole does not overlap the segment, because it is right on its boundary
-    assert!(hole.contains_any_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_err());
+    assert!(hole.contains_any_segment(&ls).is_err());
 
     // Shape does not overlap line segment (because it is completely covered by
     // the hole and therefore none of its points are contained in the shape.
-    assert!(shape.contains_any_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_err());
+    assert!(shape.contains_any_segment(&ls).is_err());
     ```
      */
     fn contains_any_segment<'a, T: Into<SegmentRef<'a>>>(
@@ -880,14 +880,14 @@ pub trait Composite: private::Sealed + Sync {
 
     let ps = Polysegment::from_points(&[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9]]);
 
-    assert!(contour.contains_any_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_ok());
+    assert!(contour.contains_any_polysegment(&ps).is_ok());
 
     // Hole does not overlap the segment, because it is right on its boundary
-    assert!(hole.contains_any_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_err());
+    assert!(hole.contains_any_polysegment(&ps).is_err());
 
     // Similar to contains_any_segment, all of the points of ps are covered by the
     // hole, hence it does not overlap with the shape.
-    assert!(shape.contains_any_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_err());
+    assert!(shape.contains_any_polysegment(&ps).is_err());
     ```
      */
     fn contains_any_polysegment(&self, polysegment: &Polysegment) -> Result<Overlap, NoOverlap>;
@@ -911,9 +911,9 @@ pub trait Composite: private::Sealed + Sync {
 
     let c: Contour = Polysegment::from_points(&[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9]]).into();
 
-    assert!(contour.contains_any_contour(&c, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_ok());
-    assert!(hole.contains_any_contour(&c, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_ok());
-    assert!(shape.contains_any_contour(&c, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_err());
+    assert!(contour.contains_any_contour(&c).is_ok());
+    assert!(hole.contains_any_contour(&c).is_ok());
+    assert!(shape.contains_any_contour(&c).is_err());
     ```
      */
     fn contains_any_contour(&self, contour: &Contour) -> Result<Overlap, NoOverlap>;
@@ -937,9 +937,9 @@ pub trait Composite: private::Sealed + Sync {
 
     let s = Shape::from_outer(Polysegment::from_points(&[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9]]).into()).unwrap();
 
-    assert!(contour.contains_any_shape(&s, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_ok());
-    assert!(hole.contains_any_shape(&s, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_ok());
-    assert!(shape.contains_any_shape(&s, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_err());
+    assert!(contour.contains_any_shape(&s).is_ok());
+    assert!(hole.contains_any_shape(&s).is_ok());
+    assert!(shape.contains_any_shape(&s).is_err());
     ```
      */
     fn contains_any_shape(&self, shape: &Shape) -> Result<Overlap, NoOverlap>;
@@ -972,16 +972,16 @@ pub trait Composite: private::Sealed + Sync {
     let pt = [0.5, 0.9];
 
     // Polysegment does not cover the point ...
-    assert!(contour.polysegment().covers_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_err());
+    assert!(contour.polysegment().covers_point(&pt).is_err());
 
     // ... but the outer contour does cover the point
-    assert!(contour.covers_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_ok());
+    assert!(contour.covers_point(&pt).is_ok());
 
     // The point is covered by the hole contour, because it is on the boundary segments
-    assert!(hole.covers_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_ok());
+    assert!(hole.covers_point(&pt).is_ok());
 
     // The point is covered by the shape, because it is on the hole boundary
-    assert!(shape.covers_point(pt, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_ok());
+    assert!(shape.covers_point(&pt).is_ok());
     ```
      */
     fn covers_point(&self, point: &[f64; 2]) -> Result<Covered, NotCovered>;
@@ -1006,13 +1006,13 @@ pub trait Composite: private::Sealed + Sync {
     let ls = LineSegment::new([0.1, 0.1], [0.9, 0.1]).unwrap();
 
     // Contour covers line segment
-    assert!(contour.covers_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_ok());
+    assert!(contour.covers_segment(&ls).is_ok());
 
     // Hole covers line segment
-    assert!(hole.covers_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_ok());
+    assert!(hole.covers_segment(&ls).is_ok());
 
     // Shape covers line segment
-    assert!(shape.covers_segment(&ls, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_ok());
+    assert!(shape.covers_segment(&ls).is_ok());
     ```
      */
     fn covers_segment<'a, T: Into<SegmentRef<'a>>>(
@@ -1040,13 +1040,13 @@ pub trait Composite: private::Sealed + Sync {
     let ps = Polysegment::from_points(&[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9]]);
 
     // Contour covers polysegment
-    assert!(contour.covers_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_ok());
+    assert!(contour.covers_polysegment(&ps).is_ok());
 
     // Hole covers polysegment
-    assert!(hole.covers_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_ok());
+    assert!(hole.covers_polysegment(&ps).is_ok());
 
     // Shape covers polysegment
-    assert!(shape.covers_polysegment(&ps, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE).is_ok());
+    assert!(shape.covers_polysegment(&ps).is_ok());
     ```
      */
     fn covers_polysegment(&self, polysegment: &Polysegment) -> Result<Covered, NotCovered>;
@@ -1109,8 +1109,8 @@ pub trait Composite: private::Sealed + Sync {
     let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0], [0.0, 0.0]];
     let polysegment = Polysegment::from_points(vertices);
 
-    let line = Line::from_point_angle([0.5, 0.5], 0.0);
-    let mut intersections = polysegment.intersections_primitive(&line, 0.0, 0.0);
+    let ls = LineSegment::new([-1.0, 0.5], [2.0, 0.5]).expect("valid inputs");
+    let mut intersections = polysegment.intersections_segment(&ls);
 
     approx::assert_abs_diff_eq!(
         intersections.next(),
@@ -1136,6 +1136,7 @@ pub trait Composite: private::Sealed + Sync {
 
     This is the parallelized variant of [`Composite::intersections_primitive`].
     See its docstring for more information and examples.
+    TODO: [`Composite::intersections`] is more generic, but allocates eagerly!
      */
     fn intersections_segment_par<'a, T>(
         &'a self,
@@ -1149,6 +1150,7 @@ pub trait Composite: private::Sealed + Sync {
 
     This method is mainly used to implement
     [`Composite::intersections_composite`], consider using that method instead.
+    TODO: [`Composite::intersections`] is more generic, but allocates eagerly!
 
     # Examples
 
@@ -1161,20 +1163,7 @@ pub trait Composite: private::Sealed + Sync {
     let vertices = &[[2.0, 1.0], [2.0, 0.5], [0.0, 0.5]];
     let right = Polysegment::from_points(vertices);
 
-    let mut intersections = left.intersections_polysegment(&right, 0.0, 0.0);
-
-    approx::assert_abs_diff_eq!(
-        intersections.next(),
-        Some(Intersection {point: [1.0, 0.5], left: SegmentKey::from_segment_idx(1), right: SegmentKey::from_segment_idx(1)})
-    );
-    approx::assert_abs_diff_eq!(
-        intersections.next(),
-        Some(Intersection {point: [0.0, 0.5], left: SegmentKey::from_segment_idx(3), right: SegmentKey::from_segment_idx(1)})
-    );
-    assert!(intersections.next().is_none());
-
-    // Same result can be achieved with the generic method
-    let mut intersections = left.intersections_composite(&right, 0.0, 0.0);
+    let mut intersections = left.intersections_polysegment(&right);
 
     approx::assert_abs_diff_eq!(
         intersections.next(),
@@ -1209,6 +1198,7 @@ pub trait Composite: private::Sealed + Sync {
 
     This method is mainly used to implement
     [`Composite::intersections_composite`], consider using that method instead.
+    TODO: [`Composite::intersections`] is more generic, but allocates eagerly!
 
     # Examples
 
@@ -1221,20 +1211,7 @@ pub trait Composite: private::Sealed + Sync {
     let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
     let contour = Contour::new(Polysegment::from_points(vertices));
 
-    let mut intersections = polysegment.intersections_contour(&contour, 0.0, 0.0);
-
-    approx::assert_abs_diff_eq!(
-        intersections.next(),
-        Some(Intersection {point: [1.0, 0.5], left: SegmentKey::from_segment_idx(1), right: SegmentKey::from_segment_idx(1)})
-    );
-    approx::assert_abs_diff_eq!(
-        intersections.next(),
-        Some(Intersection {point: [0.0, 0.5], left: SegmentKey::from_segment_idx(1), right: SegmentKey::from_segment_idx(3)})
-    );
-    assert!(intersections.next().is_none());
-
-    // Same result can be achieved with the generic method
-    let mut intersections = polysegment.intersections_composite(&contour, 0.0, 0.0);
+    let mut intersections = polysegment.intersections_contour(&contour);
 
     approx::assert_abs_diff_eq!(
         intersections.next(),
@@ -1269,6 +1246,7 @@ pub trait Composite: private::Sealed + Sync {
 
     This method is mainly used to implement
     [`Composite::intersections_composite`], consider using that method instead.
+    TODO
 
     # Examples
 
@@ -1284,19 +1262,7 @@ pub trait Composite: private::Sealed + Sync {
     let vertices = &[[2.0, 1.0], [2.0, 0.5], [0.0, 0.5]];
     let polysegment = Polysegment::from_points(vertices);
 
-    let mut intersections = polysegment.intersections_shape(&shape, 0.0, 0.0);
-
-    approx::assert_abs_diff_eq!(
-        intersections.next(),
-        Some(Intersection {
-            point: [1.0, 0.5],
-            left: SegmentKey::from_segment_idx(1),
-            right: SegmentKey::new(0, 1)
-        })
-    );
-
-    // Same result can be achieved with the generic method
-    let mut intersections = polysegment.intersections_composite(&shape, 0.0, 0.0);
+    let mut intersections = polysegment.intersections_shape(&shape);
 
     approx::assert_abs_diff_eq!(
         intersections.next(),
@@ -1356,7 +1322,7 @@ pub trait Composite: private::Sealed + Sync {
     let vertices = &[[2.0, 1.0], [2.0, 0.5], [0.0, 0.5]];
     let polysegment = Polysegment::from_points(vertices);
 
-    let intersections = polysegment.intersections(&shape, 0.0, 0.0);
+    let intersections = polysegment.intersections(&shape);
     assert_eq!(intersections.len(), 4);
     ```
      */
@@ -1388,7 +1354,7 @@ pub trait Composite: private::Sealed + Sync {
     let vertices = &[[2.0, 1.0], [2.0, 0.5], [0.0, 0.5]];
     let polysegment = Polysegment::from_points(vertices);
 
-    let intersections = polysegment.intersections_par(&shape, 0.0, 0.0);
+    let intersections = polysegment.intersections_par(&shape);
     assert_eq!(intersections.len(), 4);
     ```
      */
@@ -1407,19 +1373,19 @@ pub trait Composite: private::Sealed + Sync {
 ///
 /// ```ignore
 /// fn contains_point(&self, point: [f64; 2]) -> Result<Contained, NotContained> {
-///     self.contains_point_tol(point, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+///     self.contains_point_tol(&point)
 /// }
 /// ```
 /// If custom tolerances are needed, a [`ToleranceContext`] can be created
 /// with `with_tolerance` and the specified tolerances then replace
 /// [`DEFAULT_EPSILON`](crate::DEFAULT_EPSILON) and
-/// [`DEFAULT_MAX_RELATIVE`](crate::DEFAULT_MAX_RELATIVE) in that call:
+/// [`DEFAULT_MAX_RELATIVE`](crate::DEFAULT_MAX_RELATIVE) in that operation:
 ///
-/// `contour.with_tolerance(1e-9, 1e-8).contains_point(&self, point)
+/// `contour.with_tolerance(1e-9, 1e-8).contains_point(&point)
 ///
 /// results in
 ///
-/// `contour.contains_point_tol(&self, point, 1e-9, 1e-8)
+/// `contour.contains_point_tol(&point, 1e-9, 1e-8)
 pub(crate) trait CompositeWithTol: Composite {
     fn contains_point_tol(
         &self,

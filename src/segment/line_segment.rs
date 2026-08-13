@@ -281,11 +281,11 @@ impl LineSegment {
     use planar_geo::prelude::*;
 
     let line = LineSegment::new([0.0, 0.0], [1.0, -1.0]).expect("points not identical");
-    assert_eq!(line.euclidian_distance_to_point([-1.0, 0.0]), 1.0);
-    approx::assert_abs_diff_eq!(line.euclidian_distance_to_point([2.0, 0.0]), 2.0f64.sqrt());
+    assert_eq!(line.euclidian_distance_to_point(&[-1.0, 0.0]), 1.0);
+    approx::assert_abs_diff_eq!(line.euclidian_distance_to_point(&[2.0, 0.0]), 2.0f64.sqrt());
 
     // Point is on the line
-    assert_eq!(line.euclidian_distance_to_point([0.5, -0.5]), 0.0);
+    assert_eq!(line.euclidian_distance_to_point(&[0.5, -0.5]), 0.0);
     ```
      */
     pub fn euclidian_distance_to_point(&self, point: &[f64; 2]) -> f64 {
@@ -560,16 +560,16 @@ impl LineSegment {
     /// let l5 = LineSegment::new([0.5, -1.0], [0.5, 1.0]).expect("points not identical");
     ///
     /// // l1 and l2 overlap
-    /// assert!(l1.touches_segment(&l2, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    /// assert!(l1.touches_segment(&l2));
     ///
     /// // l1 and l3 share the same end point
-    /// assert!(l1.touches_segment(&l3, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    /// assert!(l1.touches_segment(&l3));
     ///
     /// // Start point of l4 is somewhere on l1
-    /// assert!(l1.touches_segment(&l4, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    /// assert!(l1.touches_segment(&l4));
     ///
     /// // l5 divides l1
-    /// assert!(!l1.touches_segment(&l5, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    /// assert!(!l1.touches_segment(&l5));
     /// ```
     pub fn touches_segment<'a, T: Into<super::SegmentRef<'a>>>(&self, other: T) -> bool {
         return self
@@ -649,15 +649,15 @@ impl LineSegment {
 
     // Arc touches ls at its end points, but ls is not a tangent
     let arc = ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 2.0, 0.0, PI).expect("points not identical");
-    assert!(!ls.is_tangent(&arc, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(!ls.is_tangent(&arc));
 
     // Arc which touches ls at [0.0, 0.0]
     let arc = ArcSegment::from_center_radius_start_sweep_angle([0.0, 2.0], 2.0, PI, PI).expect("points not identical");
-    assert!(ls.is_tangent(&arc, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(ls.is_tangent(&arc));
 
     // Underlying circle touches ls in [0.0, 0.0], but that intersection point is not part of arc
     let arc = ArcSegment::from_center_radius_start_sweep_angle([0.0, 2.0], 2.0, 0.0, PI).expect("points not identical");
-    assert!(!ls.is_tangent(&arc, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE));
+    assert!(!ls.is_tangent(&arc));
     ```
      */
     pub fn is_tangent(&self, arc_segment: &super::ArcSegment) -> bool {

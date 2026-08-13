@@ -72,7 +72,7 @@ use planar_geo::prelude::*;
 
 let polysegment = Polysegment::from_points(&[[0.0, 0.0], [2.0, 2.0], [0.0, 2.0], [2.0, 0.0]]);
 let contour = Contour::new(polysegment);
-assert_eq!(contour.intersections_contour(&contour, 0.0, 0.0).count(), 1);
+assert_eq!(contour.intersections_contour(&contour).count(), 1);
 ```
 
 One difference to a [`Polysegment`] is that the "touching" of the first and
@@ -84,10 +84,10 @@ use planar_geo::prelude::*;
 let polysegment = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [0.0, 0.0]]);
 
 // Last and first segment are "touching" at 0.0
-assert_eq!(polysegment.intersections_polysegment(&polysegment, 0.0, 0.0).count(), 1);
+assert_eq!(polysegment.intersections_polysegment(&polysegment).count(), 1);
 
 let contour = Contour::new(polysegment);
-assert_eq!(contour.intersections_contour(&contour, 0.0, 0.0).count(), 0);
+assert_eq!(contour.intersections_contour(&contour).count(), 0);
 ```
 
 # Constructing a contour
@@ -394,7 +394,7 @@ impl Contour {
     let contour: Contour = Polysegment::from_points(points).into();
     let cut = Polysegment::from_points(&[[-1.0, 1.0], [3.0, 1.0]]);
 
-    let separated_lines = contour.intersection_cut(&cut, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE);
+    let separated_lines = contour.intersection_cut(&cut);
 
     // This cut results in two separate polysegments
     assert_eq!(separated_lines.len(), 2);

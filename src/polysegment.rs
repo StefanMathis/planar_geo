@@ -57,7 +57,7 @@ implementation:
 use planar_geo::prelude::*;
 
 let polysegment = Polysegment::from_points(&[[0.0, 0.0], [2.0, 2.0], [0.0, 2.0], [2.0, 0.0]]);
-assert_eq!(polysegment.intersections_polysegment(&polysegment, 0.0, 0.0).count(), 1);
+assert_eq!(polysegment.intersections_polysegment(&polysegment).count(), 1);
 ```
 
 # Constructing a polysegment
@@ -844,7 +844,7 @@ impl Polysegment {
     let line = Polysegment::from_points(points);
     let cut = Polysegment::from_points(&[[-1.0, 1.0], [3.0, 1.0]]);
 
-    let separated_lines = line.intersection_cut(&cut, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE);
+    let separated_lines = line.intersection_cut(&cut);
 
     // This cut results in two separate polysegments
     assert_eq!(separated_lines.len(), 2);

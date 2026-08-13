@@ -218,27 +218,23 @@ let pt1 = [2.3, 0.0];
 let pt2 = [2.0, 0.1];
 let pt3 = [1.0, 0.5];
 
-// Abbreviated to make examples more concise
-let e = DEFAULT_EPSILON;
-let m = DEFAULT_MAX_RELATIVE;
-
-assert!(line_1.covers_point(pt1, e, m));
-assert!(!line_1.covers_point(pt2, e, m));
-assert!(line_2.covers_point(pt2, e, m));
-assert!(arc.covers_point(pt3, e, m));
+assert!(line_1.covers_point(&pt1));
+assert!(!line_1.covers_point(&pt2));
+assert!(line_2.covers_point(&pt2));
+assert!(arc.covers_point(&pt3));
 
 // Find intersections between the segments. The order doesn't matter, i.e.
 // line_1.intersections_primitive(&line_2) produces the same result as
 // line_2.intersections_primitive(&line_1).
 
 // line_1 and line_2 intersect once in point (2, 0)
-assert_eq!(line_1.intersections_primitive(&line_2, e, m), PrimitiveIntersections::One([2.0, 0.0]));
+assert_eq!(line_1.intersections_primitive(&line_2), PrimitiveIntersections::One([2.0, 0.0]));
 
 // line_1 and arc intersect twice (in (0.5, 0.0) and (1.5, 0.0))
-assert_eq!(line_1.intersections_primitive(&arc, e, m), PrimitiveIntersections::Two([[1.5, 0.0], [0.5, 0.0]]));
+assert_eq!(line_1.intersections_primitive(&arc), PrimitiveIntersections::Two([[1.5, 0.0], [0.5, 0.0]]));
 
 // line_2 and arc don't intersect at all
-assert_eq!(line_2.intersections_primitive(&arc, e, m), PrimitiveIntersections::Zero);
+assert_eq!(line_2.intersections_primitive(&arc), PrimitiveIntersections::Zero);
 ```
 
 It is also possible to calculate the intersections between composite types, as
@@ -265,9 +261,15 @@ let shape = Shape::new(vec![contour, hole]).expect("valid inputs");
 let vertices = &[[2.0, 1.0], [2.0, 0.5], [0.0, 0.5]];
 let polysegment = Polysegment::from_points(vertices);
 
-let intersections: Vec<Intersection> = polysegment.intersections(&shape, e, m);
+let intersections: Vec<Intersection> = polysegment.intersections(&shape);
 assert_eq!(intersections.len(), 4);
 ```
+
+# Customizing tolerances
+
+TODO: Strike balance between convenience and control: Default tolerances for
+most use cases, but customization of tolerances using the `with_tolerance`
+mechanism
 
 # Features
 
