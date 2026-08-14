@@ -15,7 +15,7 @@ used to define [`Contour`](crate::contour::Contour)s and by extension
 types of this crate. However, segments can also used on their own to e.g.
 calculate properties or finding intersections. They implement the [`Primitive`]
 trait, which provides various methods shared with other primitive geometric
-types such as [`Line`](crate::line::Line)s and points (`[f64; 2]`).
+types such as [`Line`]s and points (`[f64; 2]`).
 */
 
 use bounding_box::{BoundingBox, ToBoundingBox};

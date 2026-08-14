@@ -185,7 +185,7 @@ assert_eq!(pts.next(), Some([-3.0, 0.0]));
 assert_eq!(pts.next(), Some([-3.0, 3.0]));
 ```
 
-## Intersections
+## Intersections, containment, coverage - Relationships between geometric entities
 
 A major feature of this crate are the various methods available for defining
 relationships between different geometric types, e.g. if they intersect, contain
@@ -263,6 +263,31 @@ let polysegment = Polysegment::from_points(vertices);
 
 let intersections: Vec<Intersection> = polysegment.intersections(&shape);
 assert_eq!(intersections.len(), 4);
+```
+
+If the geometric entity has a surface area such as a [`Contour`] or a [`Shape`],
+it is also possible to check if another entity is contained within or if they
+overlap
+
+```rust
+use planar_geo::prelude::*;
+
+let e = DEFAULT_EPSILON;
+let m = DEFAULT_MAX_RELATIVE;
+
+let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
+let contour = Contour::new(Polysegment::from_points(vertices));
+
+assert!(contour.contains(&[0.5, 0.5]).is_ok());
+assert!(contour.contains(&[1.5, 0.5]).is_err());
+
+let ls = LineSegment::new([-1.0, 0.5], [0.5, 0.5]).expect("valid line segment");
+
+// ls is not fully contained within the contour ...
+assert!(contour.contains(&ls).is_err());
+
+// but at least one point of ls is contained within the contour (= they overlap)
+assert!(contour.contains_any(&ls).is_ok());
 ```
 
 # Customizing tolerances

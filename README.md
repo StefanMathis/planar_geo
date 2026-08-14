@@ -5,21 +5,21 @@ planar_geo
 docs/main.md and (if available docs/end.md). Do not modify this file, instead
 modify the components. -->
 
-[`ArcSegment`]: https://docs.rs/planar_geo/0.5.2/planar_geo/segment/arc_segment/struct.ArcSegment.html
-[`LineSegment`]: https://docs.rs/planar_geo/0.5.2/planar_geo/segment/line_segment/struct.LineSegment.html
-[`Segment`]: https://docs.rs/planar_geo/0.5.2/planar_geo/segment/enum.Segment.html
-[`Polysegment`]: https://docs.rs/planar_geo/0.5.2/planar_geo/polysegment/struct.Polysegment.html
-[`Contour`]: https://docs.rs/planar_geo/0.5.2/planar_geo/contour/struct.Contour.html
-[`Shape`]: https://docs.rs/planar_geo/0.5.2/planar_geo/shape/struct.Shape.html
-[`Primitive`]: https://docs.rs/planar_geo/0.5.2/planar_geo/primitive/trait.Primitive.html
-[`Composite`]: https://docs.rs/planar_geo/0.5.2/planar_geo/composite/trait.Composite.html
-[`Transformation`]: https://docs.rs/planar_geo/0.5.2/planar_geo/trait.Transformation.html
-[`Geometry`]: https://docs.rs/planar_geo/0.5.2/planar_geo/geometry/enum.Geometry.html
-[`intersections`]: https://docs.rs/planar_geo/0.5.2/planar_geo/geometry/enum.GeometryRef.html#method.intersections
-[`DEFAULT_EPSILON`]: https://docs.rs/planar_geo/0.5.2/planar_geo/constant.DEFAULT_EPSILON.html
-[`DEFAULT_MAX_RELATIVE`]: https://docs.rs/planar_geo/0.5.2/planar_geo/constant.DEFAULT_MAX_RELATIVE.html
-[crate_index]: https://docs.rs/planar_geo/0.5.2/planar_geo/.
-[draw]: https://docs.rs/planar_geo/0.5.2/planar_geo/draw/index.html.
+[`ArcSegment`]: https://docs.rs/planar_geo/0.6.0/planar_geo/segment/arc_segment/struct.ArcSegment.html
+[`LineSegment`]: https://docs.rs/planar_geo/0.6.0/planar_geo/segment/line_segment/struct.LineSegment.html
+[`Segment`]: https://docs.rs/planar_geo/0.6.0/planar_geo/segment/enum.Segment.html
+[`Polysegment`]: https://docs.rs/planar_geo/0.6.0/planar_geo/polysegment/struct.Polysegment.html
+[`Contour`]: https://docs.rs/planar_geo/0.6.0/planar_geo/contour/struct.Contour.html
+[`Shape`]: https://docs.rs/planar_geo/0.6.0/planar_geo/shape/struct.Shape.html
+[`Primitive`]: https://docs.rs/planar_geo/0.6.0/planar_geo/primitive/trait.Primitive.html
+[`Composite`]: https://docs.rs/planar_geo/0.6.0/planar_geo/composite/trait.Composite.html
+[`Transformation`]: https://docs.rs/planar_geo/0.6.0/planar_geo/trait.Transformation.html
+[`Geometry`]: https://docs.rs/planar_geo/0.6.0/planar_geo/geometry/enum.Geometry.html
+[`intersections`]: https://docs.rs/planar_geo/0.6.0/planar_geo/geometry/enum.GeometryRef.html#method.intersections
+[`DEFAULT_EPSILON`]: https://docs.rs/planar_geo/0.6.0/planar_geo/constant.DEFAULT_EPSILON.html
+[`DEFAULT_MAX_RELATIVE`]: https://docs.rs/planar_geo/0.6.0/planar_geo/constant.DEFAULT_MAX_RELATIVE.html
+[crate_index]: https://docs.rs/planar_geo/0.6.0/planar_geo/.
+[draw]: https://docs.rs/planar_geo/0.6.0/planar_geo/draw/index.html.
 [`Context`]: https://gtk-rs.org/gtk-rs-core/stable/latest/docs/cairo/struct.Context.html
 [gtk-rs]: https://gtk-rs.org/gtk-rs-core/stable/latest/docs/cairo
 [approxim]: https://docs.rs/approxim/latest/approxim/
@@ -35,7 +35,7 @@ modify the components. -->
 A computational geometry library that treats circular arcs as first-class
 geometric primitives rather than approximating them with straight line segments.
 
-The full API documentation is available at https://docs.rs/planar_geo/0.5.2/planar_geo.
+The full API documentation is available at https://docs.rs/planar_geo/0.6.0/planar_geo.
 > **Feedback welcome!**  
 > Found a bug, missing docs, or have a feature request?  
 > Please open an issue on [GitHub](https://github.com/StefanMathis/planar_geo.git).
@@ -223,7 +223,7 @@ assert_eq!(pts.next(), Some([-3.0, 0.0]));
 assert_eq!(pts.next(), Some([-3.0, 3.0]));
 ```
 
-## Intersections
+## Intersections, containment, coverage - Relationships between geometric entities
 
 A major feature of this crate are the various methods available for defining
 relationships between different geometric types, e.g. if they intersect, contain
@@ -301,6 +301,31 @@ let polysegment = Polysegment::from_points(vertices);
 
 let intersections: Vec<Intersection> = polysegment.intersections(&shape);
 assert_eq!(intersections.len(), 4);
+```
+
+If the geometric entity has a surface area such as a [`Contour`] or a [`Shape`],
+it is also possible to check if another entity is contained within or if they
+overlap
+
+```rust
+use planar_geo::prelude::*;
+
+let e = DEFAULT_EPSILON;
+let m = DEFAULT_MAX_RELATIVE;
+
+let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
+let contour = Contour::new(Polysegment::from_points(vertices));
+
+assert!(contour.contains(&[0.5, 0.5]).is_ok());
+assert!(contour.contains(&[1.5, 0.5]).is_err());
+
+let ls = LineSegment::new([-1.0, 0.5], [0.5, 0.5]).expect("valid line segment");
+
+// ls is not fully contained within the contour ...
+assert!(contour.contains(&ls).is_err());
+
+// but at least one point of ls is contained within the contour (= they overlap)
+assert!(contour.contains_any(&ls).is_ok());
 ```
 
 # Customizing tolerances

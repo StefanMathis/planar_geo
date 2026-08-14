@@ -3,8 +3,8 @@ This module contains the definition of the [`Composite`] trait as well as the
 [`Intersection`] and [`SegmentKey`] structs.
 
 The geometric types in this crate are either "primitives" (which implement the
-[`Primitive`] trait) or "composites" (which are defined from multiple primitives
-and implement the [`Composite`] trait). See the trait documentation for details.
+[`Primitive`](crate::primitive::Primitive) trait) or "composites" (which are
+defined from multiple primitives and implement the [`Composite`] trait).
  */
 
 use rayon::prelude::*;
@@ -230,11 +230,12 @@ impl Default for Intersection {
 
 // =============================================================================
 
-/// All points of `other` are contained within `self`. See docstring of
-/// [`Composite`] for more information.
+/// Return type of [`Composite::contains`] if `other` is contained in `self`.
+///
+/// The enum variant specifies why `other` is contained.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Contained {
-    /// `other` is contained in `self`.
+    /// Generic fallback if no more specific reason could be identified.
     Inside,
 }
 
@@ -244,8 +245,9 @@ impl std::fmt::Display for Contained {
     }
 }
 
-/// Not all points of `other` are contained within `self`. See docstring of
-/// [`Composite`] for more information.
+/// Return type of [`Composite::contains`] if `other` is not contained in `self`.
+///
+/// The enum variant specifies why `other` is not contained.
 #[derive(Clone, Debug, PartialEq)]
 pub enum NotContained {
     /// A segment of `other` intersects a boundary of `self` at the given
@@ -295,11 +297,12 @@ impl std::fmt::Display for NotContained {
 
 impl std::error::Error for NotContained {}
 
-/// All points of `other` are covered by `self`. See docstring of
-/// [`Composite`] for more information.
+/// Return type of [`Composite::covers`] if `other` is covered by `self`.
+///
+/// The enum variant specifies why `other` is covered.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Covered {
-    /// `other` is covered by `self`.
+    /// `other` is [contained](Composite::contains) within `self`.
     Inside,
     /// `other` lies on a boundary [`Segment`] of `self`, the segment can be
     /// retrieved by the given [`SegmentKey`].
@@ -317,8 +320,9 @@ impl std::fmt::Display for Covered {
     }
 }
 
-/// Not all points of `other` are covered by `self`. See docstring of
-/// [`Composite`] for more information.
+/// Return type of [`Composite::contains`] if `other` is not covered by `self`.
+///
+/// The enum variant specifies why `other` is not covered.
 #[derive(Clone, Debug, PartialEq)]
 pub enum NotCovered {
     /// `other` is within the nth hole of `self`, where n is given as the
@@ -361,8 +365,10 @@ impl std::fmt::Display for NotCovered {
 
 impl std::error::Error for NotCovered {}
 
-/// `self` contains at least one point of `other`. See docstring of
-/// [`Composite`] for more information.
+/// Return type of [`Composite::contains_any`] if at least any point of `other`
+/// is contained in `self`.
+///
+/// The enum variant specifies why a point of `other` is contained.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Overlap {
     /// The given point of `other` is contained in `self`.
@@ -424,8 +430,10 @@ impl Overlap {
     }
 }
 
-/// `self` contains not a single point of `other`. See docstring of
-/// [`Composite`] for more information.
+/// Return type of [`Composite::contains_any`] if no point of `other` is
+/// contained in `self`.
+///
+/// The enum variant specifies why no point of `other` is contained.
 #[derive(Clone, Debug, PartialEq)]
 pub enum NoOverlap {
     /// `self` is a [`Polysegment`] which has no surface area and therefore
@@ -481,26 +489,21 @@ a [`SegmentKey`].
 
 # Containment and coverage
 
-This trait provides a variety of methods to check if `self` contains, covers or
+This trait provides the following methods to check if `self` contains, covers or
 partially contains another geometric object such as a point, a [`Segment`] or
-another [`Composite`]. These methods start with `contains_`, `contains_any` or
-`covers_` followed by the type name of the second object (e.g.
-[`Composite::contains_contour`]). They return a `Result<OkEnum, ErrEnum>` with
-the `Ok` variant signalling that the check succeded (e.g. in case of
-[`Composite::contains_contour`] the contour is in fact contained within `self`)
-and `Err` obviously indicating that the check failed. The enums contain the
-first reason the algorithm found which unambiguously proves the result. In fact,
-there might often be multiple reasons. For example, when a [`Contour`] is not
-contained in `self`, this might be due to the bounding boxes being disjoint and
-due to a particular point not being contained. In this case, the algorithm would
-first check the bounding boxes and return that reason
+another [`Composite`]:
+- [`Composite::contains`] which returns either a [`Contained`] or a [`NotContained`] enum
+- [`Composite::contains_any`] which returns either a [`Overlap`] or a [`NoOverlap`] enum
+- [`Composite::covers`] which returns either a [`Covered`] or a [`NotCovered`] enum
+
+The enums contain the first reason the algorithm found which unambiguously
+proves the result, although there might be multiple reasons. For example, when a
+[`Contour`] is not contained in `self`, this might be due to the bounding boxes
+being disjoint and due to a particular point not being contained. In this case,
+the algorithm would first check the bounding boxes and return that reason
 [`NotContained::OutsideBoundingBox`] wrappend in `Err`.
 
 ## Containment
-
-**Return types**: [`Contained`]` and `[`NotContained`]`
-
-**Function names**: `contains_` + type name
 
 A composite "contains" another geometric entity if if all points of the latter
 are within it (and in contrast to the concept of "covers", not on its
@@ -509,35 +512,28 @@ it has no surface area and only consists of its boundary.
 
 ## Partial containment
 
-**Return types**: [`Overlap`]` and `[`NoOverlap`]`
-
-**Function names**: `contains_any` + type name
-
 A composite "contains any" part of another geometric entity if at least one
 point of the latter lies within the composite's interior (excluding
 boundaries).
 
 ## Coverage
 
-**Return types**: [`Covered`]` and `[`NotCovered`]`
-
-**Function names**: `covers_` + type name
-
-Similar to the [`Primitive`] trait, a composite "covers" another geometric
-entity if all points of the latter are within it or on its boundaries.
+Similar to the definition in the [`Primitive`](crate::primitive::Primitive)
+trait, a composite "covers" another geometric entity if all points of the latter
+are within it or on its boundaries.
 
 # Intersection
 
-Different to primitives, there can be an arbitrary number of intersections
-between two intersections, which is why the corresponding methods return
-an iterator. Since intersection calculation between composites can be easily
-parallelized, there is a serial and a parallel variant (the latter returning
-a [`ParallelIterator`] and having a `_par` suffix).`
+In contrast to [`Primitive::intersections_primitive`](crate::primitive::Primitive::intersections_primitive), there can be an
+arbitrary number of intersections between two composites or a composite and a
+primitive, which is why the corresponding methods return an iterator. Since
+intersection calculation between composites can be easily parallelized, there is
+a serial and a parallel variant with the latter having a `_par` suffix and
+returning a [`ParallelIterator`].
 
-These iterators always return an [`Intersection`] object. The "left" side of the
-object refers to the first argument `self`, whereas the "right" side
-refers to the type of the other composite. See the docstring of [`Intersection`]
-for more.
+These iterators return [`Intersection`] objects. The "left" side of the object
+refers to the first argument `self`, whereas the "right" side refers to the type
+of the other composite. See [`Intersection`] for more.
 
 In contrast to primitives, composites can self-intersect. The self-intersection
 points can be calculated by using `self` as the second argument `other`:
@@ -572,15 +568,16 @@ The time complexity of calculating all intersections between two composites a
 and b is O(n_a*n_b), where n_a/b is the value returned by
 [`Composite::num_segments`] for a and b respectively. This is due to the fact
 that the composite intersection functions compare each segment of a with each
-segment of b (via [`Primitive::intersections_primitive`]).
+segment of b.
 
-As with the intersection methods of [`Primitive`], each intersection function
-takes `epsilon` and `max_relative` as additional arguments to specify a certain
-absolute and relative tolerance for intersection detection.
+By default, [`DEFAULT_EPSILON`](crate::DEFAULT_EPSILON) and
+[`DEFAULT_MAX_RELATIVE`](crate::DEFAULT_MAX_RELATIVE) are used for
+floating-point comparisons. For custom tolerances, use
+[`WithTolerance::with_tolerance`](crate::WithTolerance::with_tolerance).
 
-All intersection functions first check if the bounding boxes of the two
-primitives overlap (short-circuiting the evaluation if they don't). Hence, it is
-not necessary to check this before calling an intersection method.
+Intersection calculations perform inexpensive preliminary checks to reject
+geometries that cannot intersect. Callers therefore generally do not need to
+perform their own geometric prechecks before calculating intersections.
  */
 pub trait Composite: crate::private::Sealed + Sync {
     /**
@@ -700,24 +697,230 @@ pub trait Composite: crate::private::Sealed + Sync {
      */
     fn centroid(&self) -> [f64; 2];
 
+    /**
+    Returns whether every point of `other` lies within the boundary of
+    `self`.
+
+    A composite contains another geometric entity if all points of the latter
+    are within the enclosed surface described by `self` and not on one of the
+    boundary segments. By definition, this means that a [`Polysegment`] cannot
+    contain anything.
+
+    By default, [`DEFAULT_EPSILON`](crate::DEFAULT_EPSILON) and
+    [`DEFAULT_MAX_RELATIVE`](crate::DEFAULT_MAX_RELATIVE) are used for
+    floating-point comparisons. For custom tolerances, use
+    [`WithTolerance::with_tolerance`](crate::WithTolerance::with_tolerance).
+
+    # Examples
+
+    ```
+    use planar_geo::prelude::*;
+
+    let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
+    let contour = Contour::new(Polysegment::from_points(vertices));
+    let vertices = &[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
+    let hole = Contour::new(Polysegment::from_points(vertices));
+    let shape = Shape::new(vec![contour.clone(), hole.clone()]).expect("valid inputs");
+
+    let pt = [0.5, 0.9];
+
+    // A polysegment cannot contain anything (no surface area) ...
+    assert!(hole.polysegment().contains(&pt).is_err());
+
+    // ... but the outer contour does contain the point
+    assert!(contour.contains(&pt).is_ok());
+
+    // The point is not contained by the hole contour, because it is on the boundary segments
+    assert!(hole.contains(&pt).is_err());
+
+    // The point is not contained by the shape, because it is on the hole boundary
+    assert!(shape.contains(&pt).is_err());
+
+    // The outer contour contains the hole, but not the other way around
+    assert!(contour.contains(&hole).is_ok());
+    assert!(hole.contains(&contour).is_err());
+    ```
+     */
     fn contains<'a, T: Into<GeometryRef<'a>>>(&self, other: T) -> Result<Contained, NotContained>;
 
+    /**
+    Returns whether at least one point of `self` lies within the boundary of
+    `other`.
+
+    A composite overlaps another geometric entity if at least one of its points
+    is [contained](Composite::contains) within `other`.
+
+    By default, [`DEFAULT_EPSILON`](crate::DEFAULT_EPSILON) and
+    [`DEFAULT_MAX_RELATIVE`](crate::DEFAULT_MAX_RELATIVE) are used for
+    floating-point comparisons. For custom tolerances, use
+    [`WithTolerance::with_tolerance`](crate::WithTolerance::with_tolerance).
+
+    # Examples
+
+    ```
+    use planar_geo::prelude::*;
+
+    let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
+    let contour = Contour::new(Polysegment::from_points(vertices));
+    let vertices = &[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
+    let hole = Contour::new(Polysegment::from_points(vertices));
+    let shape = Shape::new(vec![contour.clone(), hole.clone()]).expect("valid inputs");
+
+    let ls = LineSegment::new([0.1, 0.1], [0.9, 0.1]).unwrap();
+
+    assert!(contour.contains_any(&ls).is_ok());
+
+    // hole does not overlap ls, because it is right on its boundary
+    assert!(hole.contains_any(&ls).is_err());
+
+    // contour overlaps hole and hole overlaps contour
+    assert!(contour.contains_any(&hole).is_ok());
+    assert!(hole.contains_any(&contour).is_ok());
+
+    // shape does not overlap ls (because it is completely covered by
+    // the hole and therefore none of its points are contained in the shape.
+    assert!(shape.contains_any(&ls).is_err());
+
+    // Chosing a sufficiently high tolerance, shape does overlap ls
+    assert!(shape.with_tolerance(1.0, 0.0).contains_any(&ls).is_err());
+    ```
+     */
     fn contains_any<'a, T: Into<GeometryRef<'a>>>(&self, other: T) -> Result<Overlap, NoOverlap>;
 
+    /**
+    Returns whether every point of `other` lies within or on the boundary of
+    `self`.
+
+    A composite covers another geometric entity if all points of the latter
+    are within or on the enclosed surface described by `self`.
+
+    By default, [`DEFAULT_EPSILON`](crate::DEFAULT_EPSILON) and
+    [`DEFAULT_MAX_RELATIVE`](crate::DEFAULT_MAX_RELATIVE) are used for
+    floating-point comparisons. For custom tolerances, use
+    [`WithTolerance::with_tolerance`](crate::WithTolerance::with_tolerance).
+
+    # Examples
+
+    ```
+    use planar_geo::prelude::*;
+
+    let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
+    let contour = Contour::new(Polysegment::from_points(vertices));
+    let vertices = &[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
+    let hole = Contour::new(Polysegment::from_points(vertices));
+    let shape = Shape::new(vec![contour.clone(), hole.clone()]).expect("valid inputs");
+
+    let pt = [0.5, 0.9];
+
+    // The hole polysegment covers the point ...
+    assert!(hole.polysegment().covers(&pt).is_ok());
+
+    // as does the outer contour does
+    assert!(contour.covers(&pt).is_ok());
+
+    // The point is covered by the shape, because it is on the hole boundary
+    assert!(shape.covers(&pt).is_ok());
+
+    // The outer contour covers the hole, but not the other way around
+    assert!(contour.covers(&hole).is_ok());
+    assert!(hole.covers(&contour).is_err());
+    ```
+     */
     fn covers<'a, T: Into<GeometryRef<'a>>>(&self, other: T) -> Result<Covered, NotCovered>;
 
+    /**
+    Returns an iterator over all intersections of `self` with the `point`.
+
+    The right side of the [`Intersection`]s created by the returned iterator
+    is simply [`SegmentKey::default`], because no index is needed to retrieve
+    the primitive.
+
+    By default, [`DEFAULT_EPSILON`](crate::DEFAULT_EPSILON) and
+    [`DEFAULT_MAX_RELATIVE`](crate::DEFAULT_MAX_RELATIVE) are used for
+    floating-point comparisons. For custom tolerances, use
+    [`WithTolerance::with_tolerance`](crate::WithTolerance::with_tolerance).
+
+    # Examples
+
+    ```
+    use planar_geo::prelude::*;
+
+    let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0], [0.0, 0.0]];
+    let polysegment = Polysegment::from_points(vertices);
+
+    let mut intersections = polysegment.intersections_point(&[1.0, 0.0]);
+
+    approx::assert_abs_diff_eq!(
+        intersections.next(),
+        Some(Intersection {point: [1.0, 0.0], left: SegmentKey::from_segment_idx(0), right: SegmentKey::from_segment_idx(0)})
+    );
+    approx::assert_abs_diff_eq!(
+        intersections.next(),
+        Some(Intersection {point: [1.0, 0.0], left: SegmentKey::from_segment_idx(1), right: SegmentKey::from_segment_idx(0)})
+    );
+    assert!(intersections.next().is_none());
+    ```
+     */
     fn intersections_point<'a>(
         &'a self,
         point: &[f64; 2],
     ) -> impl Iterator<Item = Intersection> + 'a;
 
+    /**
+    Returns a parallelized iterator over all intersections of `self` with the
+    `point`.
+
+    This is the parallelized variant of [`Composite::intersections_point`].
+    See its docstring for more information and examples.
+     */
     fn intersections_point_par<'a>(
         &'a self,
         point: &[f64; 2],
     ) -> impl ParallelIterator<Item = Intersection> + 'a;
 
+    /**
+    Returns an iterator over all intersections of `self` with the `line`.
+
+    The right side of the [`Intersection`]s created by the returned iterator
+    is simply [`SegmentKey::default`], because no index is needed to retrieve
+    the primitive.
+
+    By default, [`DEFAULT_EPSILON`](crate::DEFAULT_EPSILON) and
+    [`DEFAULT_MAX_RELATIVE`](crate::DEFAULT_MAX_RELATIVE) are used for
+    floating-point comparisons. For custom tolerances, use
+    [`WithTolerance::with_tolerance`](crate::WithTolerance::with_tolerance).
+
+    # Examples
+
+    ```
+    use planar_geo::prelude::*;
+
+    let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0], [0.0, 0.0]];
+    let polysegment = Polysegment::from_points(vertices);
+
+    let line = Line::from_point_angle([0.5, 0.5], 0.0);
+    let mut intersections = polysegment.intersections_line(&line);
+
+    approx::assert_abs_diff_eq!(
+        intersections.next(),
+        Some(Intersection {point: [1.0, 0.5], left: SegmentKey::from_segment_idx(1), right: Default::default()})
+    );
+    approx::assert_abs_diff_eq!(
+        intersections.next(),
+        Some(Intersection {point: [0.0, 0.5], left: SegmentKey::from_segment_idx(3), right: Default::default()})
+    );
+    assert!(intersections.next().is_none());
+    ```
+     */
     fn intersections_line<'a>(&'a self, line: &'a Line) -> impl Iterator<Item = Intersection> + 'a;
 
+    /**
+    Returns a parallelized iterator over all intersections of `self` with the
+    `line`.
+
+    This is the parallelized variant of [`Composite::intersections_line`].
+    See its docstring for more information and examples.
+     */
     fn intersections_line_par<'a>(
         &'a self,
         line: &'a Line,
@@ -727,12 +930,13 @@ pub trait Composite: crate::private::Sealed + Sync {
     Returns an iterator over all intersections of `self` with the `primitive`.
 
     The right side of the [`Intersection`]s created by the returned iterator
-    is simply an empty tuple, because no index is needed to retrieve the
-    primitive.
+    is simply [`SegmentKey::default`], because no index is needed to retrieve
+    the primitive.
 
-    If eager collection of the returned [`Intersection`]s into a [`Vec`] is not
-    an issue, consider using the more generic [`Composite::intersections`]
-    instead (which can deal with both [`Primitive`]s and [`Composite`]s).
+    By default, [`DEFAULT_EPSILON`](crate::DEFAULT_EPSILON) and
+    [`DEFAULT_MAX_RELATIVE`](crate::DEFAULT_MAX_RELATIVE) are used for
+    floating-point comparisons. For custom tolerances, use
+    [`WithTolerance::with_tolerance`](crate::WithTolerance::with_tolerance).
 
     # Examples
 
@@ -765,11 +969,10 @@ pub trait Composite: crate::private::Sealed + Sync {
 
     /**
     Returns a parallelized iterator over all intersections of `self` with the
-    `primitive`.
+    `segment`.
 
-    This is the parallelized variant of [`Composite::intersections_primitive`].
+    This is the parallelized variant of [`Composite::intersections_segment`].
     See its docstring for more information and examples.
-    TODO: [`Composite::intersections`] is more generic, but allocates eagerly!
      */
     fn intersections_segment_par<'a, T>(
         &'a self,
@@ -781,9 +984,15 @@ pub trait Composite: crate::private::Sealed + Sync {
     /**
     Returns a iterator over all intersections of `self` with the `polysegment`.
 
-    This method is mainly used to implement
-    [`Composite::intersections_composite`], consider using that method instead.
-    TODO: [`Composite::intersections`] is more generic, but allocates eagerly!
+    Each [`Intersection`] returned by the resulting iterator has a
+    [`left`](Intersection::left) and a [`right`](Intersection::right)
+    [`SegmentKey`]. These keys can be used to retrieve the intersecting segments
+    from `self` and `polysegment` (left key belongs to `self`).
+
+    By default, [`DEFAULT_EPSILON`](crate::DEFAULT_EPSILON) and
+    [`DEFAULT_MAX_RELATIVE`](crate::DEFAULT_MAX_RELATIVE) are used for
+    floating-point comparisons. For custom tolerances, use
+    [`WithTolerance::with_tolerance`](crate::WithTolerance::with_tolerance).
 
     # Examples
 
@@ -829,9 +1038,15 @@ pub trait Composite: crate::private::Sealed + Sync {
     /**
     Returns a iterator over all intersections of `self` with the `contour`.
 
-    This method is mainly used to implement
-    [`Composite::intersections_composite`], consider using that method instead.
-    TODO: [`Composite::intersections`] is more generic, but allocates eagerly!
+    Each [`Intersection`] returned by the resulting iterator has a
+    [`left`](Intersection::left) and a [`right`](Intersection::right)
+    [`SegmentKey`]. These keys can be used to retrieve the intersecting segments
+    from `self` and `contour` (left key belongs to `self`).
+
+    By default, [`DEFAULT_EPSILON`](crate::DEFAULT_EPSILON) and
+    [`DEFAULT_MAX_RELATIVE`](crate::DEFAULT_MAX_RELATIVE) are used for
+    floating-point comparisons. For custom tolerances, use
+    [`WithTolerance::with_tolerance`](crate::WithTolerance::with_tolerance).
 
     # Examples
 
@@ -877,9 +1092,15 @@ pub trait Composite: crate::private::Sealed + Sync {
     /**
     Returns an iterator over all intersections of `self` with the `shape`.
 
-    This method is mainly used to implement
-    [`Composite::intersections_composite`], consider using that method instead.
-    TODO
+    Each [`Intersection`] returned by the resulting iterator has a
+    [`left`](Intersection::left) and a [`right`](Intersection::right)
+    [`SegmentKey`]. These keys can be used to retrieve the intersecting segments
+    from `self` and `shape` (left key belongs to `self`).
+
+    By default, [`DEFAULT_EPSILON`](crate::DEFAULT_EPSILON) and
+    [`DEFAULT_MAX_RELATIVE`](crate::DEFAULT_MAX_RELATIVE) are used for
+    floating-point comparisons. For custom tolerances, use
+    [`WithTolerance::with_tolerance`](crate::WithTolerance::with_tolerance).
 
     # Examples
 
@@ -931,15 +1152,20 @@ pub trait Composite: crate::private::Sealed + Sync {
 
     This method is based on
     [`GeometryRef::intersections`](crate::geometry::GeometryRef::intersections).
-    It can handle any geometric type ([`Primitive`] or [`Composite`]) defined in
-    this crate and can therefore be seen as a combination of
-    [`Composite::intersections_primitive`] and
-    [`Composite::intersections_composite`]. Its downside is that it is not lazy
-    (because the aforementioned methods return different iterator types which
-    need to be collected into a [`Vec<Intersection>`]). If that is an issue,
-    consider using the specialized methods instead (which are lazy).
+    It can handle any geometric type defined in this crate, but in exchange it
+    needs to allocate a [`Vec`] for the [`Intersection`]s. If that is an issue,
+    consider using the specialized `inersections_<typename>`methods instead,
+    which return lazy iterators.
 
-    [`Composite::intersections_par`] is a parallelized variant of this method.
+    Each [`Intersection`] in the returned vector has a
+    [`left`](Intersection::left) and a [`right`](Intersection::right)
+    [`SegmentKey`]. These keys can be used to retrieve the intersecting segments
+    from `self` and `other` (left key belongs to `self`).
+
+    By default, [`DEFAULT_EPSILON`](crate::DEFAULT_EPSILON) and
+    [`DEFAULT_MAX_RELATIVE`](crate::DEFAULT_MAX_RELATIVE) are used for
+    floating-point comparisons. For custom tolerances, use
+    [`WithTolerance::with_tolerance`](crate::WithTolerance::with_tolerance).
 
     # Examples
 

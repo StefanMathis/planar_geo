@@ -3,9 +3,9 @@ Defines the [`Polysegment`] type, a foundational [`Composite`] used throughout
 this crate.
 
 Segment polysegments serve as the basis for higher-level geometric types such as
-[`Contour`](crate::contour::Contour) and [`Shape`](crate::shape::Shape). They
-represent connected sequences of segments and provide the core functionality
-required by composite geometries.
+[`Contour`] and [`Shape`](crate::shape::Shape). They represent connected
+sequences of segments and provide the core functionality required by composite
+entities.
 
 Most users should interact with this module through the [`Polysegment`] type
 itself; see its documentation for details on construction, invariants, and
@@ -492,7 +492,7 @@ impl Polysegment {
 
     /**
     Adds a [`LineSegment`] to the front of `self` which stops at `point` and
-    starts at the current stop point of `self` - i.e., the `stop` point of the
+    starts at the current stop point of `self` - i.e. the `stop` point of the
     [`Segment`] returned from [`Polysegment::back`]. If `self` is empty or
     `point` is self_intersection to `stop`, this is a no-op.
 
@@ -528,7 +528,7 @@ impl Polysegment {
 
     /**
     Adds a [`LineSegment`] to the front of `self` which starts at `point` and
-    stops at the current start point of `self` - i.e., the `start` point of the
+    stops at the current start point of `self` - i.e. the `start` point of the
     [`Segment`] returned from [`Polysegment::front`]. If `self` is empty or
     `point` is self_intersection to `start`, this is a no-op.
 

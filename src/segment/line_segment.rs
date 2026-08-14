@@ -513,9 +513,9 @@ impl LineSegment {
     ///
     /// Two segments are touching if they are intersecting but not dividing each
     /// other. If `other` is a [`LineSegment`], one or both of the end points of
-    /// one line segment must be covered by the second one
-    /// (see [`Primitive::covers_point`]). If `other` is an
-    /// [`ArcSegment`](super::ArcSegment), `self` must be a tangent of `other`.
+    /// one line segment must be covered by the second one (see
+    /// [`Primitive::covers_point`]). If `other` is an [`ArcSegment`], `self`
+    /// must be a tangent of `other`.
     #[doc = ""]
     #[cfg_attr(feature = "doc-images", doc = "![Touching and dividing][touching]")]
     #[cfg_attr(
@@ -618,9 +618,9 @@ impl LineSegment {
     /**
     Returns whether `self` is a tangent of `arc_segment`.
 
-    A [`LineSegment`] is a tangent of an [`ArcSegment`](super::ArcSegment) if
-    they touch in a single point and the line segment is perpendicular to the
-    straight line connecting this point and the center of the arc.
+    A [`LineSegment`] is a tangent of an [`ArcSegment`] if they touch in a
+    single point and the line segment is perpendicular to the straight line
+    connecting this point and the center of the arc.
 
     By default, [`DEFAULT_EPSILON`] and [`DEFAULT_MAX_RELATIVE`] are used for
     floating-point comparisons. For custom tolerances, use

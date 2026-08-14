@@ -4,11 +4,10 @@ mathematical line - an infinitely long object with no width or curvature.
 
 In the context of this crate, a line is treated as a "primitive" geometric type.
 Unlike the "segment" types ([`Segment`](crate::segment::Segment) and its
-variants [`ArcSegment`](crate::segment::ArcSegment) and
-[`LineSegment`](crate::segment::LineSegment)), it is not used in defining more
-complex "composite" types (such as the
-[`Polysegment`](crate::polysegment::Polysegment)). Its main purpose is to
-serve as a tool for calculations, for example for intersection calculation.
+variants [`ArcSegment`] and [`LineSegment`]), it is not used in defining more
+complex "composite" types (such as
+[`Polysegment`](crate::polysegment::Polysegment)). Its main purpose is to serve
+as a tool for calculations, for example when determining intersection.
 
 See the docstring of [`Line`] for more information.
  */
@@ -36,18 +35,17 @@ A line can be represented by the equation `a*x + b*y + c = 0`. The three fields
 [`Line::a`], [`Line::b`] and [`Line::c`] correspond to these coefficients.
 
 The main purpose of this type is being a tool for calculations. For example,
-the intersection of two [`LineSegment`](crate::segment::LineSegment)s (straight
-connections between two points of finite length) can be calculated by first
-calculating the intersection of the corresponding infinite lines and then
-checking whether the found intersection point is actually covered by both
-segments.
+the intersection of two [`LineSegment`]s (straight connections between two
+points of finite length) can be calculated by first determining the intersection
+of the corresponding infinite lines and then checking whether the found
+intersection point is actually covered by both segments.
 
 Obviously, a [`Line`] object can be directly created by providing its three
 coefficients. Additionally, it is also possible to derive a [`Line`] from a
 point it goes through and its angle ([`Line::from_point_angle`]) and from a
 two-point representation ([`Line::from_two_points`]).
 Because the [`Line`] is closely related to the
-[`LineSegment`](crate::segment::LineSegment), a [`From`] implementation exists.
+[`LineSegment`], a [`From`] implementation exists.
 
 The [crate docstring](crate::line) describes the relationship between the
 [`Line`] and the other geometric types provided by this crate.

@@ -369,6 +369,10 @@ enum. If applicable, this method is to be preferred over
 [`Primitive`]s). It returns all found intersections in a [`Vec`]. If a lazy
 iterator is needed instead, using one of the specialized `intersections_`
 methods from the [`Composite`](crate::composite::Composite) trait.
+
+Intersection calculations perform inexpensive preliminary checks to reject
+geometries that cannot intersect. Callers therefore generally do not need to
+perform their own geometric prechecks before calculating intersections.
  */
 pub trait Primitive: crate::private::Sealed + Sync {
     /**

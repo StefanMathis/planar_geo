@@ -32,12 +32,12 @@ let geo_ref = GeometryRef::from(&geo);
 ```
 
 These containers enable the generic `intersections` interface which avoids the
-need to use the specialized intersection methods from [`Primitive`] or
-[`Composite`] (it defers to those under the hood). The main disadvantage of the
-interace is that it needs to eagerly allocate a vector to hold the
-[`Intersection`]s, because the specialized methods return different iterator
-types. If that is not an issue, using the `intersections` methods greatly
-simplifies finding the intersections between any two geometric types.
+need to use the specialized intersection methods from
+[`Primitive`](crate::primitive::Primitive) or [`Composite`] (it defers to those
+under the hood). The main disadvantage of the interface is that it needs to
+eagerly allocate a vector to hold the [`Intersection`]s, because the specialized
+methods return different iterator types. If that is not an issue, using the
+`intersections` methods greatly simplifies the crate usage.
 
 ```
 use planar_geo::prelude::*;
@@ -106,7 +106,9 @@ use crate::prelude::SegmentRef;
 use crate::primitive::PrimitiveWithTol;
 use crate::segment::{ArcSegment, LineSegment, Segment};
 use crate::shape::Shape;
-use crate::{DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE, ToleranceContext, Transformation};
+use crate::{
+    DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE, ToleranceContext, Transformation, WithTolerance,
+};
 
 /**
 A container enum for owned geometric types. See the
@@ -180,12 +182,27 @@ impl Geometry {
     }
 }
 
+impl crate::private::Sealed for Geometry {}
+impl WithTolerance for Geometry {}
+
 impl<'a> ToleranceContext<'a, Geometry> {
+    /**
+    Returns all intersections of the wrapped [`Geometry`] with `other`,
+    using the tolerances stored in `self`.
+
+    This is the tolerance-aware counterpart of [`Geometry::intersections`].
+    */
     pub fn intersections<'b, T: Into<GeometryRef<'b>>>(&self, other: T) -> Vec<Intersection> {
         let this: GeometryRef = self.inner.into();
         this.intersections_tol::<false, _>(other, self.epsilon, self.max_relative)
     }
 
+    /**
+    Returns all intersections of the wrapped [`Geometry`] with `other`,
+    using the tolerances stored in `self`.
+
+    This is the tolerance-aware counterpart of [`Geometry::intersections_par`].
+    */
     pub fn intersections_par<'b, T: Into<GeometryRef<'b>>>(&self, other: T) -> Vec<Intersection> {
         let this: GeometryRef = self.inner.into();
         this.intersections_tol::<true, _>(other, self.epsilon, self.max_relative)
@@ -407,22 +424,14 @@ impl<'a> GeometryRef<'a> {
     /**
     Returns all intersections between `self` and `other`.
 
-    This function uses the specialized intersection functions provided by the
-    [`Primitive`] and [`Composite`] traits, depending on the underlying types of
-    `self` and `other`:
-    - Both are [`Primitive`]s: [`Primitive::intersections_primitive`].
-    - One of them is a [`Primitive`], the other one is a [`Composite`]:
-    [`Composite::intersections_primitive`].
-    - Both are [`Composite`]s: [`Composite::intersections_composite`].
-    - One of them is a point [`f64; 2`]: [`Primitive::covers_point`] or
-    [`Composite::covers_point`].
-    - A bounding box is converted to a [`Contour`] ([`Composite`]), then one of
-    the functions listed above is used.
+    Each [`Intersection`] in the returned vector has a
+    [`left`](Intersection::left) and a [`right`](Intersection::right)
+    [`SegmentKey`]. These keys can be used to retrieve the intersecting segments
+    from `self` and `other` (left key belongs to `self`).
 
-    Since all of these underlying functions return different types (iterators,
-    enums, booleans), this function unifies the outputs into an allocated
-    vector. If allocation is undesirable, consider using the specialized
-    functions instead.
+    By default, [`DEFAULT_EPSILON`] and [`DEFAULT_MAX_RELATIVE`] are used for
+    floating-point comparisons. For custom tolerances, use
+    [`WithTolerance::with_tolerance`].
 
     # Examples
 
@@ -447,7 +456,7 @@ impl<'a> GeometryRef<'a> {
     let intersections: Vec<Intersection> = GeometryRef::from(&polysegment).intersections(&shape);
     assert_eq!(intersections.len(), 4);
 
-    // Since all of the geometric types in this crate provide an intersection
+    // Since all of the geometric types in this crate provide an `intersection`
     // method themselves, it is not necesssary to convert them into GeometryRef
     // explicitly (the conversion happens under the hood)
     let intersections: Vec<Intersection> = shape.intersections(&line);
@@ -457,6 +466,12 @@ impl<'a> GeometryRef<'a> {
     let intersections: Vec<Intersection> = polysegment.intersections_par(&shape);
     assert_eq!(intersections.len(), 4);
     let intersections: Vec<Intersection> = shape.intersections_par(&line);
+    assert_eq!(intersections.len(), 4);
+
+    // With custom tolerances
+    let intersections: Vec<Intersection> = GeometryRef::from(&polysegment).with_tolerance(0.1, 0.1).intersections_par(&shape);
+    assert_eq!(intersections.len(), 4);
+    let intersections: Vec<Intersection> = GeometryRef::from(&shape).with_tolerance(0.1, 0.1).intersections_par(&line);
     assert_eq!(intersections.len(), 4);
     ```
      */
@@ -468,8 +483,7 @@ impl<'a> GeometryRef<'a> {
     Returns all intersections between `self` and `other`.
 
     This is a parallelized version of [`GeometryRef::intersections`], see its
-    docstring for details. It uses parallel variants of the specialized
-    intersection algorithms, if available.
+    docstring for details.
      */
     pub fn intersections_par<'b, T: Into<GeometryRef<'b>>>(&self, other: T) -> Vec<Intersection> {
         self.intersections_tol::<true, _>(other, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
@@ -1128,12 +1142,27 @@ impl<'a> GeometryRef<'a> {
     }
 }
 
+impl<'a> crate::private::Sealed for GeometryRef<'a> {}
+impl<'a> WithTolerance for GeometryRef<'a> {}
+
 impl<'a> ToleranceContext<'a, GeometryRef<'a>> {
+    /**
+    Returns all intersections of the wrapped [`GeometryRef`] with `other`,
+    using the tolerances stored in `self`.
+
+    This is the tolerance-aware counterpart of [`GeometryRef::intersections`].
+    */
     pub fn intersections<'b, T: Into<GeometryRef<'b>>>(&self, other: T) -> Vec<Intersection> {
         let this: GeometryRef = (*self.inner).into();
         this.intersections_tol::<false, _>(other, self.epsilon, self.max_relative)
     }
 
+    /**
+    Returns all intersections of the wrapped [`GeometryRef`] with `other`,
+    using the tolerances stored in `self`.
+
+    This is the tolerance-aware counterpart of [`GeometryRef::intersections_par`].
+    */
     pub fn intersections_par<'b, T: Into<GeometryRef<'b>>>(&self, other: T) -> Vec<Intersection> {
         let this: GeometryRef = (*self.inner).into();
         this.intersections_tol::<true, _>(other, self.epsilon, self.max_relative)
@@ -1319,12 +1348,27 @@ impl<'a> GeometryCow<'a> {
     }
 }
 
+impl<'a> crate::private::Sealed for GeometryCow<'a> {}
+impl<'a> WithTolerance for GeometryCow<'a> {}
+
 impl<'a> ToleranceContext<'a, GeometryCow<'a>> {
+    /**
+    Returns all intersections of the wrapped [`GeometryCow`] with `other`,
+    using the tolerances stored in `self`.
+
+    This is the tolerance-aware counterpart of [`GeometryCow::intersections`].
+    */
     pub fn intersections<'b, T: Into<GeometryRef<'b>>>(&self, other: T) -> Vec<Intersection> {
         let this: GeometryRef = self.inner.into();
         this.intersections_tol::<false, _>(other, self.epsilon, self.max_relative)
     }
 
+    /**
+    Returns all intersections of the wrapped [`GeometryCow`] with `other`,
+    using the tolerances stored in `self`.
+
+    This is the tolerance-aware counterpart of [`GeometryCow::intersections_par`].
+    */
     pub fn intersections_par<'b, T: Into<GeometryRef<'b>>>(&self, other: T) -> Vec<Intersection> {
         let this: GeometryRef = self.inner.into();
         this.intersections_tol::<true, _>(other, self.epsilon, self.max_relative)
