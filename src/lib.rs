@@ -13,7 +13,7 @@
 [`DEFAULT_EPSILON`]: crate::DEFAULT_EPSILON
 [`DEFAULT_MAX_RELATIVE`]: crate::DEFAULT_MAX_RELATIVE
 [`ToleranceContext`]: crate::ToleranceContext
-[`with_tolerance`]: crate::ToleranceContext::with_tolerance
+[`with_tolerance`]: crate::WithTolerance::with_tolerance
 [crate_index]: crate
 [draw]: crate::draw
 [`Context`]: cairo::Context
@@ -65,7 +65,7 @@ A reasonable default value for the absolute tolerance.
 
 Various methods within this crate (such as the `covers_` or `intersections_`
 methods from the [`Primitive`](crate::primitive::Primitive) and [`Composite`](crate::composite::Composite) traits) perform floating point comparisons using
-the [`relative_eq`](approxim::relative_eq) macro from the [`approxim`](approxim),
+the [`relative_eq`](approxim::relative_eq) macro from the [`approxim`],
 which requires specifying an absolute tolerance `epsilon` and a relative
 tolerance `max_relative`. If those tolerances aren't explicitly provided via a
 [`ToleranceContext`], this constant is used for `epsilon` (and
@@ -83,7 +83,7 @@ A reasonable default value for the relative tolerance.
 
 Various methods within this crate (such as the `covers_` or `intersections_`
 methods from the [`Primitive`](crate::primitive::Primitive) and [`Composite`](crate::composite::Composite) traits) perform floating point comparisons using
-the [`relative_eq`](approxim::relative_eq) macro from the [`approxim`](approxim),
+the [`relative_eq`](approxim::relative_eq) macro from the [`approxim`],
 which requires specifying an absolute tolerance `epsilon` and a relative
 tolerance `max_relative`. If those tolerances aren't explicitly provided via a
 [`ToleranceContext`], this constant is used for `max_relative` (and
@@ -107,7 +107,7 @@ slightly from the mathematically exact result:
 For example, `assert_eq!(0.1 + 0.2, 0.3)` will panic!
 
 Therefore, the aforementioned methods use the
-[`relative_eq`](approxim::relative_eq) macro from the [`approxim`](approxim) crate
+[`relative_eq`](approxim::relative_eq) macro from the [`approxim`] crate
 when comparing floats, which requires specifying an absolute tolerance `epsilon`
 and a relative tolerance `max_relative`. These default to [`DEFAULT_EPSILON`]
 and [`DEFAULT_MAX_RELATIVE`], but can be overwritten by using a
@@ -170,8 +170,8 @@ recommended to simply use the default tolerances (which happens automatically
 unless `with_tolerance` is inserted between the geometric object and the
 method).
 
-As stated in the [`approxim`](approxim) documentation: "Floating point is hard!".
-The following links, taken directly from the [`approxim`](approxim) crate
+As stated in the [`approxim`] documentation: "Floating point is hard!".
+The following links, taken directly from the [`approxim`] crate
 documentation, provide more informatio regarding the behaviour of floating point
 numbers, particularly when comparing them:
 - [Comparing Floating Point Inners, 2012 Edition](https://randomascii.wordpress.com/2012/02/25/comparing-floating-point-numbers-2012-edition/)
