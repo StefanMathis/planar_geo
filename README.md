@@ -23,7 +23,7 @@ modify the components. -->
 [crate_index]: https://docs.rs/planar_geo/0.6.0/planar_geo/.
 [draw]: https://docs.rs/planar_geo/0.6.0/planar_geo/draw/index.html.
 [`Context`]: https://gtk-rs.org/gtk-rs-core/stable/latest/docs/cairo/struct.Context.html
-[gtk-rs]: https://gtk-rs.org/gtk-rs-core/stable/latest/docs/cairo
+[cairo]: https://gtk-rs.org/gtk-rs-core/stable/latest/docs/cairo
 [approxim]: https://docs.rs/approxim/latest/approxim/
 [serde]: https://serde.rs/
 [intersection_composites.svg]: https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/docs/img/intersection_composites.svg
@@ -87,7 +87,7 @@ The "segment" types are so-called [`Primitive`]s: Simple straight
 ([`LineSegment`]) or arc ([`ArcSegment`]) connections between two points. They
 form the basis for the [`Composite`] types [`Polysegment`], [`Contour`] (a
 closed polysegment) and [`Shape`] (composed of one or more contours). Different
-geometric types can be grouped together in a collection such as a `Vec` by
+geometric types can be grouped together in a collection like a `Vec` by
 wrapping them in the [`Geometry`] enum.
 
 For these types, this crate offers the following features:
@@ -100,7 +100,7 @@ see the [`Primitive`] and [`Composite`] traits.
 - ... and many more!
 
 If the corresponding features are activated, it is also possible to serialize
-and deserialize (using [serde]) and to draw (using [gtk-rs]) these types.
+and deserialize via [serde] and to draw these types using [cairo].
 See the [Features](#features) section for more.
 
 ## Construction and property calculation
@@ -292,7 +292,7 @@ assert_eq!(intersections.len(), 4);
 
 If the geometric entity has a surface area such as a [`Contour`] or a [`Shape`],
 it is also possible to check if another entity is contained within or if they
-overlap
+overlap:
 
 ```rust
 use planar_geo::prelude::*;
@@ -340,7 +340,7 @@ assert!(contour.covers(&pt).is_err());
 assert!(contour.with_tolerance(1e-4, 1e-4).covers(&pt).is_ok());
 ```
 
-One might wonder why the default tolerances aren't simply zero: shouldn't
+One might wonder why the default tolerances aren't simply zero: Shouldn't
 that produce the most accurate results? Unfortunately, exact floating-point
 comparisons can lead to surprising and unintuitive behaviour:
 

@@ -11,8 +11,7 @@ use crate::shape::Shape;
 
 /**
 [`Intersection`]s are drawn as crosses, whose properties are defined by
-this struct. See the [module documentation](crate::draw::intersection) for
-an example.
+this struct. See [`Intersection::draw`] for an example.
  */
 pub struct IntersectionStyle {
     /// Color of all lines of the intersection cross. Corresponds to

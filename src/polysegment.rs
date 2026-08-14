@@ -31,7 +31,7 @@ use serde::{Deserialize, Serialize};
 
 /**
 A sequence of [`Segment`]s where each segment is "connected" to its successor
-(end / stop point of a segment is self_intersection to the start point of the successor).
+(end / stop point of a segment is identical to the start point of the successor).
 
 */
 #[doc = ""]
@@ -69,7 +69,7 @@ methods. For example, a polysegment can be built via
 [`push_back`](Polysegment::push_back) just like a [`VecDeque`]. The
 [`extend_front`](Polysegment::extend_front) and
 [`extend_back`](Polysegment::extend_back) methods can be used to implicitly
-add [`LineSegment`]s.
+add [`LineSegment`]s via points.
 
 There are multiple constructors available:
 - [`new`](Polysegment::new): A new, empty polysegment with no segment.
@@ -97,7 +97,7 @@ out-of-bounds) and the [`get`](Polysegment::get) method (which returns `None`
 when out-of-bounds). As in the underlying deque, the segments are not
 necessarily contiguous in memory and can generally only be accessed via two
 slices with the [`as_slices`](Polysegment::as_slices) method. [`Polysegment`]
-does however expose the [`make_contiguous`](Polysegment::make_contiguous) to
+does however expose [`make_contiguous`](Polysegment::make_contiguous) to
 store the segments contiguous in memory.
 
 # Serialization and deserialization
@@ -128,7 +128,7 @@ impl Polysegment {
 
     /**
     Creates an empty [`Polysegment`] with space for at least `capacity`
-    [`Segment`].
+    [`Segment`]s.
 
     # Examples
 
@@ -280,7 +280,7 @@ impl Polysegment {
     /**
     "Closes" the [`Polysegment`] by connecting the start point of the first /
     "front" segment with the stop point of the last / "back" segment with a
-    [`LineSegment`] (if the two points aren't already self_intersection).
+    [`LineSegment`] (if the two points aren't already equal).
 
     # Examples
 
@@ -337,7 +337,7 @@ impl Polysegment {
 
     If the polysegment already has a "back" segment ([`Polysegment::back`] returns
     [`Some`]), the start point of `segment` is compared to the stop point of
-    the back segment. If they aren't self_intersection, a filler line segment is inserted
+    the back segment. If they aren't equal, a filler line segment is inserted
     between the two.
 
     # Examples
@@ -375,7 +375,7 @@ impl Polysegment {
 
     If the polysegment already has a "front" segment ([`Polysegment::front`] returns
     [`Some`]), the stop point of `segment` is compared to the start point of
-    the front segment. If they aren't self_intersection a filler line segment is inserted
+    the front segment. If they aren't equal, a filler line segment is inserted
     between the two.
 
     # Examples
@@ -494,7 +494,7 @@ impl Polysegment {
     Adds a [`LineSegment`] to the front of `self` which stops at `point` and
     starts at the current stop point of `self` - i.e. the `stop` point of the
     [`Segment`] returned from [`Polysegment::back`]. If `self` is empty or
-    `point` is self_intersection to `stop`, this is a no-op.
+    `point` is equal to `stop`, this is a no-op.
 
     # Examples
 
@@ -530,7 +530,7 @@ impl Polysegment {
     Adds a [`LineSegment`] to the front of `self` which starts at `point` and
     stops at the current start point of `self` - i.e. the `start` point of the
     [`Segment`] returned from [`Polysegment::front`]. If `self` is empty or
-    `point` is self_intersection to `start`, this is a no-op.
+    `point` is equal to `start`, this is a no-op.
 
     # Examples
 
@@ -584,7 +584,7 @@ impl Polysegment {
     /**
     Provides a reference to the [`Segment`] at the given index.
 
-    The segment at index 0 is the front of the polysegment.
+    The segment at index 0 is the first segment of the polysegment.
 
     # Examples
 
@@ -656,8 +656,9 @@ impl Polysegment {
     /**
     Moves all [`Segment`]s of `other` into `self`, leaving `other` empty.
 
-    If the first point of `other` is not self_intersection to the last point of `self`, a
-    filler line segment is introduced first
+    If the first point of `other` is not equal to the last point of `self`, a
+    filler line segment is created between the last segment of `self` and the
+    first one of `other`.
 
     # Panics
 
@@ -871,7 +872,7 @@ impl Polysegment {
     }
 
     /**
-    Creates a rotated pattern from `self`. For each one of the specified
+    Creates a rotation pattern from `self`. For each one of the specified
     `repetitions`, the individual segments of `self` are cloned, rotated around
     `center` and then pushed to the back of `self`. The rotation angle is
     `angle` times the index of the current repetition plus one.
@@ -919,7 +920,7 @@ impl Polysegment {
     }
 
     /**
-    Creates a translated pattern from `self`. For each one of the specified
+    Creates a translation pattern from `self`. For each one of the specified
     `repetitions`, the individual segments of `self` are cloned, shifted and
     then pushed to the back of `self`. The shift vector is `shift` times the
     index of the current repetition plus one.
@@ -2055,6 +2056,8 @@ counterclockwise), then the result is also positive. Otherwise, it is negative.
 
 This implementation uses the "Shoelace formula", as e.g. described here:
 <https://en.wikipedia.org/wiki/Shoelace_formula>.
+
+# Examples
 
 ```
 use planar_geo::polysegment::area_signed;

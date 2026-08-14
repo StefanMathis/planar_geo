@@ -23,7 +23,7 @@ modify the components. -->
 [crate_index]: https://docs.rs/planar_geo/{{VERSION}}/planar_geo/.
 [draw]: https://docs.rs/planar_geo/{{VERSION}}/planar_geo/draw/index.html.
 [`Context`]: https://gtk-rs.org/gtk-rs-core/stable/latest/docs/cairo/struct.Context.html
-[gtk-rs]: https://gtk-rs.org/gtk-rs-core/stable/latest/docs/cairo
+[cairo]: https://gtk-rs.org/gtk-rs-core/stable/latest/docs/cairo
 [approxim]: https://docs.rs/approxim/latest/approxim/
 [serde]: https://serde.rs/
 [intersection_composites.svg]: https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/docs/img/intersection_composites.svg

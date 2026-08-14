@@ -32,5 +32,5 @@ pub use crate::{DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE, WithTolerance};
 pub use crate::draw::*;
 pub use approxim;
 
-///! Reexport of useful common functionality
+/// Reexport of useful common functionality:
 pub use bounding_box::*;

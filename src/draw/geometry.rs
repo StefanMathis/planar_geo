@@ -195,7 +195,7 @@ pub fn grid(
 /// arrow so it points in negative y-direction.
 /// - `arrow_head_size` defines the size of the equilateral triangle
 /// representing the arrow head. See [`ArrowHeadSize`].
-/// - `style` defines the style of the individual grid lines.
+/// - `style` defines the style of the arrows.
 ///
 /// The image below was drawn using `examples/grid_and_coordinate_system.rs`.
 #[doc = ""]
@@ -251,7 +251,6 @@ pub fn coordinate_system(
 }
 
 fn stroke_line(style: &Style, context: &cairo::Context) -> Result<(), cairo::Error> {
-    // Set the style
     match &style.line_style {
         LineStyle::None => {}
         LineStyle::Dotted => {
@@ -546,8 +545,7 @@ pub struct Style {
     /// The location is defined by [`Text::anchor`],
     /// [`Text::fixed_anchor_offset`] and [`Text::scaled_anchor_offset`].
     /// See the docstring of [`Text`]. The [`Text`] is boxed to minimize the
-    /// size of [`Style`] in the common case that no text is used in the
-    /// visual representation of a geometric type.
+    /// size of [`Style`] in the common case that no text is used.
     pub text: Option<Box<Text>>,
 }
 
@@ -675,7 +673,7 @@ let view = Viewport::from_bounding_box(
  */
 #[derive(Debug, Clone)]
 pub enum LineStyle {
-    /// No line is drawn
+    /// No line is drawn.
     None,
     /// Draws a dotted border. Equal to [`LineStyle::Dashed`] with a pattern of
     /// `(1.0, 3.0)` and an offset of 0.
@@ -732,12 +730,11 @@ object (for example, in the images they are applied to the top left corner of
 the contour). If a [`Text`] is drawn on its own, the offset is applied to the
 origin of the [`cairo::Context`] coordinates. See docstring of [`Anchor`] for
 an example.
+
+# Image 1
 */
 #[doc = ""]
-#[cfg_attr(
-    feature = "doc-images",
-    doc = "![Unscaled][anchor_offset_scale_1] ![Scaled][anchor_offset_scale_2]"
-)]
+#[cfg_attr(feature = "doc-images", doc = "![Unscaled][anchor_offset_scale_1]")]
 #[cfg_attr(
     feature = "doc-images",
     embed_doc_image::embed_doc_image(
@@ -745,6 +742,8 @@ an example.
         "docs/img/anchor_offset_scale_1.svg"
     )
 )]
+/// # Image 2
+#[cfg_attr(feature = "doc-images", doc = "![Scaled][anchor_offset_scale_2]")]
 #[cfg_attr(
     feature = "doc-images",
     embed_doc_image::embed_doc_image(
@@ -1051,13 +1050,13 @@ When a [`Text`] object is used as part of a [`Style`] struct to define the
 visualization of a geometric object, the [`Anchor`] determines how the text is
 placed relative to the bounding box of the geometric object. However, a [`Text`]
 can also be shown "standalone" using [`Text::draw`]. In that case, the
-[`Anchor`] defines the text placement relative to a point defined by
+[`Anchor`] defines the text placement relative to a reference point defined by
 [`Text::fixed_anchor_offset`] and [`Text::scaled_anchor_offset`]. See the
 docstring of [`Text`] for more.
 
 The image below shows both cases: On the left side, the red bounding box of an
 geometric object and the associated text placement options are shown. On the
-right side, the [`Text`] has been drawn "standalone" (the text placement point
+right side, the [`Text`] has been drawn "standalone" (the reference point
 is drawn as a red cross).
 */
 #[doc = ""]

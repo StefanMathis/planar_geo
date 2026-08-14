@@ -701,7 +701,7 @@ impl ArcSegment {
     `corner` to `stop`. This fails in the following cases:
     - `start`, `corner` and `stop` are collinear
     - `radius` is not positive.
-    - the arc does not meet the corner line segments because the `radius` is too
+    - The arc does not meet the corner line segments because the `radius` is too
     large.
 
     # Examples

@@ -46,14 +46,13 @@ geometric body in 2D space.
 /**
 
 A [`Shape`] always has at least one [`Contour`] which describes the outer
-extents of the body represented by it. Any additional contours are interpreted
+extents of the body represented. Any additional contours are interpreted
 as "holes" within the "outer" contour. These contours need to fulfill the
 following invariants:
 - The outer contour contains all holes (see [`Contour::contains`]).
 - No hole may contain another hole
-- No contour intersects with itself or any other contour.
-- No contour might be empty (i.e. contain no
-[`Segment`](Segment)).
+- No contour may intersect with itself or any other contour.
+- No contour can be empty (i.e. contain no [`Segment`](Segment)).
 
 # Constructing and modifying a shape
 
@@ -257,11 +256,10 @@ impl Shape {
     Returns the "outer" [`Contour`] of `self`. This is the first element of the
     underlying [`Vec<Contour>`].
      */
-    pub fn contour<'a>(&'a self) -> &'a Contour {
+    pub fn contour(&self) -> &Contour {
         /*
         Safety: This function is safe since it is guaranteed during the Shape
-        element construction that it contains at least the contour (e.g. the
-        field "lines" has a length of at least 1).
+        element construction that it contains at least the contour.
         */
         return unsafe { self.0.get_unchecked(0) };
     }

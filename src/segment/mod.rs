@@ -743,9 +743,9 @@ impl TryFrom<Segment> for LineSegment {
 }
 
 /**
-This enum defines how many points should be in the polygonized representation
-of a segment (created by [`Segment::polygonize`]). Depending on the selected
-variant and its parametrization, a different number of points is created:
+This enum defines how a segment should be polygonized, see
+[`Segment::polygonize`]. Depending on the selected variant and its
+parametrization, a different number of points is created:
 ```
 use std::f64::consts::PI;
 use planar_geo::prelude::*;
@@ -829,7 +829,7 @@ use std::f64::consts::FRAC_PI_2;
 use approxim;
 use planar_geo::prelude::*;
 
-let mut iter = Segment::fillet_chain(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]], &[0.5]);
+let mut iter: FilletChainIterator = Segment::fillet_chain(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]], &[0.5]);
 approxim::assert_abs_diff_eq!(
     iter.next(),
     Some(LineSegment::new([0.0, 0.0], [0.5, 0.0]).unwrap().into())
@@ -1000,20 +1000,20 @@ impl<'a> ToBoundingBox for SegmentRef<'a> {
 
 impl<'a> From<SegmentRef<'a>> for Segment {
     fn from(value: SegmentRef<'a>) -> Self {
-        value.into_owned()
+        value.to_owned()
     }
 }
 
 impl<'a> From<&SegmentRef<'a>> for Segment {
     fn from(value: &SegmentRef<'a>) -> Self {
-        value.into_owned()
+        value.to_owned()
     }
 }
 
 impl<'a> SegmentRef<'a> {
     /// Converts `self` into a [`Segment`] by cloning the underlying segment
     /// variant.
-    pub fn into_owned(&self) -> Segment {
+    pub fn to_owned(&self) -> Segment {
         match self {
             SegmentRef::LineSegment(v) => (*v).clone().into(),
             SegmentRef::ArcSegment(v) => (*v).clone().into(),

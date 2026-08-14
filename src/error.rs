@@ -33,7 +33,8 @@ pub enum ShapeConstructorError<T> {
         idx: usize,
     },
     /**
-    An hole is outside the outer contour of the [`Shape`](crate::shape::Shape).
+    Tried to place a hole outside of the contour of the
+    [`Shape`](crate::shape::Shape).
     If `input` is a collection, the index `idx` specifies the hole in question
     and the contour is the first element of the collection.
      */
@@ -48,7 +49,8 @@ pub enum ShapeConstructorError<T> {
         idx: usize,
     },
     /**
-    An hole is inside one of the holes of the [`Shape`](crate::shape::Shape).
+    Tried to place a hole inside one of the existing holes of the
+    [`Shape`](crate::shape::Shape).
     If `input` is a collection, the hole contour at the index `outer_hole_idx`
     contains the hole contour at the index `inner_hole_idx`.
      */
@@ -175,20 +177,20 @@ An enum containing all errors which can occur when using this crate.
  */
 #[derive(Debug)]
 pub enum ErrorType {
-    /// Received values outside of expected value ranges
+    /// Received a value outside of an expected value range.
     Comparison(Comparison<f64>),
-    /// An arc can only be constructed from three points if these points are not
-    /// collinear, i.e. are not on a single straight line.
+    /// Tried to construct an [`ArcSegment`](crate::segment::ArcSegment) from
+    /// three collinear points.
     Collinear([[f64; 2]; 3]),
     /// Tried to construct a segment from equal start and end points.
     PointsIdentical,
     /// Tried to construct a degenerate arc where the sweep angle would be zero.
     ZeroArcSweep,
     /// Creating a new shape failed because of the contained
-    /// [`ShapeConstructorError].
+    /// [`ShapeConstructorError`].
     NewShape(ShapeConstructorError<Vec<Contour>>),
     /// Adding a new hole to an existing shape failed because of the contained
-    /// [`ShapeConstructorError].
+    /// [`ShapeConstructorError`].
     AddHole(ShapeConstructorError<Contour>),
 }
 

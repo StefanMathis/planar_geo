@@ -16,9 +16,9 @@
 [`with_tolerance`]: crate::WithTolerance::with_tolerance
 [crate_index]: crate
 [draw]: crate::draw
-[`Context`]: cairo::Context
-[cairo]: cairo
-[approxim]: approxim
+[`Context`]: https://gtk-rs.org/gtk-rs-core/stable/latest/docs/cairo/struct.Context.html
+[cairo]: https://gtk-rs.org/gtk-rs-core/stable/latest/docs/cairo
+[approxim]: https://docs.rs/approxim/latest/approxim/
 [serde]: serde
 
 A Rust library for 2D geometry: geometric objects, algorithms and visualization.
@@ -63,9 +63,10 @@ pub mod draw;
 /**
 A reasonable default value for the absolute tolerance.
 
-Various methods within this crate (such as the `covers_` or `intersections_`
+Various methods within this crate (such as the `covers` or `intersections_`
 methods from the [`Primitive`](crate::primitive::Primitive) and [`Composite`](crate::composite::Composite) traits) perform floating point comparisons using
-the [`relative_eq`](approxim::relative_eq) macro from the [`approxim`],
+the [`relative_eq`](approxim::relative_eq) macro from the
+[approxim](https://docs.rs/approxim/latest/approxim/) crate,
 which requires specifying an absolute tolerance `epsilon` and a relative
 tolerance `max_relative`. If those tolerances aren't explicitly provided via a
 [`ToleranceContext`], this constant is used for `epsilon` (and
@@ -81,9 +82,10 @@ pub const DEFAULT_EPSILON: f64 = 0.000000014901161193847656_f64;
 /**
 A reasonable default value for the relative tolerance.
 
-Various methods within this crate (such as the `covers_` or `intersections_`
+Various methods within this crate (such as the `covers` or `intersections_`
 methods from the [`Primitive`](crate::primitive::Primitive) and [`Composite`](crate::composite::Composite) traits) perform floating point comparisons using
-the [`relative_eq`](approxim::relative_eq) macro from the [`approxim`],
+the [`relative_eq`](approxim::relative_eq) macro from the
+[approxim](https://docs.rs/approxim/latest/approxim/) crate,
 which requires specifying an absolute tolerance `epsilon` and a relative
 tolerance `max_relative`. If those tolerances aren't explicitly provided via a
 [`ToleranceContext`], this constant is used for `max_relative` (and
@@ -96,10 +98,12 @@ pub const DEFAULT_MAX_RELATIVE: f64 = 1e-8;
 /**
 A tolerance context wrapper around a geometric object that allows specifying
 custom tolerances for geometric operations such as intersection calculation.
-Tolerance contexts are usually created with the `with_tolerance` method.
+Tolerance contexts are usually created with the
+[`with_tolerance`](WithTolerance::with_tolerance) method.
 
-Various methods within this crate (such as the `covers_` or `intersections_`
-methods from the [`Primitive`](crate::primitive::Primitive) and [`Composite`](crate::composite::Composite) traits) perform floating point comparisons.
+Various methods within this crate (such as the `covers` or `intersections_`
+methods from the [`Primitive`](crate::primitive::Primitive) and
+[`Composite`](crate::composite::Composite) traits) perform floating point comparisons.
 Floating point numbers have finite precision and use a binary representation.
 Consequently, many decimal numbers (such as `0.1`) cannot be represented exactly
 as an `f64`, and arithmetic involving them can produce results that differ
@@ -107,12 +111,14 @@ slightly from the mathematically exact result:
 For example, `assert_eq!(0.1 + 0.2, 0.3)` will panic!
 
 Therefore, the aforementioned methods use the
-[`relative_eq`](approxim::relative_eq) macro from the [`approxim`] crate
+[`relative_eq`](approxim::relative_eq) macro from the
+[approxim](https://docs.rs/approxim/latest/approxim/) crate
 when comparing floats, which requires specifying an absolute tolerance `epsilon`
 and a relative tolerance `max_relative`. These default to [`DEFAULT_EPSILON`]
 and [`DEFAULT_MAX_RELATIVE`], but can be overwritten by using a
-[`ToleranceContext`], which can be created by the
-[`WithTolerance::with_tolerance`] method of the geometric objects:
+[`ToleranceContext`]. This context can be created via the
+[`WithTolerance::with_tolerance`] trait method which is implemented for all
+geometric types:
 
 ```
 use planar_geo::prelude::*;
@@ -138,7 +144,7 @@ let line_segment = LineSegment::new([0.0, 0.0], [1.0, 0.0]).expect("start and en
 let tol_context = line_segment.with_tolerance(1.0, DEFAULT_MAX_RELATIVE);
 assert!(tol_context.covers(&[0.5, 0.5]));
 assert!(tol_context.covers(&[0.5, -0.5]));
-assert!(!tol_context.covers(&[0.5, 1.5])); // This point is still not covered
+assert!(!tol_context.covers(&[0.5, 1.5])); // This point is even outside the new, coarse tolerance
 ```
 
 The default values for [`DEFAULT_EPSILON`] and [`DEFAULT_MAX_RELATIVE`]
@@ -181,8 +187,8 @@ numbers, particularly when comparing them:
 pub struct ToleranceContext<'p, T> {
     /// A reference to the geometric object to which this context applies.
     ///
-    /// Usually, the context is created by calling `with_tolerance` on this
-    /// object.
+    /// Usually, the context is created by calling
+    /// [`with_tolerance`](WithTolerance::with_tolerance) on this object.
     pub inner: &'p T,
     /// The absolute tolerance used within the context.
     pub epsilon: f64,
@@ -223,9 +229,9 @@ Affine transformations for geometric types.
 
 All geometric types within this crate as well as the basic "point"
 `[f64;2]` and [`bounding_box::BoundingBox`] types implement this trait to allow
-for easy affine transformations. All examples in the docstrings of the
+for easy affine transformations. The examples in the docstrings of the
 individual trait methods are for the point type, because all other geometric
-types are based on it. Hence, their implementation basically just delegates to
+types are based on it. Hence, their implementations basically just delegate to
 `impl Transformation for [f64; 2]` for all their points.
  */
 pub trait Transformation {

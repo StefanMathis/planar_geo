@@ -8,9 +8,8 @@ Conceptually, a contour represents a closed outline composed of connected
 segments.
 
 Unlike [`Polysegment`], contours are immutable with respect to their segment
-structure, ensuring that they always remain closed. This distinction allows
-code working with contours to rely on closure as a guaranteed property rather
-than a runtime condition.
+structure, ensuring that they always remain closed. When working with a
+[`Contour`], one can safely depend on this.
 
 Most functionality is provided directly by the [`Contour`] type; see its
 documentation for details on invariants, construction, and usage.
@@ -101,7 +100,7 @@ a [`From`] implementation (which uses [`new`](Contour::new)). Similarily, a
 possible to add or remove segments to / from a [`Contour`]; it needs to be
 converted into a [`Polysegment`], modified and then converted back.
 
-For common geometric bodies, a variety of convenience constructors is available
+For common geometric bodies, a variety of convenience constructors is available:
 - [`circle`](Contour::circle): Constructs a circle contour.
 - [`rectangle`](Contour::rectangle): Constructs a rectangle contour.
 - [`arrow_from_tail_length_angle`](Contour::arrow_from_tail_length_angle):
@@ -115,14 +114,13 @@ Constructs an arrow from the defined values.
 
 Extracting individual elements works in the same fashion as it does for a
 [`Polysegment`] via either the [`get`](Contour::get) method or indexing. Of
-course, the slice returned by [`segments`](Contour::segments) can also be used
-and returns the same segment for an index.
+course, the slice returned by [`segments`](Contour::segments) can also be used.
 
 # Serialization and deserialization
 
 When the `serde` feature is enabled, a polysegment can be serialized and
 deserialized using the [`serde`] crate. It uses the same serialized
-representation as a [`VecDeque`].
+representation as a [`VecDeque<Segment>`].
  */
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -396,8 +394,9 @@ impl Contour {
     of the segment and the origin.
 
     ## LineSegment
-    Connect start and stop to the origin, then calculate the shape area as
-    `0.5 * ((stop[0] - start[0]) * (origin[1] - start[1]) - (origin[0] - start[0]) * (stop[1] - start[1]))`.
+    Connect start and stop to the origin, then calculate the shape area as:
+
+    `0.5 * ((stop[0] - start[0]) * (origin[1] - start[1]) - (origin[0] - start[0]) * (stop[1] - start[1]))`
 
     ## ArcSegment
     Separate the arc into the following three shapes:
@@ -2032,7 +2031,7 @@ impl ArrowHeadSize {
 
     In case of the [`ArrowHeadSize::Height`] variant, this is simply the
     covered value. For the [`ArrowHeadSize::SideLength`] variant, it is
-    calculated as `sqrt(3) / 2` (half the square root of 3).
+    calculated as `side_length * sqrt(3) / 2`.
 
     # Examples
 

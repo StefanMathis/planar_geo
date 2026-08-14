@@ -163,6 +163,10 @@ impl Geometry {
     Returns all intersections between `self` and `other`.
 
     See [`GeometryRef::intersections`] for details and examples.
+
+    By default, [`DEFAULT_EPSILON`] and [`DEFAULT_MAX_RELATIVE`] are used for
+    floating-point comparisons. For custom tolerances, use
+    [`WithTolerance::with_tolerance`].
      */
     pub fn intersections<'b, T: Into<GeometryRef<'b>>>(&self, other: T) -> Vec<Intersection> {
         let this: GeometryRef = self.into();
@@ -175,6 +179,10 @@ impl Geometry {
     This is a parallelized version of [`Geometry::intersections`], see its
     docstring for details. It uses parallel variants of the specialized
     intersection algorithms, if available.
+
+    By default, [`DEFAULT_EPSILON`] and [`DEFAULT_MAX_RELATIVE`] are used for
+    floating-point comparisons. For custom tolerances, use
+    [`WithTolerance::with_tolerance`].
      */
     pub fn intersections_par<'b, T: Into<GeometryRef<'b>>>(&self, other: T) -> Vec<Intersection> {
         let this: GeometryRef = self.into();
@@ -1329,6 +1337,10 @@ impl<'a> GeometryCow<'a> {
     Returns all intersections between `self` and `other`.
 
     See [`GeometryRef::intersections`] for details and examples.
+
+    By default, [`DEFAULT_EPSILON`] and [`DEFAULT_MAX_RELATIVE`] are used for
+    floating-point comparisons. For custom tolerances, use
+    [`WithTolerance::with_tolerance`].
      */
     pub fn intersections<'b, T: Into<GeometryRef<'b>>>(&self, other: T) -> Vec<Intersection> {
         let this: GeometryRef = self.into();
@@ -1341,6 +1353,10 @@ impl<'a> GeometryCow<'a> {
     This is a parallelized version of [`GeometryCow::intersections`], see its
     docstring for details. It uses parallel variants of the specialized
     intersection algorithms, if available.
+
+    By default, [`DEFAULT_EPSILON`] and [`DEFAULT_MAX_RELATIVE`] are used for
+    floating-point comparisons. For custom tolerances, use
+    [`WithTolerance::with_tolerance`].
      */
     pub fn intersections_par<'b, T: Into<GeometryRef<'b>>>(&self, other: T) -> Vec<Intersection> {
         let this: GeometryRef = self.into();

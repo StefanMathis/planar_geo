@@ -2,8 +2,8 @@
 This module contains the definition of the [`Composite`] trait as well as the
 [`Intersection`] and [`SegmentKey`] structs.
 
-The geometric types in this crate are either "primitives" (which implement the
-[`Primitive`](crate::primitive::Primitive) trait) or "composites" (which are
+The geometric types in this crate are either primitives (which implement the
+[`Primitive`](crate::primitive::Primitive) trait) or composites (which are
 defined from multiple primitives and implement the [`Composite`] trait).
  */
 
@@ -22,10 +22,9 @@ A key to access a [`Segment`] with the [`Composite::segment`] trait method.
 
 The key consists of two indices: [`SegmentKey::contour_idx`] and
 [`SegmentKey::segment_idx`]. The former index is used to select the
-[`Contour`] from a [`Shape`]. In the implementations of other [`Composite`]
-types ([`Polysegment`] and [`Contour`]), it is simply ignored.
-[`SegmentKey::segment_idx`] is then used to access the [`Segment`] from the
-[`Polysegment`] or [`Contour`].
+[`Contour`] from a [`Shape`]. For other [`Composite`] types ([`Polysegment`] and
+[`Contour`]), it is simply ignored. [`SegmentKey::segment_idx`] is then used to
+access the [`Segment`] from the [`Polysegment`] or [`Contour`].
 
 If the [`contour_idx`](SegmentKey::contour_idx) is not needed, the convenience
 constructor [`SegmentKey::from_segment_idx`] can be used (which sets the
@@ -98,17 +97,18 @@ impl SegmentKey {
 }
 
 /**
-Intersection between two [`Segment`]s of two geometric types consisting of the
-[`Intersection::point`] itself and the keys to the involved segments.
+Intersection between two [`Segment`]s of two geometric entities. The struct
+consists of the [`Intersection::point`] itself and the [`SegmentKey`]s to the
+involved segments of both entities.
 
 This type is returned by all intersection methods of the [`Composite`] trait
-and the geometry type enums in [crate::geometry]. It consists of the
+and the geometry type enums in [geometry](crate::geometry). It consists of the
 [`Intersection::point`] and two [`SegmentKey`]s which can be used to retrieve
 the segments which intersect each other. The [`Intersection::left`] key gets the
 [`Segment`] of the first argument to the intersection method (usually `self`),
 the [`Intersection::right`] key gets that of the second argument (often called
-`&other`). If one of the arguments is not a [`Composite`], the corresponding key
-has no use and is initialized to its default values (0 for both indices).
+`other`). If one of the arguments is not a [`Composite`], the corresponding key
+has no use and is initialized with its default values (0 for both indices).
 
 This struct implements [`approxim::AbsDiffEq`], [`approxim::RelativeEq`] and
 [`approxim::UlpsEq`] and can therefore be used in approximate comparisons:
@@ -144,7 +144,7 @@ pub struct Intersection {
     /// The intersection point itself.
     pub point: [f64; 2],
     /// Key to retrieve the intersected segment of the "left" side composite
-    /// (`&self` for intersection methods).
+    /// (`self` for intersection methods).
     pub left: SegmentKey,
     /// Key to retrieve the intersected segment of the "right" side composite
     /// (second argument for intersection methods).
@@ -500,8 +500,8 @@ The enums contain the first reason the algorithm found which unambiguously
 proves the result, although there might be multiple reasons. For example, when a
 [`Contour`] is not contained in `self`, this might be due to the bounding boxes
 being disjoint and due to a particular point not being contained. In this case,
-the algorithm would first check the bounding boxes and return that reason
-[`NotContained::OutsideBoundingBox`] wrappend in `Err`.
+the algorithm would first check the bounding boxes and return
+[`NotContained::OutsideBoundingBox`].
 
 ## Containment
 
@@ -531,12 +531,12 @@ intersection calculation between composites can be easily parallelized, there is
 a serial and a parallel variant with the latter having a `_par` suffix and
 returning a [`ParallelIterator`].
 
-These iterators return [`Intersection`] objects. The "left" side of the object
+These iterators return [`Intersection`] structs. The "left" side of the struct
 refers to the first argument `self`, whereas the "right" side refers to the type
 of the other composite. See [`Intersection`] for more.
 
 In contrast to primitives, composites can self-intersect. The self-intersection
-points can be calculated by using `self` as the second argument `other`:
+points can be calculated by reusing `self` as the second argument:
 
 ```
 use planar_geo::prelude::*;
@@ -614,7 +614,7 @@ pub trait Composite: crate::private::Sealed + Sync {
     Returns an iterator over all segments of `self` and their keys.
 
     If `self` is a [`Shape`], the segments of the outer contour are returned
-    first, followed by those of the holes (in arbitrary order)
+    first, followed by those of the holes (in insertion order)
      */
     fn iter<'a>(&'a self) -> impl Iterator<Item = (SegmentKey, &'a Segment)>;
 
@@ -629,7 +629,7 @@ pub trait Composite: crate::private::Sealed + Sync {
 
     For a [`Polysegment`] and a [`Contour`], this is equal to the length
     of the underlying [`Vec<Segment>`], whereas for a [`Shape`], this is equal
-    to the number of all segments of all underlying [`Contour`]s.
+    to the number of all segments of its [`Contour`]s.
 
     # Examples
 
@@ -655,28 +655,36 @@ pub trait Composite: crate::private::Sealed + Sync {
 
     The implementation of this function relies on the fact that the centroids
     of simple geometric bodies (such as the [`Segment`]s making up a
-    [`Polysegment`]) can be calculated from simple formulae. Those centroids
+    [`Polysegment`]) can be calculated from analytic formulas. Those centroids
     can then be combined into that of a complex structure using the following
-    formulae:
+    formula:
+
     `x = ∑ (xi * Ai) / ∑ Ai`
+
     `y = ∑ (yi * Ai) / ∑ Ai`
+
     where `xi` and `yi` are the centroid parameters and `Ai` is the surface area
     of the "segment area" `i` defined by connecting the segment end points to
     the origin.
 
-    The centroids of the segment areas ar are calculated as follows:
+    The exact centroid algorithm depends on the segment type:
 
     ## LineSegment
     Connect start and stop to the origin, then calculate the shape area as:
-    `0.5 * ((stop[0] - start[0]) * (origin[1] - start[1]) - (origin[0] - start[0]) * (stop[1] - start[1]))`.
-    The centroid is calculated as:
-    `x = (start[0] + stop[0] + origin[0]) / 3` and `y = (start[1] + stop[1] + origin[1]) / 3`.
+
+    `0.5 * ((stop[0] - start[0]) * (origin[1] - start[1]) - (origin[0] - start[0]) * (stop[1] - start[1]))`
+
+    The centroid is then:
+
+    `x = (start[0] + stop[0] + origin[0]) / 3` and `y = (start[1] + stop[1] + origin[1]) / 3`
 
     ## ArcSegment
     Separate the arc into the following three shapes:
+
     1) triangle start -> stop -> origin
     2) circular segment start -> stop -> arc center
     3) triangle start -> stop -> center
+
     Calculate the areas and centroids of those segments, then summarize them as
     follows: `A = A1 + A2 - A3`.
 
@@ -702,9 +710,9 @@ pub trait Composite: crate::private::Sealed + Sync {
     `self`.
 
     A composite contains another geometric entity if all points of the latter
-    are within the enclosed surface described by `self` and not on one of the
-    boundary segments. By definition, this means that a [`Polysegment`] cannot
-    contain anything.
+    are within the enclosed surface described by `self` and not on one of its
+    boundary segments. This means that a [`Polysegment`] cannot contain anything
+    by definition since it doesn't enclose a surface.
 
     By default, [`DEFAULT_EPSILON`](crate::DEFAULT_EPSILON) and
     [`DEFAULT_MAX_RELATIVE`](crate::DEFAULT_MAX_RELATIVE) are used for
@@ -792,7 +800,7 @@ pub trait Composite: crate::private::Sealed + Sync {
     `self`.
 
     A composite covers another geometric entity if all points of the latter
-    are within or on the enclosed surface described by `self`.
+    are within the enclosed surface or on the boundary of `self`.
 
     By default, [`DEFAULT_EPSILON`](crate::DEFAULT_EPSILON) and
     [`DEFAULT_MAX_RELATIVE`](crate::DEFAULT_MAX_RELATIVE) are used for
@@ -1618,7 +1626,7 @@ pub(crate) trait CompositeWithTol: Composite {
 
 /**
 This enum defines how a [`Polysegment`] / [`Contour`] should be polygonized
-(approximated by a polygon). It is the counterpart of [`SegmentPolygonizer`] and
+(approximated by a polygon). It is the counterpart to [`SegmentPolygonizer`] and
 built upon it.
  */
 #[derive(Debug, Clone)]
@@ -1648,7 +1656,7 @@ pub enum Polygonizer {
         /// particular segment in the [`map`](Polygonizer::Individual::map).
         default: SegmentPolygonizer,
         /**
-        Specifies the [`SegmentPolygonizer`] for each segment via an segment
+        Specifies the [`SegmentPolygonizer`] for each segment via a segment
         index -> polygonizer relationship.
          */
         map: std::collections::HashMap<usize, SegmentPolygonizer>,

@@ -3,9 +3,9 @@ This module contains the [`Line`] struct, which represents a two-dimensional
 mathematical line - an infinitely long object with no width or curvature.
 
 In the context of this crate, a line is treated as a "primitive" geometric type.
-Unlike the "segment" types ([`Segment`](crate::segment::Segment) and its
+Unlike the segment types ([`Segment`](crate::segment::Segment) and its
 variants [`ArcSegment`] and [`LineSegment`]), it is not used in defining more
-complex "composite" types (such as
+complex composite types (such as
 [`Polysegment`](crate::polysegment::Polysegment)). Its main purpose is to serve
 as a tool for calculations, for example when determining intersections.
 
@@ -41,8 +41,8 @@ of the corresponding infinite lines and then checking whether the found
 intersection point is actually covered by both segments.
 
 Obviously, a [`Line`] object can be directly created by providing its three
-coefficients. Additionally, it is also possible to derive a [`Line`] from a
-point it goes through and its angle ([`Line::from_point_angle`]) and from a
+coefficients. Additionally, it is also possible to derive a [`Line`] from one of
+its points and an angle ([`Line::from_point_angle`]) as well as from a
 two-point representation ([`Line::from_two_points`]).
 Because the [`Line`] is closely related to the
 [`LineSegment`], a [`From`] implementation exists.
@@ -70,8 +70,8 @@ pub struct Line {
 
 impl Line {
     /**
-    Creates a [`Line`] from its three coefficients. This is an alias for using
-    the literal struct construction syntax `Line { a, b, c }`.
+    Creates a [`Line`] from its three coefficients. This is an alias for the
+    literal struct construction syntax `Line { a, b, c }`.
      */
     pub fn new(a: f64, b: f64, c: f64) -> Self {
         return Self { a, b, c };
@@ -79,7 +79,7 @@ impl Line {
 
     /**
     Creates a [`Line`] from a point it goes through and its angle (relative to
-    the `x` / horizontal axis).
+    the x- / horizontal axis).
 
     # Examples
 
