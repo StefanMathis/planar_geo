@@ -144,7 +144,7 @@ impl Polysegment {
 
     /**
     Creates an [`Polysegment`] of [`LineSegment`]s from the given points.
-    If two consecutive points are self_intersection, they are treated as a single point.
+    If two consecutive points are indentical, they are treated as a single point.
 
     # Examples
 
@@ -155,7 +155,7 @@ impl Polysegment {
     let polysegment = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]);
     assert_eq!(polysegment.len(), 2);
 
-    // Two consecutive points are self_intersection
+    // Two consecutive points are identical
     let polysegment = Polysegment::from_points(&[[0.0, 0.0], [0.0, 0.0], [0.0, 1.0]]);
     assert_eq!(polysegment.len(), 1);
     ```
@@ -810,12 +810,12 @@ impl Polysegment {
     }
 
     /**
-    Cuts `self` into multiple polysegments by intersecting it with `other` and returns
-    those them.
+    Cuts `self` into multiple polysegments by intersecting it with `other` and
+    returns those them.
 
-    The specified tolerances `epsilon` and `max_relative` are used to determine
-    intersections, see documentation of
-    [`PrimitiveIntersections`](crate::primitive::PrimitiveIntersections).
+    By default, [`DEFAULT_EPSILON`] and [`DEFAULT_MAX_RELATIVE`] are used for
+    floating-point comparisons. For custom tolerances, use
+    [`WithTolerance::with_tolerance`].
 
     # Examples
 
@@ -1722,6 +1722,12 @@ impl CompositeWithTol for Polysegment {
 }
 
 impl<'c> ToleranceContext<'c, Polysegment> {
+    /**
+    Cuts the wrapped [`Polysegment`] into multiple polysegments by intersecting
+    it with `other` and returns them, using the tolerances stored in `self`.
+
+    This is the tolerance-aware counterpart of [`Polysegment::intersection_cut`].
+    */
     pub fn intersection_cut(&self, other: &Polysegment) -> Vec<Polysegment> {
         // Inner helper function
         fn create_cut_segment(

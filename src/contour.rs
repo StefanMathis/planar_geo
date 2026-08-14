@@ -359,12 +359,12 @@ impl Contour {
     }
 
     /**
-    Cuts `self` into multiple polysegments by intersecting it with `other` and returns
-    those them.
+    Cuts `self` into multiple polysegments by intersecting it with `other` and
+    returns them.
 
-    The specified tolerances `epsilon` and `max_relative` are used to determine
-    intersections, see documentation of
-    [`PrimitiveIntersections`](crate::primitive::PrimitiveIntersections).
+    By default, [`DEFAULT_EPSILON`] and [`DEFAULT_MAX_RELATIVE`] are used for
+    floating-point comparisons. For custom tolerances, use
+    [`WithTolerance::with_tolerance`].
 
     # Examples
 
@@ -1884,6 +1884,12 @@ impl CompositeWithTol for Contour {
 }
 
 impl<'c> ToleranceContext<'c, Contour> {
+    /**
+    Cuts the wrapped [`Contour`] into multiple polysegments by intersecting it
+    with `other` and returns them, using the tolerances stored in `self`.
+
+    This is the tolerance-aware counterpart of [`Contour::intersection_cut`].
+    */
     pub fn intersection_cut(&self, other: &Polysegment) -> Vec<Polysegment> {
         let mut lines = self
             .inner
