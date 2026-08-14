@@ -1,6 +1,6 @@
 use std::f64::consts::{FRAC_PI_2, FRAC_PI_4, PI};
 
-use approx::assert_abs_diff_eq;
+use approxim::assert_abs_diff_eq;
 use planar_geo::{contour::ArrowHeadSize, prelude::Contour};
 
 #[test]

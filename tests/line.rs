@@ -1,6 +1,6 @@
 use std::f64::consts::{FRAC_PI_4, PI};
 
-use approx;
+use approxim;
 use planar_geo::prelude::*;
 
 #[test]
@@ -200,7 +200,7 @@ fn test_intersection_line_line() {
         let first = Line::from_point_angle([0.0, 0.0], -PI / 3.0);
         let second = Line::from_point_angle([0.0, -2.0], PI / 3.0);
 
-        approx::assert_abs_diff_eq!(
+        approxim::assert_abs_diff_eq!(
             first.intersections_primitive(&second),
             PrimitiveIntersections::One([1.0 / 3.0f64.sqrt(), -1.0])
         );
@@ -216,7 +216,7 @@ fn test_intersection_line_line() {
 #[test]
 fn test_self_intersection() {
     let line = Line::from_point_angle([0.0, 0.0], 0.0);
-    approx::assert_abs_diff_eq!(
+    approxim::assert_abs_diff_eq!(
         line.intersections_primitive(&line),
         PrimitiveIntersections::Zero
     );
@@ -226,11 +226,11 @@ fn test_self_intersection() {
 fn test_intersection_with_covered_line_segment() {
     let line = Line::from_point_angle([0.0, 0.0], 0.0);
     let ls = LineSegment::new([0.0, 0.0], [1.0, 0.0]).unwrap();
-    approx::assert_abs_diff_eq!(
+    approxim::assert_abs_diff_eq!(
         line.intersections_primitive(&ls),
         PrimitiveIntersections::Zero
     );
-    approx::assert_abs_diff_eq!(
+    approxim::assert_abs_diff_eq!(
         ls.intersections_primitive(&line),
         PrimitiveIntersections::Zero
     );
@@ -252,7 +252,7 @@ fn test_intersection_arc_segment() {
             1.4835298641951864,
         )
         .unwrap();
-        approx::assert_abs_diff_eq!(
+        approxim::assert_abs_diff_eq!(
             arc.intersections_primitive(&line),
             PrimitiveIntersections::One([0.002935116493197851, 0.0020953915850751483]),
             epsilon = 1e-6

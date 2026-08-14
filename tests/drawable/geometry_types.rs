@@ -1022,7 +1022,7 @@ fn test_block_with_fillets() {
 
     let view = Viewport::from_bounding_box(&bb, SideLength::Long(500));
 
-    approx::assert_abs_diff_eq!(view.scale, 22.7272727, epsilon = 0.00001);
+    approxim::assert_abs_diff_eq!(view.scale, 22.7272727, epsilon = 0.00001);
     assert!(
         view.compare_or_create(
             std::path::Path::new("tests/img/block_with_fillets_1.png"),
@@ -1047,7 +1047,7 @@ fn test_block_with_fillets() {
 
     let view = Viewport::from_bounding_box(&bb, SideLength::Long(500));
 
-    approx::assert_abs_diff_eq!(view.scale, 0.0227272727, epsilon = 0.00001);
+    approxim::assert_abs_diff_eq!(view.scale, 0.0227272727, epsilon = 0.00001);
     assert!(
         view.compare_or_create(
             std::path::Path::new("tests/img/block_with_fillets_2.png"),
@@ -1072,7 +1072,7 @@ fn test_block_with_fillets() {
 
     let view = Viewport::from_bounding_box(&bb, SideLength::Long(500));
 
-    approx::assert_abs_diff_eq!(view.scale, 22727.272727, epsilon = 0.00001);
+    approxim::assert_abs_diff_eq!(view.scale, 22727.272727, epsilon = 0.00001);
     assert!(
         view.compare_or_create(
             std::path::Path::new("tests/img/block_with_fillets_3.png"),

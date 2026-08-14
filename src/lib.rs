@@ -12,13 +12,14 @@
 [`Transformation`]: crate::Transformation
 [`DEFAULT_EPSILON`]: crate::DEFAULT_EPSILON
 [`DEFAULT_MAX_RELATIVE`]: crate::DEFAULT_MAX_RELATIVE
+[`ToleranceContext`]: crate::ToleranceContext
+[`with_tolerance`]: crate::ToleranceContext::with_tolerance
 [crate_index]: crate
 [draw]: crate::draw
 [`Context`]: cairo::Context
 [cairo]: cairo
-[approxim]: approx
+[approxim]: approxim
 [serde]: serde
-[`relative_eq`]: approx::relative_eq
 
 A Rust library for 2D geometry: geometric objects, algorithms and visualization.
  */
@@ -64,7 +65,7 @@ A reasonable default value for the absolute tolerance.
 
 Various methods within this crate (such as the `covers_` or `intersections_`
 methods from the [`Primitive`](crate::primitive::Primitive) and [`Composite`](crate::composite::Composite) traits) perform floating point comparisons using
-the [`relative_eq`](approx::relative_eq) macro from the [`approxim`](approx),
+the [`relative_eq`](approxim::relative_eq) macro from the [`approxim`](approxim),
 which requires specifying an absolute tolerance `epsilon` and a relative
 tolerance `max_relative`. If those tolerances aren't explicitly provided via a
 [`ToleranceContext`], this constant is used for `epsilon` (and
@@ -82,7 +83,7 @@ A reasonable default value for the relative tolerance.
 
 Various methods within this crate (such as the `covers_` or `intersections_`
 methods from the [`Primitive`](crate::primitive::Primitive) and [`Composite`](crate::composite::Composite) traits) perform floating point comparisons using
-the [`relative_eq`](approx::relative_eq) macro from the [`approxim`](approx),
+the [`relative_eq`](approxim::relative_eq) macro from the [`approxim`](approxim),
 which requires specifying an absolute tolerance `epsilon` and a relative
 tolerance `max_relative`. If those tolerances aren't explicitly provided via a
 [`ToleranceContext`], this constant is used for `max_relative` (and
@@ -106,7 +107,7 @@ slightly from the mathematically exact result:
 For example, `assert_eq!(0.1 + 0.2, 0.3)` will panic!
 
 Therefore, the aforementioned methods use the
-[`relative_eq`](approx::relative_eq) macro from the [`approxim`](approx) crate
+[`relative_eq`](approxim::relative_eq) macro from the [`approxim`](approxim) crate
 when comparing floats, which requires specifying an absolute tolerance `epsilon`
 and a relative tolerance `max_relative`. These default to [`DEFAULT_EPSILON`]
 and [`DEFAULT_MAX_RELATIVE`], but can be overwritten by using a
@@ -169,8 +170,8 @@ recommended to simply use the default tolerances (which happens automatically
 unless `with_tolerance` is inserted between the geometric object and the
 method).
 
-As stated in the [`approxim`](approx) documentation: "Floating point is hard!".
-The following links, taken directly from the [`approxim`](approx) crate
+As stated in the [`approxim`](approxim) documentation: "Floating point is hard!".
+The following links, taken directly from the [`approxim`](approxim) crate
 documentation, provide more informatio regarding the behaviour of floating point
 numbers, particularly when comparing them:
 - [Comparing Floating Point Inners, 2012 Edition](https://randomascii.wordpress.com/2012/02/25/comparing-floating-point-numbers-2012-edition/)
@@ -250,7 +251,7 @@ pub trait Transformation {
 
     let mut pt = [1.0, 1.0];
     pt.rotate([1.0, -1.0], PI);
-    approx::assert_abs_diff_eq!(pt, [1.0, -3.0], epsilon = 1e-15);
+    approxim::assert_abs_diff_eq!(pt, [1.0, -3.0], epsilon = 1e-15);
     ```
      */
     fn rotate(&mut self, center: [f64; 2], angle: f64);
@@ -276,9 +277,9 @@ pub trait Transformation {
 
     let mut pt = [1.0, 1.0];
     pt.line_reflection([0.0, 0.0], [0.0, 2.0]); // Vertical line
-    approx::assert_abs_diff_eq!(pt, [-1.0, 1.0], epsilon = 1e-15);
+    approxim::assert_abs_diff_eq!(pt, [-1.0, 1.0], epsilon = 1e-15);
     pt.line_reflection([0.0, -1.0], [2.0, -1.0]); // Horizontal line
-    approx::assert_abs_diff_eq!(pt, [-1.0, -3.0], epsilon = 1e-15);
+    approxim::assert_abs_diff_eq!(pt, [-1.0, -3.0], epsilon = 1e-15);
     ```
      */
     fn line_reflection(&mut self, start: [f64; 2], stop: [f64; 2]) -> ();
@@ -292,9 +293,9 @@ pub trait Transformation {
 
     let mut pt = [1.0, 1.0];
     pt.point_reflection([0.0, 0.0]);
-    approx::assert_abs_diff_eq!(pt, [-1.0, -1.0], epsilon = 1e-15);
+    approxim::assert_abs_diff_eq!(pt, [-1.0, -1.0], epsilon = 1e-15);
     pt.point_reflection([0.0, 2.0]);
-    approx::assert_abs_diff_eq!(pt, [1.0, 5.0], epsilon = 1e-15);
+    approxim::assert_abs_diff_eq!(pt, [1.0, 5.0], epsilon = 1e-15);
     ```
      */
     fn point_reflection(&mut self, point: [f64; 2]) -> () {

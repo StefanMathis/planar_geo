@@ -22,7 +22,7 @@ use crate::{
     DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE, ToleranceContext, Transformation, WithTolerance,
     composite::*,
 };
-use approx::relative_eq;
+use approxim::relative_eq;
 use bounding_box::{BoundingBox, ToBoundingBox};
 use rayon::prelude::*;
 
@@ -205,7 +205,7 @@ impl Polysegment {
     /// ```
     /// use std::f64::consts::FRAC_PI_2;
     /// use planar_geo::prelude::*;
-    /// use approx;
+    /// use approxim;
     ///
     /// let polysegment = Polysegment::from_fillet_chain(
     ///    &[
@@ -218,12 +218,12 @@ impl Polysegment {
     ///     ],
     ///     &[0.5, 0.0, 0.25, 2.0],
     /// );
-    /// approx::assert_abs_diff_eq!(
+    /// approxim::assert_abs_diff_eq!(
     ///     polysegment.get(0),
     ///     Some(&(LineSegment::new([0.0, 0.0], [0.5, 0.0]).unwrap().into())),
     ///     epsilon = 1e-8
     /// );
-    /// approx::assert_abs_diff_eq!(
+    /// approxim::assert_abs_diff_eq!(
     ///     polysegment.get(1),
     ///     Some(
     ///         &(ArcSegment::from_start_center_angle([0.5, 0.0], [0.5, 0.5], FRAC_PI_2)
@@ -232,17 +232,17 @@ impl Polysegment {
     ///     ),
     ///     epsilon = 1e-8
     /// );
-    /// approx::assert_abs_diff_eq!(
+    /// approxim::assert_abs_diff_eq!(
     ///     polysegment.get(2),
     ///     Some(&LineSegment::new([1.0000000000000002, 0.5000000000000001], [1.0, 0.5]).unwrap().into()),
     ///     epsilon = 1e-8
     /// );
-    /// approx::assert_abs_diff_eq!(
+    /// approxim::assert_abs_diff_eq!(
     ///     polysegment.get(3),
     ///     Some(&LineSegment::new([1.0, 0.5], [0.75, 0.5]).unwrap().into()),
     ///     epsilon = 1e-8
     /// );
-    /// approx::assert_abs_diff_eq!(
+    /// approxim::assert_abs_diff_eq!(
     ///     polysegment.get(4),
     ///     Some(
     ///         &(ArcSegment::from_start_center_angle([0.75, 0.5], [0.75, 0.75], -FRAC_PI_2)
@@ -252,12 +252,12 @@ impl Polysegment {
     ///     epsilon = 1e-8
     /// );
     /// // "Glue segment" between two adjacent arcs
-    /// approx::assert_abs_diff_eq!(
+    /// approxim::assert_abs_diff_eq!(
     ///     polysegment.get(5),
     ///     Some(&LineSegment::new([0.5000000000000006, 0.75], [0.5000000000000006, 0.7499999999999999]).unwrap().into()),
     ///     epsilon = 1e-8
     /// );
-    /// approx::assert_abs_diff_eq!(
+    /// approxim::assert_abs_diff_eq!(
     ///     polysegment.get(6),
     ///     Some(
     ///         &(ArcSegment::from_start_center_angle([0.5, 0.75], [0.25, 0.75], FRAC_PI_2)
@@ -266,7 +266,7 @@ impl Polysegment {
     ///     ),
     ///     epsilon = 1e-8
     /// );
-    /// approx::assert_abs_diff_eq!(
+    /// approxim::assert_abs_diff_eq!(
     ///     polysegment.get(7),
     ///     Some(&(LineSegment::new([0.25, 1.0], [0.0, 1.0]).unwrap().into())),
     ///     epsilon = 1e-8
@@ -743,7 +743,7 @@ impl Polysegment {
 
     ```
     use std::f64::consts::{FRAC_PI_2, SQRT_2};
-    use approx::assert_abs_diff_eq;
+    use approxim::assert_abs_diff_eq;
     use planar_geo::prelude::*;
 
     let mut polysegment = Polysegment::new();
@@ -888,20 +888,20 @@ impl Polysegment {
     polysegment.rotational_pattern([1.0, 1.0], FRAC_PI_2, 0);
     let points: Vec<[f64; 2]> = polysegment.points().collect();
     assert_eq!(points.len(), 2);
-    approx::assert_abs_diff_eq!(points[0], [0.0, 0.0], epsilon = 1e-10);
-    approx::assert_abs_diff_eq!(points[1], [1.0, 0.0], epsilon = 1e-10);
+    approxim::assert_abs_diff_eq!(points[0], [0.0, 0.0], epsilon = 1e-10);
+    approxim::assert_abs_diff_eq!(points[1], [1.0, 0.0], epsilon = 1e-10);
 
     // Two repetitions: The points are rotated by 90° and 180° respectively.
     // The polysegment has 6 points after the extension
     polysegment.rotational_pattern([1.0, 1.0], FRAC_PI_2, 2);
     let points: Vec<[f64; 2]> = polysegment.points().collect();
     assert_eq!(points.len(), 6);
-    approx::assert_abs_diff_eq!(points[0], [0.0, 0.0], epsilon = 1e-10);
-    approx::assert_abs_diff_eq!(points[1], [1.0, 0.0], epsilon = 1e-10);
-    approx::assert_abs_diff_eq!(points[2], [2.0, 0.0], epsilon = 1e-10);
-    approx::assert_abs_diff_eq!(points[3], [2.0, 1.0], epsilon = 1e-10);
-    approx::assert_abs_diff_eq!(points[4], [2.0, 2.0], epsilon = 1e-10);
-    approx::assert_abs_diff_eq!(points[5], [1.0, 2.0], epsilon = 1e-10);
+    approxim::assert_abs_diff_eq!(points[0], [0.0, 0.0], epsilon = 1e-10);
+    approxim::assert_abs_diff_eq!(points[1], [1.0, 0.0], epsilon = 1e-10);
+    approxim::assert_abs_diff_eq!(points[2], [2.0, 0.0], epsilon = 1e-10);
+    approxim::assert_abs_diff_eq!(points[3], [2.0, 1.0], epsilon = 1e-10);
+    approxim::assert_abs_diff_eq!(points[4], [2.0, 2.0], epsilon = 1e-10);
+    approxim::assert_abs_diff_eq!(points[5], [1.0, 2.0], epsilon = 1e-10);
     ```
     */
     pub fn rotational_pattern(&mut self, center: [f64; 2], angle: f64, repetitions: usize) -> () {
@@ -936,19 +936,19 @@ impl Polysegment {
     polysegment.translational_pattern([1.0, 1.0], 0);
     let points: Vec<[f64; 2]> = polysegment.points().collect();
     assert_eq!(points.len(), 2);
-    approx::assert_abs_diff_eq!(points[0], [0.0, 0.0], epsilon = 1e-10);
-    approx::assert_abs_diff_eq!(points[1], [1.0, 0.0], epsilon = 1e-10);
+    approxim::assert_abs_diff_eq!(points[0], [0.0, 0.0], epsilon = 1e-10);
+    approxim::assert_abs_diff_eq!(points[1], [1.0, 0.0], epsilon = 1e-10);
 
     // Two repetitions: A "stair" polysegment is created
     polysegment.translational_pattern([1.0, 1.0], 2);
     let points: Vec<[f64; 2]> = polysegment.points().collect();
     assert_eq!(points.len(), 6);
-    approx::assert_abs_diff_eq!(points[0], [0.0, 0.0], epsilon = 1e-10);
-    approx::assert_abs_diff_eq!(points[1], [1.0, 0.0], epsilon = 1e-10);
-    approx::assert_abs_diff_eq!(points[2], [1.0, 1.0], epsilon = 1e-10);
-    approx::assert_abs_diff_eq!(points[3], [2.0, 1.0], epsilon = 1e-10);
-    approx::assert_abs_diff_eq!(points[4], [2.0, 2.0], epsilon = 1e-10);
-    approx::assert_abs_diff_eq!(points[5], [3.0, 2.0], epsilon = 1e-10);
+    approxim::assert_abs_diff_eq!(points[0], [0.0, 0.0], epsilon = 1e-10);
+    approxim::assert_abs_diff_eq!(points[1], [1.0, 0.0], epsilon = 1e-10);
+    approxim::assert_abs_diff_eq!(points[2], [1.0, 1.0], epsilon = 1e-10);
+    approxim::assert_abs_diff_eq!(points[3], [2.0, 1.0], epsilon = 1e-10);
+    approxim::assert_abs_diff_eq!(points[4], [2.0, 2.0], epsilon = 1e-10);
+    approxim::assert_abs_diff_eq!(points[5], [3.0, 2.0], epsilon = 1e-10);
     ```
     */
     pub fn translational_pattern(&mut self, shift: [f64; 2], repetitions: usize) -> () {

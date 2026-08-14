@@ -19,7 +19,7 @@ documentation for details on invariants, construction, and usage.
 use std::collections::VecDeque;
 use std::f64::consts::TAU;
 
-use approx::relative_eq;
+use approxim::relative_eq;
 use compare_variables::*;
 use rayon::prelude::*;
 #[cfg(feature = "serde")]
@@ -551,12 +551,12 @@ impl Contour {
     let verts: Vec<[f64; 2]> = arrow.points().collect();
 
     assert_eq!(verts.len(), 6);
-    approx::assert_abs_diff_eq!(verts[0], [0.0, 0.0], epsilon = 1e-5);
-    approx::assert_abs_diff_eq!(verts[1], [1.0, 0.0], epsilon = 1e-5);
-    approx::assert_abs_diff_eq!(verts[2], [1.0, 1.0 / 3.0f64.sqrt()], epsilon = 1e-5);
-    approx::assert_abs_diff_eq!(verts[3], [2.0, 0.0], epsilon = 1e-5);
-    approx::assert_abs_diff_eq!(verts[4], [1.0, -1.0 / 3.0f64.sqrt()], epsilon = 1e-5);
-    approx::assert_abs_diff_eq!(verts[5], [1.0, 0.0], epsilon = 1e-5);
+    approxim::assert_abs_diff_eq!(verts[0], [0.0, 0.0], epsilon = 1e-5);
+    approxim::assert_abs_diff_eq!(verts[1], [1.0, 0.0], epsilon = 1e-5);
+    approxim::assert_abs_diff_eq!(verts[2], [1.0, 1.0 / 3.0f64.sqrt()], epsilon = 1e-5);
+    approxim::assert_abs_diff_eq!(verts[3], [2.0, 0.0], epsilon = 1e-5);
+    approxim::assert_abs_diff_eq!(verts[4], [1.0, -1.0 / 3.0f64.sqrt()], epsilon = 1e-5);
+    approxim::assert_abs_diff_eq!(verts[5], [1.0, 0.0], epsilon = 1e-5);
     ```
      */
     pub fn arrow_from_tail_length_angle(
@@ -625,12 +625,12 @@ impl Contour {
     let arrow = Contour::arrow_from_tail_head(tail, head, stem_width, ArrowHeadSize::Height(1.0)).unwrap();
     let verts: Vec<[f64; 2]> = arrow.points().collect();
 
-    approx::assert_abs_diff_eq!(verts[0], [0.0, 0.0], epsilon = 1e-5);
-    approx::assert_abs_diff_eq!(verts[1], [1.0, 0.0], epsilon = 1e-5);
-    approx::assert_abs_diff_eq!(verts[2], [1.0, 1.0 / 3.0f64.sqrt()], epsilon = 1e-5);
-    approx::assert_abs_diff_eq!(verts[3], [2.0, 0.0], epsilon = 1e-5);
-    approx::assert_abs_diff_eq!(verts[4], [1.0, -1.0 / 3.0f64.sqrt()], epsilon = 1e-5);
-    approx::assert_abs_diff_eq!(verts[5], [1.0, 0.0], epsilon = 1e-5);
+    approxim::assert_abs_diff_eq!(verts[0], [0.0, 0.0], epsilon = 1e-5);
+    approxim::assert_abs_diff_eq!(verts[1], [1.0, 0.0], epsilon = 1e-5);
+    approxim::assert_abs_diff_eq!(verts[2], [1.0, 1.0 / 3.0f64.sqrt()], epsilon = 1e-5);
+    approxim::assert_abs_diff_eq!(verts[3], [2.0, 0.0], epsilon = 1e-5);
+    approxim::assert_abs_diff_eq!(verts[4], [1.0, -1.0 / 3.0f64.sqrt()], epsilon = 1e-5);
+    approxim::assert_abs_diff_eq!(verts[5], [1.0, 0.0], epsilon = 1e-5);
     ```
      */
     pub fn arrow_from_tail_head(
@@ -662,12 +662,12 @@ impl Contour {
     let verts: Vec<[f64; 2]> = arrow.points().collect();
 
     assert_eq!(verts.len(), 6);
-    approx::assert_abs_diff_eq!(verts[0], [-2.0, 0.0], epsilon = 1e-5);
-    approx::assert_abs_diff_eq!(verts[1], [-1.0, 0.0], epsilon = 1e-5);
-    approx::assert_abs_diff_eq!(verts[2], [-1.0, 1.0 / 3.0f64.sqrt()], epsilon = 1e-5);
-    approx::assert_abs_diff_eq!(verts[3], [0.0, 0.0], epsilon = 1e-5);
-    approx::assert_abs_diff_eq!(verts[4], [-1.0, -1.0 / 3.0f64.sqrt()], epsilon = 1e-5);
-    approx::assert_abs_diff_eq!(verts[5], [-1.0, 0.0], epsilon = 1e-5);
+    approxim::assert_abs_diff_eq!(verts[0], [-2.0, 0.0], epsilon = 1e-5);
+    approxim::assert_abs_diff_eq!(verts[1], [-1.0, 0.0], epsilon = 1e-5);
+    approxim::assert_abs_diff_eq!(verts[2], [-1.0, 1.0 / 3.0f64.sqrt()], epsilon = 1e-5);
+    approxim::assert_abs_diff_eq!(verts[3], [0.0, 0.0], epsilon = 1e-5);
+    approxim::assert_abs_diff_eq!(verts[4], [-1.0, -1.0 / 3.0f64.sqrt()], epsilon = 1e-5);
+    approxim::assert_abs_diff_eq!(verts[5], [-1.0, 0.0], epsilon = 1e-5);
     ```
      */
     pub fn arrow_from_head_length_angle(

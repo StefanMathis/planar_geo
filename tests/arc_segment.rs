@@ -1,4 +1,4 @@
-use approx::assert_abs_diff_eq;
+use approxim::assert_abs_diff_eq;
 use std::f64::consts::{FRAC_PI_2, PI, SQRT_2, TAU};
 
 use planar_geo::prelude::*;
@@ -576,9 +576,9 @@ fn test_from_center_radius_start_sweep_angle() {
     {
         let arc = ArcSegment::from_center_radius_start_sweep_angle([2.0, 2.0], 2.0, PI, 0.5 * PI)
             .unwrap();
-        approx::assert_abs_diff_eq!(arc.radius(), 2.0);
-        approx::assert_abs_diff_eq!(arc.center(), [2.0, 2.0]);
-        approx::assert_abs_diff_eq!(arc.sweep_angle(), 0.5 * PI);
+        approxim::assert_abs_diff_eq!(arc.radius(), 2.0);
+        approxim::assert_abs_diff_eq!(arc.center(), [2.0, 2.0]);
+        approxim::assert_abs_diff_eq!(arc.sweep_angle(), 0.5 * PI);
     }
 }
 
@@ -591,35 +591,35 @@ fn test_from_start_stop_radius() {
     {
         // Counter-clockwise small arc (positive)
         let arc = ArcSegment::from_start_stop_radius(start, stop, radius, true, false).unwrap();
-        approx::assert_abs_diff_eq!(arc.radius(), 2.0);
-        approx::assert_abs_diff_eq!(arc.center(), [2.0, 2.0]);
-        approx::assert_abs_diff_eq!(arc.sweep_angle(), 0.5 * PI, epsilon = 1e-3);
+        approxim::assert_abs_diff_eq!(arc.radius(), 2.0);
+        approxim::assert_abs_diff_eq!(arc.center(), [2.0, 2.0]);
+        approxim::assert_abs_diff_eq!(arc.sweep_angle(), 0.5 * PI, epsilon = 1e-3);
     }
     {
         // Counter-clockwise large arc (positive)
         let arc = ArcSegment::from_start_stop_radius(start, stop, radius, true, true).unwrap();
-        approx::assert_abs_diff_eq!(arc.radius(), 2.0);
-        approx::assert_abs_diff_eq!(arc.center(), [0.0, 0.0]);
-        approx::assert_abs_diff_eq!(arc.sweep_angle(), 1.5 * PI, epsilon = 1e-3);
+        approxim::assert_abs_diff_eq!(arc.radius(), 2.0);
+        approxim::assert_abs_diff_eq!(arc.center(), [0.0, 0.0]);
+        approxim::assert_abs_diff_eq!(arc.sweep_angle(), 1.5 * PI, epsilon = 1e-3);
     }
     {
         // Clockwise small arc (negative)
         let arc = ArcSegment::from_start_stop_radius(start, stop, radius, false, false).unwrap();
-        approx::assert_abs_diff_eq!(arc.radius(), 2.0);
-        approx::assert_abs_diff_eq!(arc.center(), [0.0, 0.0]);
-        approx::assert_abs_diff_eq!(arc.sweep_angle(), -0.5 * PI, epsilon = 1e-3);
+        approxim::assert_abs_diff_eq!(arc.radius(), 2.0);
+        approxim::assert_abs_diff_eq!(arc.center(), [0.0, 0.0]);
+        approxim::assert_abs_diff_eq!(arc.sweep_angle(), -0.5 * PI, epsilon = 1e-3);
     }
     {
         // Clockwise large arc (negative)
         let arc = ArcSegment::from_start_stop_radius(start, stop, radius, false, true).unwrap();
-        approx::assert_abs_diff_eq!(arc.radius(), 2.0);
-        approx::assert_abs_diff_eq!(arc.center(), [2.0, 2.0]);
-        approx::assert_abs_diff_eq!(arc.sweep_angle(), -1.5 * PI, epsilon = 1e-3);
+        approxim::assert_abs_diff_eq!(arc.radius(), 2.0);
+        approxim::assert_abs_diff_eq!(arc.center(), [2.0, 2.0]);
+        approxim::assert_abs_diff_eq!(arc.sweep_angle(), -1.5 * PI, epsilon = 1e-3);
     }
     {
         // Round up radius which is too small
         let arc = ArcSegment::from_start_stop_radius(start, stop, 0.1, false, true).unwrap();
-        approx::assert_abs_diff_eq!(arc.radius(), SQRT_2);
+        approxim::assert_abs_diff_eq!(arc.radius(), SQRT_2);
     }
 
     // Error cases
@@ -634,7 +634,7 @@ fn test_from_start_stop_radius() {
         let stop = [0.060000000000000005, 0.0];
         let radius = 0.060000000000000005;
         let arc = ArcSegment::from_start_stop_radius(start, stop, radius, true, false).unwrap();
-        approx::assert_abs_diff_eq!(arc.sweep_angle(), PI, epsilon = 1e-3);
+        approxim::assert_abs_diff_eq!(arc.sweep_angle(), PI, epsilon = 1e-3);
     }
     {
         // Floating point rounding error bugfix
@@ -642,7 +642,7 @@ fn test_from_start_stop_radius() {
         let stop = [0.060000000000000005, 0.0];
         let radius = 0.06;
         let arc = ArcSegment::from_start_stop_radius(start, stop, radius, true, false).unwrap();
-        approx::assert_abs_diff_eq!(arc.sweep_angle(), PI, epsilon = 1e-3);
+        approxim::assert_abs_diff_eq!(arc.sweep_angle(), PI, epsilon = 1e-3);
     }
 }
 
@@ -651,32 +651,32 @@ fn test_from_start_stop_center_radius() {
     let arc =
         ArcSegment::from_start_stop_center_radius([0.0, 2.0], [2.0, 0.0], [0.0, 0.0], 2.0, true)
             .expect("valid_arc");
-    approx::assert_abs_diff_eq!(arc.sweep_angle(), 1.5 * PI, epsilon = 1e-3);
+    approxim::assert_abs_diff_eq!(arc.sweep_angle(), 1.5 * PI, epsilon = 1e-3);
 
     let arc =
         ArcSegment::from_start_stop_center_radius([0.0, 2.0], [2.0, 0.0], [0.0, 0.0], 2.0, false)
             .expect("valid_arc");
-    approx::assert_abs_diff_eq!(arc.sweep_angle(), -0.5 * PI, epsilon = 1e-3);
+    approxim::assert_abs_diff_eq!(arc.sweep_angle(), -0.5 * PI, epsilon = 1e-3);
 
     let arc =
         ArcSegment::from_start_stop_center_radius([0.0, -2.0], [2.0, 0.0], [0.0, 0.0], 2.0, true)
             .expect("valid_arc");
-    approx::assert_abs_diff_eq!(arc.sweep_angle(), 0.5 * PI, epsilon = 1e-3);
+    approxim::assert_abs_diff_eq!(arc.sweep_angle(), 0.5 * PI, epsilon = 1e-3);
 
     let arc =
         ArcSegment::from_start_stop_center_radius([0.0, -2.0], [2.0, 0.0], [0.0, 0.0], 2.0, false)
             .expect("valid_arc");
-    approx::assert_abs_diff_eq!(arc.sweep_angle(), -1.5 * PI, epsilon = 1e-3);
+    approxim::assert_abs_diff_eq!(arc.sweep_angle(), -1.5 * PI, epsilon = 1e-3);
 
     let arc =
         ArcSegment::from_start_stop_center_radius([0.0, -2.0], [-2.0, 0.0], [0.0, 0.0], 2.0, true)
             .expect("valid_arc");
-    approx::assert_abs_diff_eq!(arc.sweep_angle(), 1.5 * PI, epsilon = 1e-3);
+    approxim::assert_abs_diff_eq!(arc.sweep_angle(), 1.5 * PI, epsilon = 1e-3);
 
     let arc =
         ArcSegment::from_start_stop_center_radius([0.0, -2.0], [-2.0, 0.0], [0.0, 0.0], 2.0, false)
             .expect("valid_arc");
-    approx::assert_abs_diff_eq!(arc.sweep_angle(), -0.5 * PI, epsilon = 1e-3);
+    approxim::assert_abs_diff_eq!(arc.sweep_angle(), -0.5 * PI, epsilon = 1e-3);
 }
 
 #[test]

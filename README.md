@@ -18,13 +18,14 @@ modify the components. -->
 [`intersections`]: https://docs.rs/planar_geo/0.6.0/planar_geo/geometry/enum.GeometryRef.html#method.intersections
 [`DEFAULT_EPSILON`]: https://docs.rs/planar_geo/0.6.0/planar_geo/constant.DEFAULT_EPSILON.html
 [`DEFAULT_MAX_RELATIVE`]: https://docs.rs/planar_geo/0.6.0/planar_geo/constant.DEFAULT_MAX_RELATIVE.html
+[`ToleranceContext`]: https://docs.rs/planar_geo/0.6.0/planar_geo/struct.ToleranceContext.html
+[`with_tolerance`]: https://docs.rs/planar_geo/0.6.0/planar_geo/trait.WithTolerance.html#method.with_tolerance
 [crate_index]: https://docs.rs/planar_geo/0.6.0/planar_geo/.
 [draw]: https://docs.rs/planar_geo/0.6.0/planar_geo/draw/index.html.
 [`Context`]: https://gtk-rs.org/gtk-rs-core/stable/latest/docs/cairo/struct.Context.html
 [gtk-rs]: https://gtk-rs.org/gtk-rs-core/stable/latest/docs/cairo
 [approxim]: https://docs.rs/approxim/latest/approxim/
 [serde]: https://serde.rs/
-[`relative_eq`]: https://docs.rs/approxim/latest/approxim/macro.relative_eq.html
 [intersection_composites.svg]: https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/docs/img/intersection_composites.svg
 [intersection_segments.svg]: https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/docs/img/intersection_segments.svg
 [shape.svg]: https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/docs/img/shape.svg
@@ -102,17 +103,6 @@ If the corresponding features are activated, it is also possible to serialize
 and deserialize (using [serde]) and to draw (using [gtk-rs]) these types.
 See the [Features](#features) section for more.
 
-Since the "point" type is defined using the floating-point type `f64`, a lot of
-operations (i.e. intersection calculation) are prone to rounding-errors. These
-operations therefore require specifying an absolute tolerance `epsilon` and a
-relative tolerance `max_relative` for floating point comparison (using the
-[`relative_eq`] macro from the [approxim] crate). It is recommended to use the
-"default" tolerances [`DEFAULT_EPSILON`] and [`DEFAULT_MAX_RELATIVE`] unless
-there is a good reason to use other values.
-
-The following paragraphs will provide some examples for the aforementioned
-features.
-
 ## Construction and property calculation
 
 The following code snippet shows how to construct the shape shown in the image
@@ -124,7 +114,7 @@ image itself has been created by running `examples/shape.rs`.
 ```rust
 use planar_geo::prelude::*;
 use std::f64::consts::{PI, FRAC_PI_2};
-use approx;
+use approxim;
 
 // Construct an arc, a line and another arc using various constructors. These
 // constructors can fail for invalid input data, see the expect() strings.
@@ -169,17 +159,17 @@ let hole_area = 1.1 * 2.0;
 
 // Exact match except for floating point rounding errors (arcs are not
 // approximated as polylines)
-approx::assert_abs_diff_eq!(shape.area(), 2.0 * quarter_circle_area + center_rect_area - hole_area, epsilon = 1e-15);
+approxim::assert_abs_diff_eq!(shape.area(), 2.0 * quarter_circle_area + center_rect_area - hole_area, epsilon = 1e-15);
 
 // Length of the hole contour
-approx::assert_abs_diff_eq!(shape.holes()[0].length(), 2.0 * (1.1 + 2.0), epsilon = 1e-15);
+approxim::assert_abs_diff_eq!(shape.holes()[0].length(), 2.0 * (1.1 + 2.0), epsilon = 1e-15);
 
 // Length of the first arc -> Is the first segment of the contour
 // 0.5 * 1.5 * PI = Quarter circle circumference times radius.
-approx::assert_abs_diff_eq!(shape.contour()[0].length(), 0.5 * 1.5 * PI, epsilon = 1e-15); 
+approxim::assert_abs_diff_eq!(shape.contour()[0].length(), 0.5 * 1.5 * PI, epsilon = 1e-15); 
 
 // Centroid of the hole
-approx::assert_abs_diff_eq!(shape.holes()[0].centroid(), [2.5, 0.75], epsilon = 1e-15);
+approxim::assert_abs_diff_eq!(shape.holes()[0].centroid(), [2.5, 0.75], epsilon = 1e-15);
 ```
 
 ## Transformation
@@ -201,8 +191,8 @@ assert_eq!(pt, [3.0, 4.0]);
 let mut ls = LineSegment::new([1.0, 0.0], [2.0, 0.0]).expect("start and stop are not identical");
 ls.rotate([1.0, 1.0], PI);
 
-approx::assert_abs_diff_eq!(ls.start(), [1.0, 2.0], epsilon = 1e-15);
-approx::assert_abs_diff_eq!(ls.stop(), [0.0, 2.0], epsilon = 1e-15);
+approxim::assert_abs_diff_eq!(ls.start(), [1.0, 2.0], epsilon = 1e-15);
+approxim::assert_abs_diff_eq!(ls.stop(), [0.0, 2.0], epsilon = 1e-15);
 
 // Scale a polysegment
 let mut polysegment = Polysegment::from_points(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]);
@@ -287,9 +277,6 @@ crate:
 ```rust
 use planar_geo::prelude::*;
 
-let e = DEFAULT_EPSILON;
-let m = DEFAULT_MAX_RELATIVE;
-
 let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
 let contour = Contour::new(Polysegment::from_points(vertices));
 let vertices = &[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]];
@@ -310,9 +297,6 @@ overlap
 ```rust
 use planar_geo::prelude::*;
 
-let e = DEFAULT_EPSILON;
-let m = DEFAULT_MAX_RELATIVE;
-
 let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
 let contour = Contour::new(Polysegment::from_points(vertices));
 
@@ -330,9 +314,58 @@ assert!(contour.contains_any(&ls).is_ok());
 
 # Customizing tolerances
 
-TODO: Strike balance between convenience and control: Default tolerances for
-most use cases, but customization of tolerances using the `with_tolerance`
-mechanism
+A lot of the operations shown so far require comparing floating point numbers
+for equality. To ensure numerical robustness, these comparisons test for
+approximate equality (using the [approxim] crate as a backend). This raises the
+question: Which tolerances should be used?
+
+planar_geo aims to strike a balance between convenience and control in this
+matter: By default, the [`DEFAULT_EPSILON`] and [`DEFAULT_MAX_RELATIVE`]
+tolerances are used, which are selected to provide reasonable behaviour for
+normal use cases. If it is necessary to customize the tolerances, a
+[`ToleranceContext`] can be inserted via [`with_tolerance`]:
+
+```rust
+use planar_geo::prelude::*;
+
+let vertices = &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
+let contour = Contour::new(Polysegment::from_points(vertices));
+
+let pt = [-1e-5, -1e-5];
+
+// Default tolerances: Point is just outside the contour
+assert!(contour.covers(&pt).is_err());
+
+// Coarse tolerances: Point is regarded as being "approximately" covered
+assert!(contour.with_tolerance(1e-4, 1e-4).covers(&pt).is_ok());
+```
+
+One might wonder why the default tolerances aren't simply zero: shouldn't
+that produce the most accurate results? Unfortunately, exact floating-point
+comparisons can lead to surprising and unintuitive behaviour:
+
+```rust
+use planar_geo::prelude::*;
+
+// ArcSegment::same_circle checks if center and radius of two ArcSegments are
+// identical (i.e., if they lay on the same underlying circle).
+
+let as1 = ArcSegment::new([0.1, 0.1], 0.1, 0.0, 1.0).expect("valid inputs");
+let as2 = ArcSegment::from_start_middle_stop([0.2, 0.1], [0.1, 0.2], [0.0, 0.1]).expect("valid inputs");
+
+// Intuitively, both arc segments are on the same circle with center [0.1, 0.1]
+// and radius 0.1. With the default tolerances, this is indeed the case.
+assert!(as1.same_circle(&as2));
+
+// Using zero tolerances runs into the problem that 0.1 is not exactly
+// representable in f64. Since the center of as2 needs to be calculated from
+// three points, this leads to slight differences:
+assert!(!as1.with_tolerance(0.0, 0.0).same_circle(&as2));
+```
+
+As shown above, the default tolerances deliver the result that corresponds to
+the mathematical intent. Unless there is a specific reason to customize them, it
+is therefore recommended to use the defaults.
 
 # Features
 

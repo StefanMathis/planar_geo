@@ -110,8 +110,8 @@ the [`Intersection::right`] key gets that of the second argument (often called
 `&other`). If one of the arguments is not a [`Composite`], the corresponding key
 has no use and is initialized to its default values (0 for both indices).
 
-This struct implements [`approx::AbsDiffEq`], [`approx::RelativeEq`] and
-[`approx::UlpsEq`] and can therefore be used in approximate comparisons:
+This struct implements [`approxim::AbsDiffEq`], [`approxim::RelativeEq`] and
+[`approxim::UlpsEq`] and can therefore be used in approximate comparisons:
 
 ```
 use planar_geo::prelude::*;
@@ -127,7 +127,7 @@ let i2 = Intersection {
     right: SegmentKey::new(1, 2),
 };
 assert_ne!(i1, i2);
-approx::assert_abs_diff_eq!(i1, i2, epsilon = 0.5);
+approxim::assert_abs_diff_eq!(i1, i2, epsilon = 0.5);
 
 // Intersection point identical to i1, but left key different -> Unequal by default
 let i3 = Intersection {
@@ -136,7 +136,7 @@ let i3 = Intersection {
     right: SegmentKey::new(1, 2),
 };
 assert_ne!(i1, i3);
-approx::assert_abs_diff_ne!(i1, i3, epsilon = 0.5);
+approxim::assert_abs_diff_ne!(i1, i3, epsilon = 0.5);
 ```
  */
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -180,7 +180,7 @@ impl From<[f64; 2]> for Intersection {
     }
 }
 
-impl approx::AbsDiffEq for Intersection {
+impl approxim::AbsDiffEq for Intersection {
     type Epsilon = f64;
 
     fn default_epsilon() -> f64 {
@@ -194,7 +194,7 @@ impl approx::AbsDiffEq for Intersection {
     }
 }
 
-impl approx::RelativeEq for Intersection {
+impl approxim::RelativeEq for Intersection {
     fn default_max_relative() -> f64 {
         f64::default_max_relative()
     }
@@ -206,7 +206,7 @@ impl approx::RelativeEq for Intersection {
     }
 }
 
-impl approx::UlpsEq for Intersection {
+impl approxim::UlpsEq for Intersection {
     fn default_max_ulps() -> u32 {
         f64::default_max_ulps()
     }
@@ -686,13 +686,13 @@ pub trait Composite: crate::private::Sealed + Sync {
     use planar_geo::prelude::*;
 
     let contour = Contour::rectangle([0.0, 2.0], [1.0, 0.0]);
-    approx::assert_abs_diff_eq!(contour.centroid(), [0.5, 1.0], epsilon = 1e-3);
+    approxim::assert_abs_diff_eq!(contour.centroid(), [0.5, 1.0], epsilon = 1e-3);
 
     let hole_1 = Contour::rectangle([0.6, 1.8], [0.9, 0.2]);
     let hole_2 = Contour::rectangle([0.1, 1.8], [0.4, 0.2]);
     let shape = Shape::new(vec![contour, hole_1, hole_2]).expect("holes do not intersect outer contour");
 
-    approx::assert_abs_diff_eq!(shape.centroid(), [0.5, 1.0], epsilon = 1e-3);
+    approxim::assert_abs_diff_eq!(shape.centroid(), [0.5, 1.0], epsilon = 1e-3);
     ```
      */
     fn centroid(&self) -> [f64; 2];
@@ -850,11 +850,11 @@ pub trait Composite: crate::private::Sealed + Sync {
 
     let mut intersections = polysegment.intersections_point(&[1.0, 0.0]);
 
-    approx::assert_abs_diff_eq!(
+    approxim::assert_abs_diff_eq!(
         intersections.next(),
         Some(Intersection {point: [1.0, 0.0], left: SegmentKey::from_segment_idx(0), right: SegmentKey::from_segment_idx(0)})
     );
-    approx::assert_abs_diff_eq!(
+    approxim::assert_abs_diff_eq!(
         intersections.next(),
         Some(Intersection {point: [1.0, 0.0], left: SegmentKey::from_segment_idx(1), right: SegmentKey::from_segment_idx(0)})
     );
@@ -901,11 +901,11 @@ pub trait Composite: crate::private::Sealed + Sync {
     let line = Line::from_point_angle([0.5, 0.5], 0.0);
     let mut intersections = polysegment.intersections_line(&line);
 
-    approx::assert_abs_diff_eq!(
+    approxim::assert_abs_diff_eq!(
         intersections.next(),
         Some(Intersection {point: [1.0, 0.5], left: SegmentKey::from_segment_idx(1), right: Default::default()})
     );
-    approx::assert_abs_diff_eq!(
+    approxim::assert_abs_diff_eq!(
         intersections.next(),
         Some(Intersection {point: [0.0, 0.5], left: SegmentKey::from_segment_idx(3), right: Default::default()})
     );
@@ -949,11 +949,11 @@ pub trait Composite: crate::private::Sealed + Sync {
     let ls = LineSegment::new([-1.0, 0.5], [2.0, 0.5]).expect("valid inputs");
     let mut intersections = polysegment.intersections_segment(&ls);
 
-    approx::assert_abs_diff_eq!(
+    approxim::assert_abs_diff_eq!(
         intersections.next(),
         Some(Intersection {point: [1.0, 0.5], left: SegmentKey::from_segment_idx(1), right: Default::default()})
     );
-    approx::assert_abs_diff_eq!(
+    approxim::assert_abs_diff_eq!(
         intersections.next(),
         Some(Intersection {point: [0.0, 0.5], left: SegmentKey::from_segment_idx(3), right: Default::default()})
     );
@@ -1007,11 +1007,11 @@ pub trait Composite: crate::private::Sealed + Sync {
 
     let mut intersections = left.intersections_polysegment(&right);
 
-    approx::assert_abs_diff_eq!(
+    approxim::assert_abs_diff_eq!(
         intersections.next(),
         Some(Intersection {point: [1.0, 0.5], left: SegmentKey::from_segment_idx(1), right: SegmentKey::from_segment_idx(1)})
     );
-    approx::assert_abs_diff_eq!(
+    approxim::assert_abs_diff_eq!(
         intersections.next(),
         Some(Intersection {point: [0.0, 0.5], left: SegmentKey::from_segment_idx(3), right: SegmentKey::from_segment_idx(1)})
     );
@@ -1061,11 +1061,11 @@ pub trait Composite: crate::private::Sealed + Sync {
 
     let mut intersections = polysegment.intersections_contour(&contour);
 
-    approx::assert_abs_diff_eq!(
+    approxim::assert_abs_diff_eq!(
         intersections.next(),
         Some(Intersection {point: [1.0, 0.5], left: SegmentKey::from_segment_idx(1), right: SegmentKey::from_segment_idx(1)})
     );
-    approx::assert_abs_diff_eq!(
+    approxim::assert_abs_diff_eq!(
         intersections.next(),
         Some(Intersection {point: [0.0, 0.5], left: SegmentKey::from_segment_idx(1), right: SegmentKey::from_segment_idx(3)})
     );
@@ -1118,7 +1118,7 @@ pub trait Composite: crate::private::Sealed + Sync {
 
     let mut intersections = polysegment.intersections_shape(&shape);
 
-    approx::assert_abs_diff_eq!(
+    approxim::assert_abs_diff_eq!(
         intersections.next(),
         Some(Intersection {
             point: [1.0, 0.5],

@@ -25,7 +25,7 @@ use crate::{
     segment::ArcSegment,
 };
 
-use approx::relative_eq;
+use approxim::relative_eq;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -248,19 +248,19 @@ impl LineSegment {
 
     // 45°
     let line = LineSegment::new([0.0, 0.0], [1.0, 1.0]).expect("points not identical");
-    approx::assert_abs_diff_eq!(line.angle(), 0.25 * PI);
+    approxim::assert_abs_diff_eq!(line.angle(), 0.25 * PI);
 
     // 180°
     let line = LineSegment::new([1.0, 1.0], [-1.0, 1.0]).expect("points not identical");
-    approx::assert_abs_diff_eq!(line.angle(), PI);
+    approxim::assert_abs_diff_eq!(line.angle(), PI);
 
     // 225°
     let line = LineSegment::new([-2.0, -8.0], [-4.0, -10.0]).expect("points not identical");
-    approx::assert_abs_diff_eq!(line.angle(), -0.75 * PI);
+    approxim::assert_abs_diff_eq!(line.angle(), -0.75 * PI);
 
     // 315°
     let line = LineSegment::new([5.0, 0.0], [6.0, -1.0]).expect("points not identical");
-    approx::assert_abs_diff_eq!(line.angle(), -0.25 * PI);
+    approxim::assert_abs_diff_eq!(line.angle(), -0.25 * PI);
     ```
      */
     pub fn angle(&self) -> f64 {
@@ -279,7 +279,7 @@ impl LineSegment {
 
     let line = LineSegment::new([0.0, 0.0], [1.0, -1.0]).expect("points not identical");
     assert_eq!(line.euclidian_distance_to_point(&[-1.0, 0.0]), 1.0);
-    approx::assert_abs_diff_eq!(line.euclidian_distance_to_point(&[2.0, 0.0]), 2.0f64.sqrt());
+    approxim::assert_abs_diff_eq!(line.euclidian_distance_to_point(&[2.0, 0.0]), 2.0f64.sqrt());
 
     // Point is on the line
     assert_eq!(line.euclidian_distance_to_point(&[0.5, -0.5]), 0.0);
@@ -832,7 +832,7 @@ impl ToBoundingBox for LineSegment {
     }
 }
 
-impl approx::AbsDiffEq for LineSegment {
+impl approxim::AbsDiffEq for LineSegment {
     type Epsilon = f64;
 
     fn default_epsilon() -> f64 {
@@ -845,7 +845,7 @@ impl approx::AbsDiffEq for LineSegment {
     }
 }
 
-impl approx::RelativeEq for LineSegment {
+impl approxim::RelativeEq for LineSegment {
     fn default_max_relative() -> f64 {
         f64::default_max_relative()
     }
@@ -856,7 +856,7 @@ impl approx::RelativeEq for LineSegment {
     }
 }
 
-impl approx::UlpsEq for LineSegment {
+impl approxim::UlpsEq for LineSegment {
     fn default_max_ulps() -> u32 {
         f64::default_max_ulps()
     }
@@ -993,7 +993,7 @@ impl PrimitiveWithTol for LineSegment {
             // Calculate the (squared) distance between the segment and the given point
             let pt = [v[0] + t * (w[0] - v[0]), v[1] + t * (w[1] - v[1])];
             let dist = ((pt[0] - p[0]).powi(2) + (pt[1] - p[1]).powi(2)).sqrt();
-            return approx::relative_eq!(dist, 0.0, epsilon = epsilon, max_relative = max_relative);
+            return approxim::relative_eq!(dist, 0.0, epsilon = epsilon, max_relative = max_relative);
         }
     }
 
@@ -1291,7 +1291,7 @@ impl<'c> ToleranceContext<'c, LineSegment> {
         let dist = ((px - cx).powi(2) + (py - cy).powi(2)).sqrt();
 
         // Check tangency
-        if approx::relative_ne!(
+        if approxim::relative_ne!(
             dist,
             r,
             epsilon = self.epsilon,

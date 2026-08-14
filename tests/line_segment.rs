@@ -13,11 +13,11 @@ fn test_polygonize_number_segments() {
     let option = SegmentPolygonizer::InnerSegments(4);
     let pts: Vec<[f64; 2]> = line.polygonize(option).collect();
     assert_eq!(pts.len(), 5);
-    approx::assert_abs_diff_eq!(&pts[0], &[0.0, 0.0]);
-    approx::assert_abs_diff_eq!(&pts[1], &[0.25, -0.25]);
-    approx::assert_abs_diff_eq!(&pts[2], &[0.5, -0.5]);
-    approx::assert_abs_diff_eq!(&pts[3], &[0.75, -0.75]);
-    approx::assert_abs_diff_eq!(&pts[4], &[1.0, -1.0]);
+    approxim::assert_abs_diff_eq!(&pts[0], &[0.0, 0.0]);
+    approxim::assert_abs_diff_eq!(&pts[1], &[0.25, -0.25]);
+    approxim::assert_abs_diff_eq!(&pts[2], &[0.5, -0.5]);
+    approxim::assert_abs_diff_eq!(&pts[3], &[0.75, -0.75]);
+    approxim::assert_abs_diff_eq!(&pts[4], &[1.0, -1.0]);
 
     // Vertical line
     let start = [0.0, 0.0];
@@ -26,11 +26,11 @@ fn test_polygonize_number_segments() {
     let option = SegmentPolygonizer::InnerSegments(4);
     let pts: Vec<[f64; 2]> = line.polygonize(option).collect();
     assert_eq!(pts.len(), 5);
-    approx::assert_abs_diff_eq!(&pts[0], &[0.0, 0.0]);
-    approx::assert_abs_diff_eq!(&pts[1], &[0.0, -0.25]);
-    approx::assert_abs_diff_eq!(&pts[2], &[0.0, -0.5]);
-    approx::assert_abs_diff_eq!(&pts[3], &[0.0, -0.75]);
-    approx::assert_abs_diff_eq!(&pts[4], &[0.0, -1.0]);
+    approxim::assert_abs_diff_eq!(&pts[0], &[0.0, 0.0]);
+    approxim::assert_abs_diff_eq!(&pts[1], &[0.0, -0.25]);
+    approxim::assert_abs_diff_eq!(&pts[2], &[0.0, -0.5]);
+    approxim::assert_abs_diff_eq!(&pts[3], &[0.0, -0.75]);
+    approxim::assert_abs_diff_eq!(&pts[4], &[0.0, -1.0]);
 }
 
 #[test]
@@ -51,12 +51,12 @@ fn test_polygonize_max_length() {
     let option = SegmentPolygonizer::MaximumSegmentLength(0.21);
     let pts: Vec<[f64; 2]> = line.polygonize(option).collect();
     assert_eq!(pts.len(), 6);
-    approx::assert_abs_diff_eq!(&pts[0], &[0.0, 0.0]);
-    approx::assert_abs_diff_eq!(&pts[1], &[0.0, -0.2]);
-    approx::assert_abs_diff_eq!(&pts[2], &[0.0, -0.4]);
-    approx::assert_abs_diff_eq!(&pts[3], &[0.0, -0.6]);
-    approx::assert_abs_diff_eq!(&pts[4], &[0.0, -0.8]);
-    approx::assert_abs_diff_eq!(&pts[5], &[0.0, -1.0]);
+    approxim::assert_abs_diff_eq!(&pts[0], &[0.0, 0.0]);
+    approxim::assert_abs_diff_eq!(&pts[1], &[0.0, -0.2]);
+    approxim::assert_abs_diff_eq!(&pts[2], &[0.0, -0.4]);
+    approxim::assert_abs_diff_eq!(&pts[3], &[0.0, -0.6]);
+    approxim::assert_abs_diff_eq!(&pts[4], &[0.0, -0.8]);
+    approxim::assert_abs_diff_eq!(&pts[5], &[0.0, -1.0]);
 }
 
 #[test]
@@ -126,8 +126,8 @@ fn test_line_reflection() {
 fn test_rotate() {
     let mut line = LineSegment::new([0.0, 0.0], [0.0, 1.0]).unwrap();
     line.rotate([0.0, 0.0], PI);
-    approx::assert_abs_diff_eq!(line.start(), [0.0, 0.0]);
-    approx::assert_abs_diff_eq!(line.stop(), [0.0, -1.0]);
+    approxim::assert_abs_diff_eq!(line.start(), [0.0, 0.0]);
+    approxim::assert_abs_diff_eq!(line.stop(), [0.0, -1.0]);
 }
 
 #[test]
@@ -191,21 +191,21 @@ fn test_polygonize_segment_length() {
     assert_eq!(polysegment.num_segments(), 4);
 
     for segments in polysegment.as_slices().0.windows(2) {
-        approx::assert_abs_diff_eq!(segments[0].length(), segments[1].length(), epsilon = 1e-14);
+        approxim::assert_abs_diff_eq!(segments[0].length(), segments[1].length(), epsilon = 1e-14);
     }
 
     let iter = line.polygonize(SegmentPolygonizer::InnerSegments(8));
     let pts: Vec<_> = iter.collect();
     let polysegment = Polysegment::from_points(&pts);
     for segments in polysegment.as_slices().0.windows(2) {
-        approx::assert_abs_diff_eq!(segments[0].length(), segments[1].length(), epsilon = 1e-14);
+        approxim::assert_abs_diff_eq!(segments[0].length(), segments[1].length(), epsilon = 1e-14);
     }
 
     let iter = line.polygonize(SegmentPolygonizer::MaximumAngle(0.1));
     let pts: Vec<_> = iter.collect();
     let polysegment = Polysegment::from_points(&pts);
     for segments in polysegment.as_slices().0.windows(2) {
-        approx::assert_abs_diff_eq!(segments[0].length(), segments[1].length(), epsilon = 1e-14);
+        approxim::assert_abs_diff_eq!(segments[0].length(), segments[1].length(), epsilon = 1e-14);
     }
 }
 
@@ -213,13 +213,13 @@ fn test_polygonize_segment_length() {
 fn test_euclidian_distance_to_point() {
     let line = LineSegment::new([0.0, 0.0], [1.0, 0.0]).unwrap();
     assert_eq!(1.0, line.euclidian_distance_to_point(&[0.0, 1.0]));
-    approx::assert_abs_diff_eq!(1.0, line.euclidian_distance_to_point(&[0.5, 1.0]));
-    approx::assert_abs_diff_eq!(
+    approxim::assert_abs_diff_eq!(1.0, line.euclidian_distance_to_point(&[0.5, 1.0]));
+    approxim::assert_abs_diff_eq!(
         1.25f64.sqrt(),
         line.euclidian_distance_to_point(&[1.5, 1.0])
     );
 
-    approx::assert_abs_diff_eq!(0.0, line.euclidian_distance_to_point(&[0.5, 0.0]));
+    approxim::assert_abs_diff_eq!(0.0, line.euclidian_distance_to_point(&[0.5, 0.0]));
 }
 
 #[test]
@@ -243,10 +243,10 @@ fn test_segment_point() {
 #[test]
 fn test_angle_infinite() {
     let line = LineSegment::new([NEG_INFINITY, NEG_INFINITY], [INFINITY, INFINITY]).unwrap();
-    approx::assert_abs_diff_eq!(line.angle(), 0.25 * PI);
+    approxim::assert_abs_diff_eq!(line.angle(), 0.25 * PI);
 
     let line = LineSegment::new([INFINITY, INFINITY], [NEG_INFINITY, NEG_INFINITY]).unwrap();
-    approx::assert_abs_diff_eq!(line.angle(), -0.75 * PI);
+    approxim::assert_abs_diff_eq!(line.angle(), -0.75 * PI);
 }
 
 #[test]
@@ -289,7 +289,7 @@ fn test_line_segments_intersection() {
             .with_tolerance(0.0, 0.0)
             .intersections_primitive(&line2);
         assert_eq!(intersections.len(), 1);
-        approx::assert_relative_eq!(PrimitiveIntersections::One([0.5, 0.5]), intersections);
+        approxim::assert_relative_eq!(PrimitiveIntersections::One([0.5, 0.5]), intersections);
 
         // This segment doesn't intersect with line1 because it is parallel to it
         let line3 = LineSegment::new([0.0, 1.0], [1.0, 2.0]).unwrap();
@@ -313,7 +313,7 @@ fn test_line_segments_intersection() {
             .with_tolerance(0.0, 0.0)
             .intersections_primitive(&line2);
         assert_eq!(intersections.len(), 1);
-        approx::assert_relative_eq!(PrimitiveIntersections::One([0.5, 0.0]), intersections);
+        approxim::assert_relative_eq!(PrimitiveIntersections::One([0.5, 0.0]), intersections);
     }
     {
         // One segment which is included in the other segment
@@ -323,7 +323,7 @@ fn test_line_segments_intersection() {
             .with_tolerance(0.0, 0.0)
             .intersections_primitive(&line2);
         assert_eq!(intersections.len(), 2);
-        approx::assert_relative_eq!(
+        approxim::assert_relative_eq!(
             PrimitiveIntersections::Two([[0.0, 1.0], [0.0, 2.0]]),
             intersections
         );
@@ -336,7 +336,7 @@ fn test_line_segments_intersection() {
             .with_tolerance(0.0, 0.0)
             .intersections_primitive(&line2);
         assert_eq!(intersection.len(), 2);
-        approx::assert_relative_eq!(
+        approxim::assert_relative_eq!(
             PrimitiveIntersections::Two([[0.0, 1.0], [0.0, 2.0]]),
             intersection
         );
@@ -349,7 +349,7 @@ fn test_line_segments_intersection() {
             .with_tolerance(0.0, 0.0)
             .intersections_primitive(&line2);
         assert_eq!(intersections.len(), 1);
-        approx::assert_relative_eq!(PrimitiveIntersections::One([0.0, 1.0]), intersections);
+        approxim::assert_relative_eq!(PrimitiveIntersections::One([0.0, 1.0]), intersections);
     }
     {
         // One line vertical, other horizontal, one intersection occurs
@@ -360,7 +360,7 @@ fn test_line_segments_intersection() {
             .with_tolerance(0.0, 0.0)
             .intersections_primitive(&line_2);
         assert_eq!(intersections.len(), 1);
-        approx::assert_relative_eq!(PrimitiveIntersections::One([0.5, 0.0]), intersections);
+        approxim::assert_relative_eq!(PrimitiveIntersections::One([0.5, 0.0]), intersections);
     }
     {
         // One line vertical, other horizontal, no intersection occurs
@@ -440,7 +440,7 @@ fn test_line_segments_intersection() {
         let intersections = line_1
             .with_tolerance(0.0, 0.0)
             .intersections_primitive(&line_2);
-        approx::assert_relative_eq!(
+        approxim::assert_relative_eq!(
             PrimitiveIntersections::One([0.004, 0.009078996041164352]),
             intersections
         );
@@ -504,7 +504,7 @@ fn test_line_segments_intersection() {
             .with_tolerance(0.0, 0.0)
             .intersections_primitive(&line2);
         assert_eq!(intersections.len(), 1);
-        approx::assert_relative_eq!(PrimitiveIntersections::One([1.0, 1.0]), intersections);
+        approxim::assert_relative_eq!(PrimitiveIntersections::One([1.0, 1.0]), intersections);
     }
     {
         let line1 = LineSegment::new([1.0, 1.0], [1.0, 0.0]).unwrap();
@@ -513,7 +513,7 @@ fn test_line_segments_intersection() {
             .with_tolerance(0.0, 0.0)
             .intersections_primitive(&line2);
         assert_eq!(intersections.len(), 1);
-        approx::assert_relative_eq!(PrimitiveIntersections::One([1.0, 1.0]), intersections);
+        approxim::assert_relative_eq!(PrimitiveIntersections::One([1.0, 1.0]), intersections);
     }
     {
         // Regression test from the Delaunay triangulation
@@ -719,11 +719,11 @@ fn test_intersection_line_line_segment() {
 
     {
         let intersection = ls.intersections_primitive(&line);
-        approx::assert_abs_diff_eq!(intersection, PrimitiveIntersections::One([0.0, 0.5]));
+        approxim::assert_abs_diff_eq!(intersection, PrimitiveIntersections::One([0.0, 0.5]));
     }
     {
         let intersection = ls.intersections(&line);
-        approx::assert_abs_diff_eq!(intersection[0].point, [0.0, 0.5]);
+        approxim::assert_abs_diff_eq!(intersection[0].point, [0.0, 0.5]);
     }
 }
 

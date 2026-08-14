@@ -1,4 +1,4 @@
-use approx::{assert_abs_diff_eq, assert_relative_eq};
+use approxim::{assert_abs_diff_eq, assert_relative_eq};
 use planar_geo::prelude::*;
 use rayon::prelude::*;
 use std::f64::consts::{FRAC_PI_2, PI, SQRT_2, TAU};
@@ -119,14 +119,14 @@ fn test_intersection_cut() {
         match cut_seg {
             Segment::LineSegment(_) => panic!("Must be an ArcSegment"),
             Segment::ArcSegment(cut_arc) => {
-                approx::assert_abs_diff_eq!(arc.radius(), cut_arc.radius(), epsilon = 1e-3);
-                approx::assert_abs_diff_eq!(arc.center(), cut_arc.center(), epsilon = 1e-3);
-                approx::assert_abs_diff_eq!(
+                approxim::assert_abs_diff_eq!(arc.radius(), cut_arc.radius(), epsilon = 1e-3);
+                approxim::assert_abs_diff_eq!(arc.center(), cut_arc.center(), epsilon = 1e-3);
+                approxim::assert_abs_diff_eq!(
                     arc.start_angle(),
                     cut_arc.start_angle(),
                     epsilon = 1e-3
                 );
-                approx::assert_abs_diff_eq!(
+                approxim::assert_abs_diff_eq!(
                     arc.sweep_angle(),
                     cut_arc.sweep_angle(),
                     epsilon = 1e-3
@@ -997,7 +997,7 @@ fn test_centroid() {
         );
 
         let contour = Contour::new(polysegment);
-        approx::assert_abs_diff_eq!(&contour.centroid(), &[0.0, 5.341657e-3], epsilon = 1e-9);
+        approxim::assert_abs_diff_eq!(&contour.centroid(), &[0.0, 5.341657e-3], epsilon = 1e-9);
     }
 }
 

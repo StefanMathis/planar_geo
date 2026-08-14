@@ -288,10 +288,10 @@ fn test_rotation() {
     shape.rotate([0.0, 0.0], FRAC_PI_2);
 
     let vertices: Vec<[f64; 2]> = shape.contour().points().collect();
-    approx::assert_abs_diff_eq!(vertices[0], [0.0, 0.0]);
-    approx::assert_abs_diff_eq!(vertices[1], [0.0, 1.0]);
-    approx::assert_abs_diff_eq!(vertices[2], [-1.0, 1.0]);
-    approx::assert_abs_diff_eq!(vertices[3], [-1.0, 0.0]);
+    approxim::assert_abs_diff_eq!(vertices[0], [0.0, 0.0]);
+    approxim::assert_abs_diff_eq!(vertices[1], [0.0, 1.0]);
+    approxim::assert_abs_diff_eq!(vertices[2], [-1.0, 1.0]);
+    approxim::assert_abs_diff_eq!(vertices[3], [-1.0, 0.0]);
 }
 
 #[test]
@@ -376,7 +376,7 @@ fn test_intersection_with_polysegment() {
 
     fn slice_approx_contains(slice: &[Intersection], check: &Intersection) -> bool {
         for elem in slice {
-            if approx::relative_eq!(elem, check) {
+            if approxim::relative_eq!(elem, check) {
                 return true;
             }
         }
@@ -485,7 +485,7 @@ fn test_intersection_with_polysegment() {
         let intersections = polysegment.with_tolerance(0.0, 0.0).intersections(&shape);
         assert_eq!(intersections.len(), 4);
 
-        approx::assert_abs_diff_eq!(
+        approxim::assert_abs_diff_eq!(
             intersections.get(0),
             Some(&Intersection {
                 point: [1.0, 0.5],
@@ -509,7 +509,7 @@ fn test_centroid() {
         let hole = Contour::rectangle([0.6, 1.8], [0.9, 0.2]);
         let shape = Shape::new(vec![contour, hole]).expect("valid input");
 
-        approx::assert_abs_diff_eq!(shape.centroid(), [0.421, 1.0], epsilon = 1e-3);
+        approxim::assert_abs_diff_eq!(shape.centroid(), [0.421, 1.0], epsilon = 1e-3);
     }
     {
         let contour = Contour::rectangle([0.0, 2.0], [1.0, 0.0]);
@@ -523,7 +523,7 @@ fn test_centroid() {
         let hole_2 = Contour::rectangle([0.1, 1.8], [0.4, 0.2]);
         let shape = Shape::new(vec![contour, hole_1, hole_2]).expect("valid input");
 
-        approx::assert_abs_diff_eq!(shape.centroid(), [0.5, 1.0], epsilon = 1e-3);
+        approxim::assert_abs_diff_eq!(shape.centroid(), [0.5, 1.0], epsilon = 1e-3);
     }
     {
         let contour = Contour::rectangle([0.0, 2.0], [1.0, 0.0]);
@@ -531,7 +531,7 @@ fn test_centroid() {
         let hole_2 = Contour::rectangle([0.1, 1.8], [0.4, 0.2]);
         let shape = Shape::new(vec![contour, hole_1, hole_2]).expect("valid input");
 
-        approx::assert_abs_diff_eq!(shape.centroid(), [0.5, 1.0], epsilon = 1e-3);
+        approxim::assert_abs_diff_eq!(shape.centroid(), [0.5, 1.0], epsilon = 1e-3);
     }
 }
 

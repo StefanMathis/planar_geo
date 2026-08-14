@@ -16,7 +16,7 @@ use crate::{
     line::Line,
     segment::{ArcSegment, LineSegment, Segment, SegmentRef},
 };
-use approx::RelativeEq;
+use approxim::RelativeEq;
 
 /**
 Result of an intersection calculation between two [`Primitive`]s.
@@ -40,8 +40,8 @@ assert_eq!(
     PrimitiveIntersections::Two([[1.0, 1.0], [0.0, 0.0]])
 )
 ```
-- The [`AbsDiffEq`](approx::AbsDiffEq), [`RelativeEq`] and
-[`UlpsEq`](approx::UlpsEq) traits from the [approx] crate to allow for
+- The [`AbsDiffEq`](approxim::AbsDiffEq), [`RelativeEq`] and
+[`UlpsEq`](approxim::UlpsEq) traits from the [approxim] crate to allow for
 approximate equality comparison. This should generally be preferred over
 comparing for exact equality via the [`PartialEq`] trait when dealing with
 floating point values.
@@ -85,7 +85,7 @@ impl IntoIterator for PrimitiveIntersections {
     }
 }
 
-impl approx::AbsDiffEq for PrimitiveIntersections {
+impl approxim::AbsDiffEq for PrimitiveIntersections {
     type Epsilon = f64;
 
     fn default_epsilon() -> f64 {
@@ -104,7 +104,7 @@ impl approx::AbsDiffEq for PrimitiveIntersections {
     }
 }
 
-impl approx::RelativeEq for PrimitiveIntersections {
+impl approxim::RelativeEq for PrimitiveIntersections {
     fn default_max_relative() -> f64 {
         f64::default_max_relative()
     }
@@ -123,7 +123,7 @@ impl approx::RelativeEq for PrimitiveIntersections {
     }
 }
 
-impl approx::UlpsEq for PrimitiveIntersections {
+impl approxim::UlpsEq for PrimitiveIntersections {
     fn default_max_ulps() -> u32 {
         f64::default_max_ulps()
     }

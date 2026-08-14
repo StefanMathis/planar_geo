@@ -1,4 +1,4 @@
-use approx::{assert_abs_diff_eq, assert_relative_eq};
+use approxim::{assert_abs_diff_eq, assert_relative_eq};
 use planar_geo::{polysegment::area_signed, prelude::*};
 use rayon::prelude::*;
 use std::f64::consts::{FRAC_PI_2, PI, TAU};
@@ -59,20 +59,20 @@ fn test_area_calculation() {
     {
         // Triangle
         let vertices: Vec<[f64; 2]> = vec![[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]];
-        approx::assert_abs_diff_eq!(area_signed(&mut vertices.into_iter()), 0.5);
+        approxim::assert_abs_diff_eq!(area_signed(&mut vertices.into_iter()), 0.5);
     }
 
     {
         // Rectangle
         let vertices: Vec<[f64; 2]> = vec![[0.0, 0.0], [2.0, 0.0], [2.0, 1.0], [0.0, 1.0]];
-        approx::assert_abs_diff_eq!(area_signed(&mut vertices.into_iter()), 2.0);
+        approxim::assert_abs_diff_eq!(area_signed(&mut vertices.into_iter()), 2.0);
     }
 
     {
         // Closed rectangle (last vertex equals first vertex)
         let vertices: Vec<[f64; 2]> =
             vec![[0.0, 0.0], [2.0, 0.0], [2.0, 1.0], [0.0, 1.0], [0.0, 0.0]];
-        approx::assert_abs_diff_eq!(area_signed(&mut vertices.into_iter()), 2.0);
+        approxim::assert_abs_diff_eq!(area_signed(&mut vertices.into_iter()), 2.0);
     }
 
     {
@@ -317,14 +317,14 @@ fn test_second_segment_intersection_before_first() {
     assert_eq!(separated_lines.len(), 3);
 
     let verts: Vec<[f64; 2]> = separated_lines[0].points().collect();
-    approx::assert_abs_diff_eq!(
+    approxim::assert_abs_diff_eq!(
         verts.last().unwrap(),
         &[0.89442719, 0.4472135],
         epsilon = 1e-5
     );
 
     let verts: Vec<[f64; 2]> = separated_lines[1].points().collect();
-    approx::assert_abs_diff_eq!(
+    approxim::assert_abs_diff_eq!(
         verts.last().unwrap(),
         &[0.4472135, 0.89442719],
         epsilon = 1e-5
@@ -337,14 +337,14 @@ fn test_second_segment_intersection_before_first() {
     assert_eq!(separated_lines.len(), 3);
 
     let verts: Vec<[f64; 2]> = separated_lines[0].points().collect();
-    approx::assert_abs_diff_eq!(
+    approxim::assert_abs_diff_eq!(
         verts.last().unwrap(),
         &[0.89442719, 0.4472135],
         epsilon = 1e-5
     );
 
     let verts: Vec<[f64; 2]> = separated_lines[1].points().collect();
-    approx::assert_abs_diff_eq!(
+    approxim::assert_abs_diff_eq!(
         verts.last().unwrap(),
         &[0.4472135, 0.89442719],
         epsilon = 1e-5
@@ -653,11 +653,11 @@ fn test_polygonize() {
             line: SegmentPolygonizer::InnerSegments(1),
         });
 
-        approx::assert_abs_diff_eq!(iter.next().unwrap(), [2.0, 0.0], epsilon = 1e-10);
-        approx::assert_abs_diff_eq!(iter.next().unwrap(), [0.0, 2.0], epsilon = 1e-10);
-        approx::assert_abs_diff_eq!(iter.next().unwrap(), [-2.0, 0.0], epsilon = 1e-10);
-        approx::assert_abs_diff_eq!(iter.next().unwrap(), [0.0, -2.0], epsilon = 1e-10);
-        approx::assert_abs_diff_eq!(iter.next().unwrap(), [2.0, 0.0], epsilon = 1e-10);
+        approxim::assert_abs_diff_eq!(iter.next().unwrap(), [2.0, 0.0], epsilon = 1e-10);
+        approxim::assert_abs_diff_eq!(iter.next().unwrap(), [0.0, 2.0], epsilon = 1e-10);
+        approxim::assert_abs_diff_eq!(iter.next().unwrap(), [-2.0, 0.0], epsilon = 1e-10);
+        approxim::assert_abs_diff_eq!(iter.next().unwrap(), [0.0, -2.0], epsilon = 1e-10);
+        approxim::assert_abs_diff_eq!(iter.next().unwrap(), [2.0, 0.0], epsilon = 1e-10);
         assert_eq!(iter.next(), None);
     }
 
@@ -673,11 +673,11 @@ fn test_polygonize() {
             line: SegmentPolygonizer::InnerSegments(1),
         });
 
-        approx::assert_abs_diff_eq!(iter.next().unwrap(), [2.0, 0.0], epsilon = 1e-10);
-        approx::assert_abs_diff_eq!(iter.next().unwrap(), [0.0, -2.0], epsilon = 1e-10);
-        approx::assert_abs_diff_eq!(iter.next().unwrap(), [-2.0, 0.0], epsilon = 1e-10);
-        approx::assert_abs_diff_eq!(iter.next().unwrap(), [0.0, 2.0], epsilon = 1e-10);
-        approx::assert_abs_diff_eq!(iter.next().unwrap(), [2.0, 0.0], epsilon = 1e-10);
+        approxim::assert_abs_diff_eq!(iter.next().unwrap(), [2.0, 0.0], epsilon = 1e-10);
+        approxim::assert_abs_diff_eq!(iter.next().unwrap(), [0.0, -2.0], epsilon = 1e-10);
+        approxim::assert_abs_diff_eq!(iter.next().unwrap(), [-2.0, 0.0], epsilon = 1e-10);
+        approxim::assert_abs_diff_eq!(iter.next().unwrap(), [0.0, 2.0], epsilon = 1e-10);
+        approxim::assert_abs_diff_eq!(iter.next().unwrap(), [2.0, 0.0], epsilon = 1e-10);
         assert_eq!(iter.next(), None);
     }
 }
@@ -799,7 +799,7 @@ fn test_intersection_line_polysegment() {
         let tolerance = polysegment.with_tolerance(0.0, 0.0);
         let mut intersections = tolerance.intersections_line(&line);
 
-        approx::assert_abs_diff_eq!(
+        approxim::assert_abs_diff_eq!(
             intersections.next(),
             Some(Intersection {
                 point: [1.0, 0.5],
@@ -807,7 +807,7 @@ fn test_intersection_line_polysegment() {
                 right: Default::default()
             })
         );
-        approx::assert_abs_diff_eq!(
+        approxim::assert_abs_diff_eq!(
             intersections.next(),
             Some(Intersection {
                 point: [0.0, 0.5],
@@ -823,7 +823,7 @@ fn test_intersection_line_polysegment() {
             .intersections(&line)
             .into_iter();
 
-        approx::assert_abs_diff_eq!(
+        approxim::assert_abs_diff_eq!(
             intersections.next(),
             Some(Intersection {
                 point: [1.0, 0.5],
@@ -831,7 +831,7 @@ fn test_intersection_line_polysegment() {
                 right: Default::default()
             })
         );
-        approx::assert_abs_diff_eq!(
+        approxim::assert_abs_diff_eq!(
             intersections.next(),
             Some(Intersection {
                 point: [0.0, 0.5],

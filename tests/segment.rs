@@ -49,11 +49,11 @@ fn test_fillet_chain() {
             assert_eq!(prev.stop(), next.start());
         }
 
-        approx::assert_abs_diff_eq!(
+        approxim::assert_abs_diff_eq!(
             iter.next(),
             Some(LineSegment::new([0.0, 0.0], [1.0, 0.0]).unwrap().into())
         );
-        approx::assert_abs_diff_eq!(
+        approxim::assert_abs_diff_eq!(
             iter.next(),
             Some(
                 ArcSegment::from_start_center_angle([1.0, 0.0], [0.5, 0.0], FRAC_PI_2)
@@ -61,11 +61,11 @@ fn test_fillet_chain() {
                     .into()
             )
         );
-        approx::assert_abs_diff_eq!(
+        approxim::assert_abs_diff_eq!(
             iter.next(),
             Some(LineSegment::new([0.5, 0.5], [0.5, 1.0]).unwrap().into())
         );
-        approx::assert_abs_diff_eq!(
+        approxim::assert_abs_diff_eq!(
             iter.next(),
             Some(LineSegment::new([0.5, 1.0], [1.0, 1.0]).unwrap().into())
         );
@@ -77,11 +77,11 @@ fn test_fillet_chain() {
             &[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]],
             &[0.5, 20.0],
         );
-        approx::assert_abs_diff_eq!(
+        approxim::assert_abs_diff_eq!(
             iter.next(),
             Some(LineSegment::new([0.0, 0.0], [0.5, 0.0]).unwrap().into())
         );
-        approx::assert_abs_diff_eq!(
+        approxim::assert_abs_diff_eq!(
             iter.next(),
             Some(
                 ArcSegment::from_start_center_angle([0.5, 0.0], [0.5, 0.5], FRAC_PI_2)
@@ -90,7 +90,7 @@ fn test_fillet_chain() {
             ),
             epsilon = 1e-8,
         );
-        approx::assert_abs_diff_eq!(
+        approxim::assert_abs_diff_eq!(
             iter.next(),
             Some(
                 ArcSegment::from_start_center_angle([1.0, 0.5], [0.5, 0.5], FRAC_PI_2)
@@ -99,7 +99,7 @@ fn test_fillet_chain() {
             ),
             epsilon = 1e-8,
         );
-        approx::assert_abs_diff_eq!(
+        approxim::assert_abs_diff_eq!(
             iter.next(),
             Some(LineSegment::new([0.5, 1.0], [0.0, 1.0]).unwrap().into()),
             epsilon = 1e-8,
@@ -127,7 +127,7 @@ fn test_fillet_chain() {
             assert_eq!(prev.stop(), next.start());
         }
 
-        approx::assert_abs_diff_eq!(
+        approxim::assert_abs_diff_eq!(
             iter.next(),
             Some(
                 LineSegment::new([0.0, 0.0], [0.4999999999999999, 0.0])
@@ -135,7 +135,7 @@ fn test_fillet_chain() {
                     .into()
             )
         );
-        approx::assert_abs_diff_eq!(
+        approxim::assert_abs_diff_eq!(
             iter.next(),
             Some(
                 ArcSegment::from_start_center_angle([0.5, 0.0], [0.5, 0.5], FRAC_PI_2)
@@ -143,7 +143,7 @@ fn test_fillet_chain() {
                     .into()
             )
         );
-        approx::assert_abs_diff_eq!(
+        approxim::assert_abs_diff_eq!(
             iter.next(),
             Some(
                 LineSegment::new([1.0000000000000002, 0.5000000000000001], [1.0, 0.5])
@@ -151,7 +151,7 @@ fn test_fillet_chain() {
                     .into()
             )
         );
-        approx::assert_abs_diff_eq!(
+        approxim::assert_abs_diff_eq!(
             iter.next(),
             Some(
                 LineSegment::new([1.0, 0.5], [0.9999999999999997, 0.5])
@@ -159,7 +159,7 @@ fn test_fillet_chain() {
                     .into()
             )
         );
-        approx::assert_abs_diff_eq!(
+        approxim::assert_abs_diff_eq!(
             iter.next(),
             Some(
                 ArcSegment::from_start_center_angle([1.0, 0.5], [1.0, 1.0], -FRAC_PI_2)
@@ -168,7 +168,7 @@ fn test_fillet_chain() {
             ),
             epsilon = 1e-6
         );
-        approx::assert_abs_diff_eq!(
+        approxim::assert_abs_diff_eq!(
             iter.next(),
             Some(
                 LineSegment::new([0.4999999999999998, 1.0], [0.5, 1.0])
@@ -176,7 +176,7 @@ fn test_fillet_chain() {
                     .into()
             )
         );
-        approx::assert_abs_diff_eq!(
+        approxim::assert_abs_diff_eq!(
             iter.next(),
             Some(LineSegment::new([0.5, 1.0], [1.0, 1.0]).unwrap().into())
         );
@@ -190,11 +190,11 @@ fn test_fillet_chain() {
     {
         // No radii
         let mut iter = Segment::fillet_chain(&[[0.0, 0.0], [1.0, 0.0], [1.0, 0.5]], &[]);
-        approx::assert_abs_diff_eq!(
+        approxim::assert_abs_diff_eq!(
             iter.next(),
             Some(LineSegment::new([0.0, 0.0], [1.0, 0.0]).unwrap().into())
         );
-        approx::assert_abs_diff_eq!(
+        approxim::assert_abs_diff_eq!(
             iter.next(),
             Some(LineSegment::new([1.0, 0.0], [1.0, 0.5]).unwrap().into())
         );
@@ -203,11 +203,11 @@ fn test_fillet_chain() {
     {
         // Small radius
         let mut iter = Segment::fillet_chain(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]], &[0.5]);
-        approx::assert_abs_diff_eq!(
+        approxim::assert_abs_diff_eq!(
             iter.next(),
             Some(LineSegment::new([0.0, 0.0], [0.5, 0.0]).unwrap().into())
         );
-        approx::assert_abs_diff_eq!(
+        approxim::assert_abs_diff_eq!(
             iter.next(),
             Some(
                 ArcSegment::from_start_center_angle([0.5, 0.0], [0.5, 0.5], FRAC_PI_2)
@@ -216,7 +216,7 @@ fn test_fillet_chain() {
             ),
             epsilon = 1e-8,
         );
-        approx::assert_abs_diff_eq!(
+        approxim::assert_abs_diff_eq!(
             iter.next(),
             Some(LineSegment::new([1.0, 0.5], [1.0, 1.0]).unwrap().into()),
             epsilon = 1e-8,
@@ -226,11 +226,11 @@ fn test_fillet_chain() {
     {
         // Negative radius
         let mut iter = Segment::fillet_chain(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]], &[-0.5]);
-        approx::assert_abs_diff_eq!(
+        approxim::assert_abs_diff_eq!(
             iter.next(),
             Some(LineSegment::new([0.0, 0.0], [1.0, 0.0]).unwrap().into())
         );
-        approx::assert_abs_diff_eq!(
+        approxim::assert_abs_diff_eq!(
             iter.next(),
             Some(LineSegment::new([1.0, 0.0], [1.0, 1.0]).unwrap().into())
         );
@@ -239,7 +239,7 @@ fn test_fillet_chain() {
     {
         // Very large radius
         let mut iter = Segment::fillet_chain(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]], &[20.0]);
-        approx::assert_abs_diff_eq!(
+        approxim::assert_abs_diff_eq!(
             iter.next(),
             Some(
                 LineSegment::new([0.0, 0.0], [-1.8369701987210297e-16, 0.0])
@@ -247,7 +247,7 @@ fn test_fillet_chain() {
                     .into()
             )
         );
-        approx::assert_abs_diff_eq!(
+        approxim::assert_abs_diff_eq!(
             iter.next(),
             Some(
                 ArcSegment::from_start_center_angle([0.0, 0.0], [0.0, 1.0], FRAC_PI_2)
@@ -255,7 +255,7 @@ fn test_fillet_chain() {
                     .into()
             )
         );
-        approx::assert_abs_diff_eq!(
+        approxim::assert_abs_diff_eq!(
             iter.next(),
             Some(
                 LineSegment::new([1.0, 0.9999999999999998], [1.0, 1.0])
@@ -271,11 +271,11 @@ fn test_fillet_chain() {
             &[[1.0, 0.0], [0.0, 0.0], [0.0, 1.0], [1.0, 1.0]],
             &[0.5, 20.0],
         );
-        approx::assert_abs_diff_eq!(
+        approxim::assert_abs_diff_eq!(
             iter.next(),
             Some(LineSegment::new([1.0, 0.0], [0.5, 0.0]).unwrap().into())
         );
-        approx::assert_abs_diff_eq!(
+        approxim::assert_abs_diff_eq!(
             iter.next(),
             Some(
                 ArcSegment::from_start_center_angle([0.5, 0.0], [0.5, 0.5], -FRAC_PI_2)
@@ -285,7 +285,7 @@ fn test_fillet_chain() {
             epsilon = 1e-8,
         );
         // Glue segment
-        approx::assert_abs_diff_eq!(
+        approxim::assert_abs_diff_eq!(
             iter.next(),
             Some(
                 LineSegment::new(
@@ -297,7 +297,7 @@ fn test_fillet_chain() {
             ),
             epsilon = 1e-8,
         );
-        approx::assert_abs_diff_eq!(
+        approxim::assert_abs_diff_eq!(
             iter.next(),
             Some(
                 ArcSegment::from_start_center_angle([0.0, 0.5], [0.5, 0.5], -FRAC_PI_2)
@@ -306,7 +306,7 @@ fn test_fillet_chain() {
             ),
             epsilon = 1e-8,
         );
-        approx::assert_abs_diff_eq!(
+        approxim::assert_abs_diff_eq!(
             iter.next(),
             Some(LineSegment::new([0.5, 1.0], [1.0, 1.0],).unwrap().into()),
             epsilon = 1e-8,
@@ -316,7 +316,7 @@ fn test_fillet_chain() {
     {
         // Two points -> radii are ignored
         let mut iter = Segment::fillet_chain(&[[0.0, 0.0], [1.0, 0.0]], &[0.5, 20.0]);
-        approx::assert_abs_diff_eq!(
+        approxim::assert_abs_diff_eq!(
             iter.next(),
             Some(LineSegment::new([0.0, 0.0], [1.0, 0.0]).unwrap().into()),
             epsilon = 1e-8,
@@ -341,12 +341,12 @@ fn test_fillet_chain() {
             ],
             &[0.5, 0.0, 0.25, 2.0],
         );
-        approx::assert_abs_diff_eq!(
+        approxim::assert_abs_diff_eq!(
             iter.next(),
             Some(LineSegment::new([0.0, 0.0], [0.5, 0.0]).unwrap().into()),
             epsilon = 1e-8,
         );
-        approx::assert_abs_diff_eq!(
+        approxim::assert_abs_diff_eq!(
             iter.next(),
             Some(
                 ArcSegment::from_start_center_angle([0.5, 0.0], [0.5, 0.5], FRAC_PI_2)
@@ -355,7 +355,7 @@ fn test_fillet_chain() {
             ),
             epsilon = 1e-8,
         );
-        approx::assert_abs_diff_eq!(
+        approxim::assert_abs_diff_eq!(
             iter.next(),
             Some(
                 LineSegment::new([1.0000000000000002, 0.5000000000000001], [1.0, 0.5])
@@ -364,12 +364,12 @@ fn test_fillet_chain() {
             ),
             epsilon = 1e-8,
         );
-        approx::assert_abs_diff_eq!(
+        approxim::assert_abs_diff_eq!(
             iter.next(),
             Some(LineSegment::new([1.0, 0.5], [0.75, 0.5]).unwrap().into()),
             epsilon = 1e-8,
         );
-        approx::assert_abs_diff_eq!(
+        approxim::assert_abs_diff_eq!(
             iter.next(),
             Some(
                 ArcSegment::from_start_center_angle([0.75, 0.5], [0.75, 0.75], -FRAC_PI_2)
@@ -378,7 +378,7 @@ fn test_fillet_chain() {
             ),
             epsilon = 1e-8,
         );
-        approx::assert_abs_diff_eq!(
+        approxim::assert_abs_diff_eq!(
             iter.next(),
             Some(
                 LineSegment::new(
@@ -390,7 +390,7 @@ fn test_fillet_chain() {
             ),
             epsilon = 1e-8,
         );
-        approx::assert_abs_diff_eq!(
+        approxim::assert_abs_diff_eq!(
             iter.next(),
             Some(
                 ArcSegment::from_start_center_angle([0.5, 0.75], [0.25, 0.75], FRAC_PI_2)
@@ -399,7 +399,7 @@ fn test_fillet_chain() {
             ),
             epsilon = 1e-8,
         );
-        approx::assert_abs_diff_eq!(
+        approxim::assert_abs_diff_eq!(
             iter.next(),
             Some(LineSegment::new([0.25, 1.0], [0.0, 1.0]).unwrap().into()),
             epsilon = 1e-8,

@@ -30,7 +30,7 @@ pub use crate::{DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE, WithTolerance};
 
 #[cfg(feature = "cairo")]
 pub use crate::draw::*;
-pub use approx;
+pub use approxim;
 
 ///! Reexport of useful common functionality
 pub use bounding_box::*;

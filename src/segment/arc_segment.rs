@@ -14,7 +14,7 @@ itself; see its documentation for details on construction, invariants, and
 usage.
 */
 
-use approx::{relative_eq, relative_ne};
+use approxim::{relative_eq, relative_ne};
 use compare_variables::compare_variables;
 
 #[cfg(feature = "serde")]
@@ -100,13 +100,13 @@ impl ArcSegment {
 
     // Successful creation
     let arc = ArcSegment::new([1.0, 1.0], 2.0, 0.0, -FRAC_PI_2).expect("valid_arc");
-    approx::assert_abs_diff_eq!(arc.start(), [3.0, 1.0], epsilon = 1e-15);
-    approx::assert_abs_diff_eq!(arc.stop(), [1.0, -1.0], epsilon = 1e-15);
+    approxim::assert_abs_diff_eq!(arc.start(), [3.0, 1.0], epsilon = 1e-15);
+    approxim::assert_abs_diff_eq!(arc.stop(), [1.0, -1.0], epsilon = 1e-15);
 
     // Example forming a full circle
     let arc = ArcSegment::new([1.0, 1.0], 2.0, 0.0, TAU).expect("valid_arc");
-    approx::assert_abs_diff_eq!(arc.start(), [3.0, 1.0], epsilon = 1e-15);
-    approx::assert_abs_diff_eq!(arc.stop(), [3.0, 1.0], epsilon = 1e-15);
+    approxim::assert_abs_diff_eq!(arc.start(), [3.0, 1.0], epsilon = 1e-15);
+    approxim::assert_abs_diff_eq!(arc.stop(), [3.0, 1.0], epsilon = 1e-15);
 
     // Radius is not positive
     assert!(ArcSegment::new([1.0, 1.0], -2.0, 0.0, -FRAC_PI_2).is_err());
@@ -196,8 +196,8 @@ impl ArcSegment {
     use planar_geo::segment::ArcSegment;
 
     let circle = ArcSegment::circle([1.0, 1.0], 2.0).unwrap();
-    approx::assert_abs_diff_eq!(circle.start(), [3.0, 1.0], epsilon = 1e-15);
-    approx::assert_abs_diff_eq!(circle.stop(), [3.0, 1.0], epsilon = 1e-15);
+    approxim::assert_abs_diff_eq!(circle.start(), [3.0, 1.0], epsilon = 1e-15);
+    approxim::assert_abs_diff_eq!(circle.stop(), [3.0, 1.0], epsilon = 1e-15);
 
     // Radii are not positive
     assert!(ArcSegment::circle([1.0, 1.0], 0.0).is_err());
@@ -222,13 +222,13 @@ impl ArcSegment {
 
     // Successful creation
     let arc = ArcSegment::from_center_radius_start_sweep_angle([1.0, 1.0], 2.0, 0.0, -FRAC_PI_2).expect("valid_arc");
-    approx::assert_abs_diff_eq!(arc.start(), [3.0, 1.0], epsilon = 1e-15);
-    approx::assert_abs_diff_eq!(arc.stop(), [1.0, -1.0], epsilon = 1e-15);
+    approxim::assert_abs_diff_eq!(arc.start(), [3.0, 1.0], epsilon = 1e-15);
+    approxim::assert_abs_diff_eq!(arc.stop(), [1.0, -1.0], epsilon = 1e-15);
 
     // Example forming a full circle
     let arc = ArcSegment::from_center_radius_start_sweep_angle([1.0, 1.0], 2.0, 0.0, TAU).expect("valid_arc");
-    approx::assert_abs_diff_eq!(arc.start(), [3.0, 1.0], epsilon = 1e-15);
-    approx::assert_abs_diff_eq!(arc.stop(), [3.0, 1.0], epsilon = 1e-15);
+    approxim::assert_abs_diff_eq!(arc.start(), [3.0, 1.0], epsilon = 1e-15);
+    approxim::assert_abs_diff_eq!(arc.stop(), [3.0, 1.0], epsilon = 1e-15);
 
     // Radius is not positive
     assert!(ArcSegment::from_center_radius_start_sweep_angle([1.0, 1.0], -2.0, 0.0, -FRAC_PI_2).is_err());
@@ -277,13 +277,13 @@ impl ArcSegment {
 
     // Successful creation
     let arc = ArcSegment::from_center_radius_start_stop_angle([1.0, 1.0], 2.0, 0.0, FRAC_PI_2).expect("valid_arc");
-    approx::assert_abs_diff_eq!(arc.start(), [3.0, 1.0], epsilon = 1e-15);
-    approx::assert_abs_diff_eq!(arc.stop(), [1.0, 3.0], epsilon = 1e-15);
+    approxim::assert_abs_diff_eq!(arc.start(), [3.0, 1.0], epsilon = 1e-15);
+    approxim::assert_abs_diff_eq!(arc.stop(), [1.0, 3.0], epsilon = 1e-15);
 
     // Example forming a full circle
     let arc = ArcSegment::from_center_radius_start_stop_angle([1.0, 1.0], 2.0, 0.0, TAU).expect("valid_arc");
-    approx::assert_abs_diff_eq!(arc.start(), [3.0, 1.0], epsilon = 1e-15);
-    approx::assert_abs_diff_eq!(arc.stop(), [3.0, 1.0], epsilon = 1e-15);
+    approxim::assert_abs_diff_eq!(arc.start(), [3.0, 1.0], epsilon = 1e-15);
+    approxim::assert_abs_diff_eq!(arc.stop(), [3.0, 1.0], epsilon = 1e-15);
 
     // Radius is not positive
     assert!(ArcSegment::from_center_radius_start_stop_angle([1.0, 1.0], -2.0, 0.0, -FRAC_PI_2).is_err());
@@ -324,10 +324,10 @@ impl ArcSegment {
     let stop = [2.0, 0.0];
 
     let arc = ArcSegment::from_start_middle_stop(start, middle, stop).expect("valid_arc");
-    approx::assert_abs_diff_eq!(arc.center(), [2.0, 1.0], epsilon = DEFAULT_EPSILON);
-    approx::assert_abs_diff_eq!(arc.radius(), 1.0, epsilon = DEFAULT_EPSILON);
-    approx::assert_abs_diff_eq!(arc.start_angle(), 2.0*std::f64::consts::PI, epsilon = DEFAULT_EPSILON);
-    approx::assert_abs_diff_eq!(arc.sweep_angle(), -0.5*std::f64::consts::PI, epsilon = DEFAULT_EPSILON);
+    approxim::assert_abs_diff_eq!(arc.center(), [2.0, 1.0], epsilon = DEFAULT_EPSILON);
+    approxim::assert_abs_diff_eq!(arc.radius(), 1.0, epsilon = DEFAULT_EPSILON);
+    approxim::assert_abs_diff_eq!(arc.start_angle(), 2.0*std::f64::consts::PI, epsilon = DEFAULT_EPSILON);
+    approxim::assert_abs_diff_eq!(arc.sweep_angle(), -0.5*std::f64::consts::PI, epsilon = DEFAULT_EPSILON);
 
     // Middle is identical to start or stop
     assert!(ArcSegment::from_start_middle_stop(start, start, stop).is_err());
@@ -373,7 +373,7 @@ impl ArcSegment {
     let angle = 1.5*std::f64::consts::PI;
 
     let arc = ArcSegment::from_start_center_angle(start, center, angle).expect("valid_arc");
-    approx::assert_abs_diff_eq!(arc.radius(), 2.0);
+    approxim::assert_abs_diff_eq!(arc.radius(), 2.0);
 
     // start and center are identical
     assert!(ArcSegment::from_start_center_angle(start, start, angle).is_err());
@@ -420,20 +420,20 @@ impl ArcSegment {
     /// let radius: f64 = 2.0;
     ///
     /// let red_arc = ArcSegment::from_start_stop_radius(start, stop, radius, true, false).expect("valid_arc");
-    /// approx::assert_abs_diff_eq!(red_arc.center(), [2.0, 2.0]);
-    /// approx::assert_abs_diff_eq!(red_arc.sweep_angle(), 0.5 * PI, epsilon = 1e-3);
+    /// approxim::assert_abs_diff_eq!(red_arc.center(), [2.0, 2.0]);
+    /// approxim::assert_abs_diff_eq!(red_arc.sweep_angle(), 0.5 * PI, epsilon = 1e-3);
     ///
     /// let blue_arc = ArcSegment::from_start_stop_radius(start, stop, radius, true, true).expect("valid_arc");
-    /// approx::assert_abs_diff_eq!(blue_arc.center(), [0.0, 0.0]);
-    /// approx::assert_abs_diff_eq!(blue_arc.sweep_angle(), 1.5 * PI, epsilon = 1e-3);
+    /// approxim::assert_abs_diff_eq!(blue_arc.center(), [0.0, 0.0]);
+    /// approxim::assert_abs_diff_eq!(blue_arc.sweep_angle(), 1.5 * PI, epsilon = 1e-3);
     ///
     /// let green_arc = ArcSegment::from_start_stop_radius(start, stop, radius, false, false).expect("valid_arc");
-    /// approx::assert_abs_diff_eq!(green_arc.center(), [0.0, 0.0]);
-    /// approx::assert_abs_diff_eq!(green_arc.sweep_angle(), -0.5 * PI, epsilon = 1e-3);
+    /// approxim::assert_abs_diff_eq!(green_arc.center(), [0.0, 0.0]);
+    /// approxim::assert_abs_diff_eq!(green_arc.sweep_angle(), -0.5 * PI, epsilon = 1e-3);
     ///
     /// let yellow_arc = ArcSegment::from_start_stop_radius(start, stop, radius, false, true).expect("valid_arc");
-    /// approx::assert_abs_diff_eq!(yellow_arc.center(), [2.0, 2.0]);
-    /// approx::assert_abs_diff_eq!(yellow_arc.sweep_angle(), -1.5 * PI, epsilon = 1e-3);
+    /// approxim::assert_abs_diff_eq!(yellow_arc.center(), [2.0, 2.0]);
+    /// approxim::assert_abs_diff_eq!(yellow_arc.sweep_angle(), -1.5 * PI, epsilon = 1e-3);
     /// ```
     #[doc = ""]
     #[cfg_attr(feature = "doc-images", doc = "![Four possible arcs][four_arcs]")]
@@ -570,8 +570,8 @@ impl ArcSegment {
     use std::f64::consts::PI;
 
     let arc = ArcSegment::from_start_stop_center([0.0, 2.0], [2.0, 0.0], [0.0, 0.0], true, false).expect("valid_arc");
-    approx::assert_abs_diff_eq!(arc.radius(), 2.0);
-    approx::assert_abs_diff_eq!(arc.sweep_angle(), 0.5 * PI, epsilon = 1e-3);
+    approxim::assert_abs_diff_eq!(arc.radius(), 2.0);
+    approxim::assert_abs_diff_eq!(arc.sweep_angle(), 0.5 * PI, epsilon = 1e-3);
 
     // Radii start-center and stop-center are not equal
     assert!(ArcSegment::from_start_stop_center([0.0, 2.0], [3.0, 0.0], [0.0, 0.0], true, false).is_err());
@@ -629,10 +629,10 @@ impl ArcSegment {
     use std::f64::consts::PI;
 
     let arc = ArcSegment::from_start_stop_center_radius([0.0, 2.0], [2.0, 0.0], [0.0, 0.0], 2.0, true).expect("valid_arc");
-    approx::assert_abs_diff_eq!(arc.sweep_angle(), 1.5 * PI, epsilon = 1e-3);
+    approxim::assert_abs_diff_eq!(arc.sweep_angle(), 1.5 * PI, epsilon = 1e-3);
 
     let arc = ArcSegment::from_start_stop_center_radius([0.0, 2.0], [2.0, 0.0], [0.0, 0.0], 2.0, false).expect("valid_arc");
-    approx::assert_abs_diff_eq!(arc.sweep_angle(), -0.5 * PI, epsilon = 1e-3);
+    approxim::assert_abs_diff_eq!(arc.sweep_angle(), -0.5 * PI, epsilon = 1e-3);
     ```
      */
     pub fn from_start_stop_center_radius(
@@ -710,9 +710,9 @@ impl ArcSegment {
     use planar_geo::prelude::ArcSegment;
 
     let arc = ArcSegment::fillet([0.0, 1.0], [1.0, 1.0], [1.0, 0.0], 0.5).expect("valid_arc");
-    approx::assert_abs_diff_eq!(arc.radius(), 0.5, epsilon = 1e-6);
-    approx::assert_abs_diff_eq!(arc.start(), [0.5, 1.0], epsilon = 1e-6);
-    approx::assert_abs_diff_eq!(arc.stop(), [1.0, 0.5], epsilon = 1e-6);
+    approxim::assert_abs_diff_eq!(arc.radius(), 0.5, epsilon = 1e-6);
+    approxim::assert_abs_diff_eq!(arc.start(), [0.5, 1.0], epsilon = 1e-6);
+    approxim::assert_abs_diff_eq!(arc.stop(), [1.0, 0.5], epsilon = 1e-6);
     ```
      */
     pub fn fillet(
@@ -879,7 +879,7 @@ impl ArcSegment {
     let stop = [2.0, 0.0];
 
     let arc = ArcSegment::from_start_middle_stop(start, middle, stop).expect("valid_arc");
-    approx::assert_abs_diff_eq!(arc.start(), start);
+    approxim::assert_abs_diff_eq!(arc.start(), start);
     ```
      */
     pub fn start(&self) -> [f64; 2] {
@@ -905,7 +905,7 @@ impl ArcSegment {
     let stop = [2.0, 0.0];
 
     let arc = ArcSegment::from_start_middle_stop(start, middle, stop).expect("valid_arc");
-    approx::assert_abs_diff_eq!(arc.stop(), stop, epsilon = 1e-14);
+    approxim::assert_abs_diff_eq!(arc.stop(), stop, epsilon = 1e-14);
     ```
      */
     pub fn stop(&self) -> [f64; 2] {
@@ -955,7 +955,7 @@ impl ArcSegment {
     let stop = [2.0, 0.0];
 
     let arc = ArcSegment::from_start_middle_stop(start, middle, stop).expect("valid_arc");
-    approx::assert_abs_diff_eq!((arc.radius() * arc.sweep_angle()).abs(), arc.length());
+    approxim::assert_abs_diff_eq!((arc.radius() * arc.sweep_angle()).abs(), arc.length());
     ```
      */
     pub fn length(&self) -> f64 {
@@ -973,7 +973,7 @@ impl ArcSegment {
     let circle = ArcSegment::circle([0.0, -3.0], 2.0).unwrap();
 
     // In case of a circle, the centroid is the center
-    approx::assert_abs_diff_eq!(circle.centroid(), [0.0, -3.0]);
+    approxim::assert_abs_diff_eq!(circle.centroid(), [0.0, -3.0]);
     ```
      */
     pub fn centroid(&self) -> [f64; 2] {
@@ -1018,11 +1018,11 @@ impl ArcSegment {
     let arc = ArcSegment::circle([0.0, 0.0], 2.0).unwrap();
 
     // Middle point of the segment
-    approx::assert_abs_diff_eq!(arc.segment_point(0.25), [0.0, 2.0], epsilon = 1e-15);
-    approx::assert_abs_diff_eq!(arc.segment_point(0.5), [-2.0, 0.0], epsilon = 1e-15);
-    approx::assert_abs_diff_eq!(arc.segment_point(0.75), [0.0, -2.0], epsilon = 1e-15);
-    approx::assert_abs_diff_eq!(arc.segment_point(-1.0), [2.0, 0.0], epsilon = 1e-15); // Start point
-    approx::assert_abs_diff_eq!(arc.segment_point(1.5), [2.0, 0.0], epsilon = 1e-15); // Stop point
+    approxim::assert_abs_diff_eq!(arc.segment_point(0.25), [0.0, 2.0], epsilon = 1e-15);
+    approxim::assert_abs_diff_eq!(arc.segment_point(0.5), [-2.0, 0.0], epsilon = 1e-15);
+    approxim::assert_abs_diff_eq!(arc.segment_point(0.75), [0.0, -2.0], epsilon = 1e-15);
+    approxim::assert_abs_diff_eq!(arc.segment_point(-1.0), [2.0, 0.0], epsilon = 1e-15); // Start point
+    approxim::assert_abs_diff_eq!(arc.segment_point(1.5), [2.0, 0.0], epsilon = 1e-15); // Stop point
     ```
      */
     pub fn segment_point(&self, normalized: f64) -> [f64; 2] {
@@ -1051,11 +1051,11 @@ impl ArcSegment {
 
     let mut iter = arc.polygonize(SegmentPolygonizer::InnerSegments(4));
 
-    approx::assert_abs_diff_eq!(iter.next(), Some(arc.segment_point(0.0)), epsilon = 1e-15);
-    approx::assert_abs_diff_eq!(iter.next(), Some(arc.segment_point(0.25)), epsilon = 1e-15);
-    approx::assert_abs_diff_eq!(iter.next(), Some(arc.segment_point(0.5)), epsilon = 1e-15);
-    approx::assert_abs_diff_eq!(iter.next(), Some(arc.segment_point(0.75)), epsilon = 1e-15);
-    approx::assert_abs_diff_eq!(iter.next(), Some(arc.segment_point(1.0)), epsilon = 1e-15);
+    approxim::assert_abs_diff_eq!(iter.next(), Some(arc.segment_point(0.0)), epsilon = 1e-15);
+    approxim::assert_abs_diff_eq!(iter.next(), Some(arc.segment_point(0.25)), epsilon = 1e-15);
+    approxim::assert_abs_diff_eq!(iter.next(), Some(arc.segment_point(0.5)), epsilon = 1e-15);
+    approxim::assert_abs_diff_eq!(iter.next(), Some(arc.segment_point(0.75)), epsilon = 1e-15);
+    approxim::assert_abs_diff_eq!(iter.next(), Some(arc.segment_point(1.0)), epsilon = 1e-15);
     assert!(iter.next().is_none());
     ```
      */
@@ -1639,7 +1639,7 @@ impl ToBoundingBox for ArcSegment {
     }
 }
 
-impl approx::AbsDiffEq for ArcSegment {
+impl approxim::AbsDiffEq for ArcSegment {
     type Epsilon = f64;
 
     fn default_epsilon() -> f64 {
@@ -1655,7 +1655,7 @@ impl approx::AbsDiffEq for ArcSegment {
     }
 }
 
-impl approx::RelativeEq for ArcSegment {
+impl approxim::RelativeEq for ArcSegment {
     fn default_max_relative() -> f64 {
         f64::default_max_relative()
     }
@@ -1675,7 +1675,7 @@ impl approx::RelativeEq for ArcSegment {
     }
 }
 
-impl approx::UlpsEq for ArcSegment {
+impl approxim::UlpsEq for ArcSegment {
     fn default_max_ulps() -> u32 {
         f64::default_max_ulps()
     }
@@ -1753,7 +1753,7 @@ let middle = [1.0/2.0_f64.sqrt(), -1.0/2.0_f64.sqrt()];
 let stop = [0.0, -1.0];
 
 let res = three_point_arc_center(start, middle, stop);
-approx::assert_abs_diff_eq!(res.unwrap(), [0.0, 0.0], epsilon = 1e-15);
+approxim::assert_abs_diff_eq!(res.unwrap(), [0.0, 0.0], epsilon = 1e-15);
 
 let start = [1.0, 0.0];
 let middle = [0.5, 0.0];

@@ -7,14 +7,14 @@ Unlike the "segment" types ([`Segment`](crate::segment::Segment) and its
 variants [`ArcSegment`] and [`LineSegment`]), it is not used in defining more
 complex "composite" types (such as
 [`Polysegment`](crate::polysegment::Polysegment)). Its main purpose is to serve
-as a tool for calculations, for example when determining intersection.
+as a tool for calculations, for example when determining intersections.
 
 See the docstring of [`Line`] for more information.
  */
 
 use std::f64::{INFINITY, NEG_INFINITY};
 
-use approx::relative_eq;
+use approxim::relative_eq;
 use bounding_box::{BoundingBox, ToBoundingBox};
 
 #[cfg(feature = "serde")]
@@ -415,7 +415,7 @@ impl PrimitiveWithTol for Line {
         https://cp-algorithms.com/geometry/lines-intersection.html
         */
         let zn = det(self.a, self.b, line.a, line.b);
-        if approx::relative_eq!(zn, 0.0, epsilon = epsilon, max_relative = max_relative) {
+        if approxim::relative_eq!(zn, 0.0, epsilon = epsilon, max_relative = max_relative) {
             return PrimitiveIntersections::Zero;
         } else {
             let x = -det(self.c, self.b, line.c, line.b) / zn;

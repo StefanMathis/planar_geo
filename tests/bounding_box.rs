@@ -24,10 +24,10 @@ fn test_bounding_box_arc() {
                 .into();
 
         let bb = BoundingBox::from(&polysegment);
-        approx::assert_abs_diff_eq!(bb.xmin(), 0.0);
-        approx::assert_abs_diff_eq!(bb.xmax(), 0.5);
-        approx::assert_abs_diff_eq!(bb.ymin(), 0.0);
-        approx::assert_abs_diff_eq!(bb.ymax(), 0.5);
+        approxim::assert_abs_diff_eq!(bb.xmin(), 0.0);
+        approxim::assert_abs_diff_eq!(bb.xmax(), 0.5);
+        approxim::assert_abs_diff_eq!(bb.ymin(), 0.0);
+        approxim::assert_abs_diff_eq!(bb.ymax(), 0.5);
     }
     {
         let polysegment: Polysegment = ArcSegment::from_center_radius_start_sweep_angle(
@@ -40,10 +40,10 @@ fn test_bounding_box_arc() {
         .into();
 
         let bb = BoundingBox::from(&polysegment);
-        approx::assert_abs_diff_eq!(bb.xmin(), -0.5);
-        approx::assert_abs_diff_eq!(bb.xmax(), 0.0);
-        approx::assert_abs_diff_eq!(bb.ymin(), -0.5);
-        approx::assert_abs_diff_eq!(bb.ymax(), 0.0);
+        approxim::assert_abs_diff_eq!(bb.xmin(), -0.5);
+        approxim::assert_abs_diff_eq!(bb.xmax(), 0.0);
+        approxim::assert_abs_diff_eq!(bb.ymin(), -0.5);
+        approxim::assert_abs_diff_eq!(bb.ymax(), 0.0);
     }
     {
         let polysegment: Polysegment =
@@ -52,10 +52,10 @@ fn test_bounding_box_arc() {
                 .into();
 
         let bb = BoundingBox::from(&polysegment);
-        approx::assert_abs_diff_eq!(bb.xmin(), -2.0f64.sqrt(),);
-        approx::assert_abs_diff_eq!(bb.xmax(), 2.0f64.sqrt(),);
-        approx::assert_abs_diff_eq!(bb.ymin(), 2.0f64.sqrt(),);
-        approx::assert_abs_diff_eq!(bb.ymax(), 2.0);
+        approxim::assert_abs_diff_eq!(bb.xmin(), -2.0f64.sqrt(),);
+        approxim::assert_abs_diff_eq!(bb.xmax(), 2.0f64.sqrt(),);
+        approxim::assert_abs_diff_eq!(bb.ymin(), 2.0f64.sqrt(),);
+        approxim::assert_abs_diff_eq!(bb.ymax(), 2.0);
     }
     {
         let polysegment: Polysegment =
@@ -64,10 +64,10 @@ fn test_bounding_box_arc() {
                 .into();
 
         let bb = BoundingBox::from(&polysegment);
-        approx::assert_abs_diff_eq!(bb.xmin(), 0.90798, epsilon = 1e-4);
-        approx::assert_abs_diff_eq!(bb.xmax(), 2.0f64.sqrt(),);
-        approx::assert_abs_diff_eq!(bb.ymin(), 2.0f64.sqrt(),);
-        approx::assert_abs_diff_eq!(bb.ymax(), 1.78201, epsilon = 1e-4);
+        approxim::assert_abs_diff_eq!(bb.xmin(), 0.90798, epsilon = 1e-4);
+        approxim::assert_abs_diff_eq!(bb.xmax(), 2.0f64.sqrt(),);
+        approxim::assert_abs_diff_eq!(bb.ymin(), 2.0f64.sqrt(),);
+        approxim::assert_abs_diff_eq!(bb.ymax(), 1.78201, epsilon = 1e-4);
     }
 }
 
@@ -88,10 +88,10 @@ fn test_bounding_two_box_shapes() {
 
     let shapes = vec![shape_lower, shape_upper];
     let bb = BoundingBox::from_bounded_entities(shapes.iter()).unwrap();
-    approx::assert_abs_diff_eq!(bb.xmin(), -10e-3);
-    approx::assert_abs_diff_eq!(bb.xmax(), 10e-3);
-    approx::assert_abs_diff_eq!(bb.ymin(), 0.0);
-    approx::assert_abs_diff_eq!(bb.ymax(), 10e-3);
+    approxim::assert_abs_diff_eq!(bb.xmin(), -10e-3);
+    approxim::assert_abs_diff_eq!(bb.xmax(), 10e-3);
+    approxim::assert_abs_diff_eq!(bb.ymin(), 0.0);
+    approxim::assert_abs_diff_eq!(bb.ymax(), 10e-3);
 }
 
 #[test]
@@ -124,8 +124,8 @@ fn test_intersects() {
     let bb2 = BoundingBox::new(0.5, 1.5, 0.5, 1.5);
     let intersections = GeometryRef::from(&bb1).intersections(&bb2);
     assert_eq!(intersections.len(), 2);
-    approx::assert_abs_diff_eq!(intersections[0].point, [1.0, 0.5], epsilon = 1e-3);
-    approx::assert_abs_diff_eq!(intersections[1].point, [0.5, 1.0], epsilon = 1e-3);
+    approxim::assert_abs_diff_eq!(intersections[0].point, [1.0, 0.5], epsilon = 1e-3);
+    approxim::assert_abs_diff_eq!(intersections[1].point, [0.5, 1.0], epsilon = 1e-3);
 }
 
 #[test]
