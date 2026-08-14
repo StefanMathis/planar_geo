@@ -16,7 +16,6 @@ usage.
 
 use approx::{relative_eq, relative_ne};
 use compare_variables::compare_variables;
-use rayon::prelude::*;
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -24,7 +23,6 @@ use serde::{Deserialize, Serialize};
 use crate::{
     CentroidData, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE, Rotation2, ToleranceContext,
     Transformation, WithTolerance,
-    composite::CompositeWithTol,
     geometry::GeometryRef,
     primitive::{Primitive, PrimitiveIntersections, PrimitiveWithTol},
 };
@@ -1117,11 +1115,12 @@ impl ArcSegment {
     }
 
     /**
-    Returns whether `self` and `other` lay approximately on the same circle
-    (center and radius are approximately equal).
+    Returns whether the wrapped [`ArcSegment`] and `other` are located on the
+    same underlying circle (center and radius are equal).
 
-    Center and radius arre approximately equal if [`relative_eq`] returns true
-    with the specified absolute `epsilon` and `max_relative` tolerances.
+    By default, [`DEFAULT_EPSILON`] and [`DEFAULT_MAX_RELATIVE`] are used for
+    floating-point comparisons. For custom tolerances, use
+    [`WithTolerance::with_tolerance`].
 
     # Examples
 
@@ -1136,6 +1135,9 @@ impl ArcSegment {
     assert!(a1.same_circle(&a2));
     assert!(!a1.same_circle(&a3));
     assert!(!a2.same_circle(&a3));
+
+    // Adding a sufficiently large tolerance -> The centers are seen as identical
+    assert!(a1.with_tolerance(2.0, 0.0).same_circle(&a3));
     ```
      */
     pub fn same_circle(&self, other: &ArcSegment) -> bool {
@@ -1149,6 +1151,10 @@ impl ArcSegment {
     A [`LineSegment`](super::LineSegment) is a tangent of an [`ArcSegment`] if
     they touch in a single point and the line segment is perpendicular to the
     straight line connecting this point and the center of the arc.
+
+    By default, [`DEFAULT_EPSILON`] and [`DEFAULT_MAX_RELATIVE`] are used for
+    floating-point comparisons. For custom tolerances, use
+    [`WithTolerance::with_tolerance`].
 
     # Examples
 
@@ -1202,6 +1208,10 @@ impl ArcSegment {
         not(feature = "doc-images"),
         doc = "**Doc images not enabled**. Compile docs with `cargo doc --features 'doc-images'` and Rust version >= 1.54."
     )]
+    ///
+    /// By default, [`DEFAULT_EPSILON`] and [`DEFAULT_MAX_RELATIVE`] are used
+    /// for floating-point comparisons. For custom tolerances, use
+    /// [`WithTolerance::with_tolerance`].
     ///
     /// # Examples
     ///
@@ -1920,64 +1930,8 @@ impl<'c> Primitive for ToleranceContext<'c, ArcSegment> {
         Self: Sized,
         T: Into<GeometryRef<'a>>,
     {
-        let geo_ref: GeometryRef<'_> = other.into();
-        match geo_ref {
-            GeometryRef::Point(pt) => pt
-                .intersections_arc_segment_tol(self.inner, self.epsilon, self.max_relative)
-                .into_iter()
-                .map(From::from)
-                .collect(),
-            GeometryRef::ArcSegment(arc_segment) => arc_segment
-                .intersections_arc_segment_tol(self.inner, self.epsilon, self.max_relative)
-                .into_iter()
-                .map(From::from)
-                .collect(),
-            GeometryRef::LineSegment(line_segment) => line_segment
-                .intersections_arc_segment_tol(self.inner, self.epsilon, self.max_relative)
-                .into_iter()
-                .map(From::from)
-                .collect(),
-            GeometryRef::Line(line) => line
-                .intersections_arc_segment_tol(self.inner, self.epsilon, self.max_relative)
-                .into_iter()
-                .map(From::from)
-                .collect(),
-            GeometryRef::Segment(segment) => segment
-                .intersections_arc_segment_tol(self.inner, self.epsilon, self.max_relative)
-                .into_iter()
-                .map(From::from)
-                .collect(),
-            GeometryRef::BoundingBox(bounding_box) => {
-                let c = crate::contour::Contour::from(bounding_box);
-                c.intersections_primitive_par_tol::<ArcSegment>(
-                    self.inner,
-                    self.epsilon,
-                    self.max_relative,
-                )
-                .collect()
-            }
-            GeometryRef::Polysegment(polysegment) => polysegment
-                .intersections_primitive_par_tol::<ArcSegment>(
-                    self.inner,
-                    self.epsilon,
-                    self.max_relative,
-                )
-                .collect(),
-            GeometryRef::Contour(contour) => contour
-                .intersections_primitive_par_tol::<ArcSegment>(
-                    self.inner,
-                    self.epsilon,
-                    self.max_relative,
-                )
-                .collect(),
-            GeometryRef::Shape(shape) => shape
-                .intersections_primitive_par_tol::<ArcSegment>(
-                    self.inner,
-                    self.epsilon,
-                    self.max_relative,
-                )
-                .collect(),
-        }
+        let geo_ref: GeometryRef<'_> = self.inner.into();
+        return geo_ref.intersections_tol::<true, _>(other, self.epsilon, self.max_relative);
     }
 }
 
@@ -2205,21 +2159,15 @@ impl PrimitiveWithTol for ArcSegment {
         }
         return intersections;
     }
-
-    fn intersections_primitive_tol<T>(
-        &self,
-        primitive: &T,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> PrimitiveIntersections
-    where
-        T: PrimitiveWithTol,
-    {
-        return primitive.intersections_arc_segment_tol(self, epsilon, max_relative);
-    }
 }
 
 impl<'c> ToleranceContext<'c, ArcSegment> {
+    /**
+    Returns whether the wrapped [`ArcSegment`] and `other` are located on the
+    same underlying circle, using the tolerances stored in `self`.
+
+    This is the tolerance-aware counterpart of [`ArcSegment::same_circle`].
+    */
     pub fn same_circle(&self, other: &ArcSegment) -> bool {
         relative_eq!(
             self.inner.center,
@@ -2234,12 +2182,24 @@ impl<'c> ToleranceContext<'c, ArcSegment> {
         )
     }
 
+    /**
+    Returns whether `line_segment` is a tangent of the wrapped [`ArcSegment`],
+    using the tolerances stored in `self`.
+
+    This is the tolerance-aware counterpart of [`ArcSegment::is_tangent`].
+    */
     pub fn is_tangent(&self, line_segment: &super::LineSegment) -> bool {
         return line_segment
             .with_tolerance(self.epsilon, self.max_relative)
             .is_tangent(self.inner);
     }
 
+    /**
+    Returns whether the wrapped [`ArcSegment`] touches another segment, using
+    the tolerances stored in `self`.
+
+    This is the tolerance-aware counterpart of [`ArcSegment::touches_segment`].
+    */
     pub fn touches_segment<'a, T: Into<super::SegmentRef<'a>>>(&self, other: T) -> bool {
         return self
             .inner

@@ -1371,30 +1371,6 @@ pub(crate) trait CompositeWithTol: Composite {
         max_relative: f64,
     ) -> impl ParallelIterator<Item = Intersection> + 'a;
 
-    fn intersections_primitive_par_tol<'a, T>(
-        &'a self,
-        primitive: &'a T,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> impl ParallelIterator<Item = Intersection> + 'a
-    where
-        &'a T: Into<GeometryRef<'a>>,
-        T: PrimitiveWithTol,
-    {
-        self.par_iter()
-            .map(move |(k, s)| {
-                s.intersections_primitive_tol(primitive, epsilon, max_relative)
-                    .into_iter()
-                    .par_bridge()
-                    .map(move |point| Intersection {
-                        point,
-                        left: k,
-                        right: Default::default(),
-                    })
-            })
-            .flatten()
-    }
-
     fn intersections_tol<'a, T: Into<GeometryRef<'a>>>(
         &self,
         other: T,

@@ -105,6 +105,15 @@ fn test_covers_point() {
 }
 
 #[test]
+fn test_covers_line_segment() {
+    let ls1 = LineSegment::new([0.0, 0.0], [3.0, 0.0]).expect("valid inputs");
+    let line = Line::from(&ls1);
+    let ls2 = LineSegment::new([1.0, 0.0], [2.0, 0.0]).expect("valid inputs");
+    assert!(line.covers(&ls1));
+    assert!(line.covers(&ls2));
+}
+
+#[test]
 fn test_identical() {
     {
         let line_segment = LineSegment::new([0.0, 0.0], [2.0, 2.0]).unwrap();

@@ -16,12 +16,9 @@ usage.
 
 use std::f64::INFINITY;
 
-use rayon::prelude::*;
-
 use crate::{
     CentroidData, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE, Rotation2, ToleranceContext,
     Transformation, WithTolerance,
-    composite::CompositeWithTol,
     geometry::GeometryRef,
     line::Line,
     primitive::{Primitive, PrimitiveIntersections, PrimitiveWithTol},
@@ -530,6 +527,10 @@ impl LineSegment {
         doc = "**Doc images not enabled**. Compile docs with `cargo doc --features 'doc-images'` and Rust version >= 1.54."
     )]
     ///
+    /// By default, [`DEFAULT_EPSILON`] and [`DEFAULT_MAX_RELATIVE`] are used
+    /// for floating-point comparisons. For custom tolerances, use
+    /// [`WithTolerance::with_tolerance`].
+    ///
     /// # Examples
     ///
     /// ```
@@ -620,6 +621,10 @@ impl LineSegment {
     A [`LineSegment`] is a tangent of an [`ArcSegment`](super::ArcSegment) if
     they touch in a single point and the line segment is perpendicular to the
     straight line connecting this point and the center of the arc.
+
+    By default, [`DEFAULT_EPSILON`] and [`DEFAULT_MAX_RELATIVE`] are used for
+    floating-point comparisons. For custom tolerances, use
+    [`WithTolerance::with_tolerance`].
 
     # Examples
 
@@ -959,64 +964,8 @@ impl<'c> Primitive for ToleranceContext<'c, LineSegment> {
         Self: Sized,
         T: Into<GeometryRef<'a>>,
     {
-        let geo_ref: GeometryRef<'_> = other.into();
-        match geo_ref {
-            GeometryRef::Point(pt) => pt
-                .intersections_line_segment_tol(self.inner, self.epsilon, self.max_relative)
-                .into_iter()
-                .map(From::from)
-                .collect(),
-            GeometryRef::ArcSegment(arc_segment) => arc_segment
-                .intersections_line_segment_tol(self.inner, self.epsilon, self.max_relative)
-                .into_iter()
-                .map(From::from)
-                .collect(),
-            GeometryRef::LineSegment(line_segment) => line_segment
-                .intersections_line_segment_tol(self.inner, self.epsilon, self.max_relative)
-                .into_iter()
-                .map(From::from)
-                .collect(),
-            GeometryRef::Line(line) => line
-                .intersections_line_segment_tol(self.inner, self.epsilon, self.max_relative)
-                .into_iter()
-                .map(From::from)
-                .collect(),
-            GeometryRef::Segment(segment) => segment
-                .intersections_line_segment_tol(self.inner, self.epsilon, self.max_relative)
-                .into_iter()
-                .map(From::from)
-                .collect(),
-            GeometryRef::BoundingBox(bounding_box) => {
-                let c = crate::contour::Contour::from(bounding_box);
-                c.intersections_primitive_par_tol::<LineSegment>(
-                    self.inner,
-                    self.epsilon,
-                    self.max_relative,
-                )
-                .collect()
-            }
-            GeometryRef::Polysegment(polysegment) => polysegment
-                .intersections_primitive_par_tol::<LineSegment>(
-                    self.inner,
-                    self.epsilon,
-                    self.max_relative,
-                )
-                .collect(),
-            GeometryRef::Contour(contour) => contour
-                .intersections_primitive_par_tol::<LineSegment>(
-                    self.inner,
-                    self.epsilon,
-                    self.max_relative,
-                )
-                .collect(),
-            GeometryRef::Shape(shape) => shape
-                .intersections_primitive_par_tol::<LineSegment>(
-                    self.inner,
-                    self.epsilon,
-                    self.max_relative,
-                )
-                .collect(),
-        }
+        let geo_ref: GeometryRef<'_> = self.inner.into();
+        return geo_ref.intersections_tol::<true, _>(other, self.epsilon, self.max_relative);
     }
 }
 
@@ -1292,21 +1241,15 @@ impl PrimitiveWithTol for LineSegment {
         }
         return intersections;
     }
-
-    fn intersections_primitive_tol<T>(
-        &self,
-        primitive: &T,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> PrimitiveIntersections
-    where
-        T: PrimitiveWithTol,
-    {
-        return primitive.intersections_line_segment_tol(self, epsilon, max_relative);
-    }
 }
 
 impl<'c> ToleranceContext<'c, LineSegment> {
+    /**
+    Returns whether the wrapped [`LineSegment`] touches another segment, using
+    the tolerances stored in `self`.
+
+    This is the tolerance-aware counterpart of [`LineSegment::touches_segment`].
+    */
     pub fn touches_segment<'a, T: Into<super::SegmentRef<'a>>>(&self, other: T) -> bool {
         return self
             .inner
@@ -1314,6 +1257,12 @@ impl<'c> ToleranceContext<'c, LineSegment> {
             .0;
     }
 
+    /**
+    Returns whether the wrapped [`ArcSegment`] is a tangent of `arc_segment`,
+    using the tolerances stored in `self`.
+
+    This is the tolerance-aware counterpart of [`LineSegment::is_tangent`].
+    */
     pub fn is_tangent(&self, arc_segment: &super::ArcSegment) -> bool {
         let [x1, y1] = self.inner.start();
         let [x2, y2] = self.inner.stop();

@@ -17,14 +17,13 @@ use std::f64::{INFINITY, NEG_INFINITY};
 
 use approx::relative_eq;
 use bounding_box::{BoundingBox, ToBoundingBox};
-use rayon::prelude::*;
+
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 use crate::{
     DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE, Rotation2, ToleranceContext, Transformation,
     WithTolerance,
-    composite::CompositeWithTol,
     geometry::GeometryRef,
     primitive::{Primitive, PrimitiveIntersections, PrimitiveWithTol},
     segment::{ArcSegment, LineSegment},
@@ -128,9 +127,11 @@ impl Line {
     }
 
     /**
-    Returns `true` if the two given lines are parallel within the tolerance band
-    defined by the absolute tolerance `epsilon` and the relative tolerance
-    `max_relative`.
+    Returns `true` if the two given lines are parallel.
+
+    By default, [`DEFAULT_EPSILON`] and [`DEFAULT_MAX_RELATIVE`] are used for
+    floating-point comparisons. For custom tolerances, use
+    [`WithTolerance::with_tolerance`].
 
     # Examples
 
@@ -151,9 +152,11 @@ impl Line {
     }
 
     /**
-    Returns `true` if the two given lines are identical within the tolerance
-    band defined by the absolute tolerance `epsilon` and the relative tolerance
-    `max_relative`.
+    Returns `true` if the two given lines are identical.
+
+    By default, [`DEFAULT_EPSILON`] and [`DEFAULT_MAX_RELATIVE`] are used for
+    floating-point comparisons. For custom tolerances, use
+    [`WithTolerance::with_tolerance`].
 
     # Examples
 
@@ -359,64 +362,8 @@ impl<'c> Primitive for ToleranceContext<'c, Line> {
         Self: Sized,
         T: Into<GeometryRef<'a>>,
     {
-        let geo_ref: GeometryRef<'_> = other.into();
-        match geo_ref {
-            GeometryRef::Point(pt) => pt
-                .intersections_line_tol(self.inner, self.epsilon, self.max_relative)
-                .into_iter()
-                .map(From::from)
-                .collect(),
-            GeometryRef::ArcSegment(arc_segment) => arc_segment
-                .intersections_line_tol(self.inner, self.epsilon, self.max_relative)
-                .into_iter()
-                .map(From::from)
-                .collect(),
-            GeometryRef::LineSegment(line_segment) => line_segment
-                .intersections_line_tol(self.inner, self.epsilon, self.max_relative)
-                .into_iter()
-                .map(From::from)
-                .collect(),
-            GeometryRef::Line(line) => line
-                .intersections_line_tol(self.inner, self.epsilon, self.max_relative)
-                .into_iter()
-                .map(From::from)
-                .collect(),
-            GeometryRef::Segment(segment) => segment
-                .intersections_line_tol(self.inner, self.epsilon, self.max_relative)
-                .into_iter()
-                .map(From::from)
-                .collect(),
-            GeometryRef::BoundingBox(bounding_box) => {
-                let c = crate::contour::Contour::from(bounding_box);
-                c.intersections_primitive_par_tol::<Line>(
-                    self.inner,
-                    self.epsilon,
-                    self.max_relative,
-                )
-                .collect()
-            }
-            GeometryRef::Polysegment(polysegment) => polysegment
-                .intersections_primitive_par_tol::<Line>(
-                    self.inner,
-                    self.epsilon,
-                    self.max_relative,
-                )
-                .collect(),
-            GeometryRef::Contour(contour) => contour
-                .intersections_primitive_par_tol::<Line>(
-                    self.inner,
-                    self.epsilon,
-                    self.max_relative,
-                )
-                .collect(),
-            GeometryRef::Shape(shape) => shape
-                .intersections_primitive_par_tol::<Line>(
-                    self.inner,
-                    self.epsilon,
-                    self.max_relative,
-                )
-                .collect(),
-        }
+        let geo_ref: GeometryRef<'_> = self.inner.into();
+        return geo_ref.intersections_tol::<true, _>(other, self.epsilon, self.max_relative);
     }
 }
 
@@ -505,22 +452,26 @@ impl PrimitiveWithTol for Line {
     ) -> PrimitiveIntersections {
         arc_segment.intersections_line_circle(self.a, self.b, self.c, epsilon, max_relative)
     }
-
-    fn intersections_primitive_tol<T>(
-        &self,
-        primitive: &T,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> PrimitiveIntersections
-    where
-        T: PrimitiveWithTol,
-    {
-        primitive.intersections_line_tol(self, epsilon, max_relative)
-    }
 }
 
 impl<'c> ToleranceContext<'c, Line> {
-    // Like [`Line::parallel`], but allows definition of the tolerances `epsilon` and `max_relative` instead of using[`DEFAULT_EPSILON`] and [`DEFAULT_MAX_RELATIVE`].
+    /**
+    Returns whether the wrapped [`Line`] is parallel to `other`, using the
+    tolerances stored in `self`.
+
+    This is the tolerance-aware counterpart of [`Line::parallel`].
+
+    # Examples
+
+    ```
+    use planar_geo::prelude::*;
+
+    let line_1 = Line::from_point_angle([2.0, 0.0], 0.0);
+    let line_2 = Line::from_point_angle([2.0, 1.0], 1e-10);
+    assert!(line_1.parallel(&line_2));
+    assert!(!line_1.with_tolerance(0.0, 0.0).parallel(&line_2));
+    ```
+     */
     pub fn parallel(&self, other: &Line) -> bool {
         let zn = det(self.inner.a, self.inner.b, other.a, other.b);
         return relative_eq!(
@@ -531,6 +482,23 @@ impl<'c> ToleranceContext<'c, Line> {
         );
     }
 
+    /**
+    Returns whether the wrapped [`Line`] is parallel to `other`, using the
+    tolerances stored in `self`.
+
+    This is the tolerance-aware counterpart of [`Line::identical`].
+
+    # Examples
+
+    ```
+    use planar_geo::prelude::*;
+
+    let line_1 = Line::from_point_angle([2.0, 0.0], 0.0);
+    let line_2 = Line::from_point_angle([2.0, 1e-10], 0.0);
+    assert!(line_1.identical(&line_2));
+    assert!(!line_1.with_tolerance(0.0, 0.0).identical(&line_2));
+    ```
+     */
     pub fn identical(&self, other: &Line) -> bool {
         return relative_eq!(
             det(self.inner.a, self.inner.b, other.a, other.b),

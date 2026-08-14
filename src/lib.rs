@@ -34,7 +34,7 @@ doc = ::embed_doc_image::embed_image!("intersection_composites.svg", "docs/img/i
     doc = "**Doc images not enabled**. Compile docs with `cargo doc --features 'doc-images'` and Rust version >= 1.54."
 )]
 #![doc = include_str!("../docs/main.md")]
-// #![deny(missing_docs)]
+#![deny(missing_docs)]
 
 use bounding_box::BoundingBox;
 
@@ -62,14 +62,14 @@ pub mod draw;
 /**
 A reasonable default value for the absolute tolerance.
 
-Various methods within this crate (such as the `contains_` or `intersections_`
-methods from the [`Primitive`] and [`Composite`] traits) perform floating point
-comparisons using the [`relative_eq`](approx::relative_eq) macro from the
-[`approxim`](approx), which requires specifying an absolute tolerance `epsilon`
-and a relative tolerance `max_relative`. If those tolerances aren't explicitly
-provided via a [`ToleranceContext`], this constant is used for `epsilon` (
-and [`DEFAULT_MAX_RELATIVE`] for `max_relative`). These defaults have been
-chosen to provide "intuitive" behaviour of the aforementioned methods. See
+Various methods within this crate (such as the `covers_` or `intersections_`
+methods from the [`Primitive`](crate::primitive::Primitive) and [`Composite`](crate::composite::Composite) traits) perform floating point comparisons using
+the [`relative_eq`](approx::relative_eq) macro from the [`approxim`](approx),
+which requires specifying an absolute tolerance `epsilon` and a relative
+tolerance `max_relative`. If those tolerances aren't explicitly provided via a
+[`ToleranceContext`], this constant is used for `epsilon` (and
+[`DEFAULT_MAX_RELATIVE`] for `max_relative`). These defaults have been chosen
+to provide "intuitive" behaviour of the aforementioned methods. See
 [`ToleranceContext`] for more information.
 
 The value of this constant is the square root of the machine precision
@@ -80,15 +80,15 @@ pub const DEFAULT_EPSILON: f64 = 0.000000014901161193847656_f64;
 /**
 A reasonable default value for the relative tolerance.
 
-Various methods within this crate (such as the `contains_` or `intersections_`
-methods from the [`Primitive`] and [`Composite`] traits) perform floating point
-comparisons using the [`relative_eq`](approx::relative_eq) macro from the
-[`approxim`](approx), which requires specifying an absolute tolerance `epsilon`
-and a relative tolerance `max_relative`. If those tolerances aren't explicitly
-provided via a [`ToleranceContext`], this constant is used for `max_relative` (
-and [`DEFAULT_EPSILON`] for `epsilon`). These defaults have been
-chosen to provide "intuitive" behaviour of the aforementioned methods. See
-[`ToleranceContext`] for more information.
+Various methods within this crate (such as the `covers_` or `intersections_`
+methods from the [`Primitive`](crate::primitive::Primitive) and [`Composite`](crate::composite::Composite) traits) perform floating point comparisons using
+the [`relative_eq`](approx::relative_eq) macro from the [`approxim`](approx),
+which requires specifying an absolute tolerance `epsilon` and a relative
+tolerance `max_relative`. If those tolerances aren't explicitly provided via a
+[`ToleranceContext`], this constant is used for `max_relative` (and
+[`DEFAULT_EPSILON`] for `epsilon`). These defaults have been chosen to provide
+"intuitive" behaviour of the aforementioned methods. See [`ToleranceContext`]
+for more information.
  */
 pub const DEFAULT_MAX_RELATIVE: f64 = 1e-8;
 
@@ -110,8 +110,8 @@ Therefore, the aforementioned methods use the
 when comparing floats, which requires specifying an absolute tolerance `epsilon`
 and a relative tolerance `max_relative`. These default to [`DEFAULT_EPSILON`]
 and [`DEFAULT_MAX_RELATIVE`], but can be overwritten by using a
-[`ToleranceContext`], which can be created by the `with_tolerance` methods of
-the geometric objects:
+[`ToleranceContext`], which can be created by the
+[`WithTolerance::with_tolerance`] method of the geometric objects:
 
 ```
 use planar_geo::prelude::*;
@@ -125,10 +125,9 @@ assert!(!line_segment.covers(&[0.5, 0.5]));
 assert!(line_segment.with_tolerance(1.0, DEFAULT_MAX_RELATIVE).covers(&[0.5, 0.5]));
 ```
 
-The presented
-[`LineSegment::with_tolerance`](crate::segment::LineSegment::with_tolerance)
-method creates a [`ToleranceContext<LineSegment>`] which can be used for one-off
-calculations as shown above, but can also be reused across multiple operations:
+In this case, [`WithTolerance::with_tolerance`] creates a
+[`ToleranceContext<LineSegment>`] which can be used for one-off calculations as
+shown above, but is also be reusable across multiple operations:
 
 ```
 use planar_geo::prelude::*;
@@ -196,13 +195,19 @@ pub(crate) mod private {
     pub trait Sealed {}
 }
 
+/// Provides [`with_tolerance`](Self::with_tolerance) for creating a
+/// [`ToleranceContext`] with custom floating-point tolerances.
+///
+/// See [`ToleranceContext`] for details and examples.
 pub trait WithTolerance: Sized + private::Sealed {
     /// Wraps `self` in a [`ToleranceContext`] using the specified `epsilon` and
     /// `max_relative` tolerances.
     ///
-    /// The [`ToleranceContext`] applies these tolerances to floating-point
-    /// comparisons performed by geometric operations, such as finding
-    /// intersections. See [`ToleranceContext`] for details and examples.
+    /// The resulting context applies these tolerances to floating-point
+    /// comparisons performed by geometric operations such as containment and
+    /// intersection calculations.
+    ///
+    /// See [`ToleranceContext`] for details and examples.
     fn with_tolerance<'a>(&'a self, epsilon: f64, max_relative: f64) -> ToleranceContext<'a, Self> {
         ToleranceContext {
             inner: self,
@@ -218,7 +223,7 @@ Affine transformations for geometric types.
 All geometric types within this crate as well as the basic "point"
 `[f64;2]` and [`bounding_box::BoundingBox`] types implement this trait to allow
 for easy affine transformations. All examples in the docstrings of the
-ndividual trait methods are for the point type, because all other geometric
+individual trait methods are for the point type, because all other geometric
 types are based on it. Hence, their implementation basically just delegates to
 `impl Transformation for [f64; 2]` for all their points.
  */
