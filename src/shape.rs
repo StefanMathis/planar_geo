@@ -488,7 +488,8 @@ impl Shape {
     }
 }
 
-impl crate::composite::private::Sealed for Shape {}
+impl crate::private::Sealed for Shape {}
+impl<'p> crate::private::Sealed for ToleranceContext<'p, Shape> {}
 
 impl WithTolerance for Shape {}
 

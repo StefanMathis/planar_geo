@@ -878,7 +878,8 @@ impl std::fmt::Display for LineSegment {
     }
 }
 
-impl crate::primitive::private::Sealed for LineSegment {}
+impl crate::private::Sealed for LineSegment {}
+impl<'p> crate::private::Sealed for ToleranceContext<'p, LineSegment> {}
 
 impl WithTolerance for LineSegment {}
 

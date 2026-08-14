@@ -1838,7 +1838,8 @@ pub fn calculate_sweep_angle(start_angle: f64, stop_angle: f64, positive: bool) 
     return sweep_angle;
 }
 
-impl crate::primitive::private::Sealed for ArcSegment {}
+impl crate::private::Sealed for ArcSegment {}
+impl<'p> crate::private::Sealed for ToleranceContext<'p, ArcSegment> {}
 
 impl WithTolerance for ArcSegment {}
 

@@ -9,7 +9,6 @@ and implement the [`Composite`] trait). See the trait documentation for details.
 
 use rayon::prelude::*;
 
-use crate::ToleranceContext;
 use crate::contour::Contour;
 use crate::geometry::GeometryRef;
 use crate::line::Line;
@@ -227,11 +226,6 @@ impl Default for Intersection {
             right: Default::default(),
         }
     }
-}
-
-pub(crate) mod private {
-    /// Sealed trait for [`Composite`]
-    pub trait Sealed {}
 }
 
 // =============================================================================
@@ -588,7 +582,7 @@ All intersection functions first check if the bounding boxes of the two
 primitives overlap (short-circuiting the evaluation if they don't). Hence, it is
 not necessary to check this before calling an intersection method.
  */
-pub trait Composite: private::Sealed + Sync {
+pub trait Composite: crate::private::Sealed + Sync {
     /**
     Returns the segment associated with the given `key`, if it exists.
 
@@ -1419,8 +1413,6 @@ pub(crate) trait CompositeWithTol: Composite {
     where
         Self: Sized;
 }
-
-impl<'c, T: CompositeWithTol> private::Sealed for ToleranceContext<'c, T> {}
 
 /**
 This enum defines how a [`Polysegment`] / [`Contour`] should be polygonized

@@ -1086,7 +1086,8 @@ impl FromIterator<Segment> for Polysegment {
     }
 }
 
-impl crate::composite::private::Sealed for Polysegment {}
+impl crate::private::Sealed for Polysegment {}
+impl<'p> crate::private::Sealed for ToleranceContext<'p, Polysegment> {}
 
 impl WithTolerance for Polysegment {}
 

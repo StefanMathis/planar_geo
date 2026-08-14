@@ -190,7 +190,13 @@ pub struct ToleranceContext<'p, T> {
     pub max_relative: f64,
 }
 
-pub trait WithTolerance: Sized {
+pub(crate) mod private {
+    /// Sealed trait for `Composite`, `Primitive` and `WithTolerance` to prevent
+    /// implementation of the traits outside the crate.
+    pub trait Sealed {}
+}
+
+pub trait WithTolerance: Sized + private::Sealed {
     /// Wraps `self` in a [`ToleranceContext`] using the specified `epsilon` and
     /// `max_relative` tolerances.
     ///

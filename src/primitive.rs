@@ -328,11 +328,6 @@ impl<'a> Iterator for PrimitiveIntersectionsIter<'a> {
     }
 }
 
-pub(crate) mod private {
-    /// Sealed trait for [`Primitive`]
-    pub trait Sealed {}
-}
-
 /**
 A trait for "primitive" geometric types like points (`[f64; 2]`), [`Line`]s,
 [`LineSegment`]s and [`ArcSegment`]s.
@@ -398,7 +393,7 @@ assert_eq!(
 );
 ```
  */
-pub trait Primitive: private::Sealed + Sync {
+pub trait Primitive: crate::private::Sealed + Sync {
     fn covers<'a, T>(&self, other: T) -> bool
     where
         Self: Sized,
@@ -598,9 +593,8 @@ pub(crate) trait PrimitiveWithTol: Primitive {
         T: PrimitiveWithTol;
 }
 
-impl<'p, C: PrimitiveWithTol> private::Sealed for ToleranceContext<'p, C> {}
-
-impl private::Sealed for [f64; 2] {}
+impl crate::private::Sealed for [f64; 2] {}
+impl<'p> crate::private::Sealed for ToleranceContext<'p, [f64; 2]> {}
 
 impl WithTolerance for [f64; 2] {}
 

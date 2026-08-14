@@ -893,7 +893,8 @@ impl Contour {
     }
 }
 
-impl crate::composite::private::Sealed for Contour {}
+impl crate::private::Sealed for Contour {}
+impl<'p> crate::private::Sealed for ToleranceContext<'p, Contour> {}
 
 impl WithTolerance for Contour {}
 

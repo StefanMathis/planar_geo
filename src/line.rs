@@ -282,7 +282,8 @@ impl Transformation for Line {
     }
 }
 
-impl crate::primitive::private::Sealed for Line {}
+impl crate::private::Sealed for Line {}
+impl<'p> crate::private::Sealed for ToleranceContext<'p, Line> {}
 
 impl WithTolerance for Line {}
 

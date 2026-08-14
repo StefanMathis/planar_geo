@@ -422,7 +422,8 @@ impl Transformation for Segment {
     }
 }
 
-impl crate::primitive::private::Sealed for Segment {}
+impl crate::private::Sealed for Segment {}
+impl<'p> crate::private::Sealed for ToleranceContext<'p, Segment> {}
 
 impl WithTolerance for Segment {}
 
@@ -1204,7 +1205,8 @@ impl From<&SegmentRef<'_>> for CentroidData {
     }
 }
 
-impl<'a> crate::primitive::private::Sealed for SegmentRef<'a> {}
+impl<'a> crate::private::Sealed for SegmentRef<'a> {}
+impl<'a, 'p> crate::private::Sealed for ToleranceContext<'p, SegmentRef<'a>> {}
 
 impl<'a> WithTolerance for SegmentRef<'a> {}
 
