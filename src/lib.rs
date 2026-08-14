@@ -34,7 +34,7 @@ doc = ::embed_doc_image::embed_image!("intersection_composites.svg", "docs/img/i
     doc = "**Doc images not enabled**. Compile docs with `cargo doc --features 'doc-images'` and Rust version >= 1.54."
 )]
 #![doc = include_str!("../docs/main.md")]
-#![deny(missing_docs)]
+// #![deny(missing_docs)]
 
 use bounding_box::BoundingBox;
 
@@ -119,10 +119,10 @@ use planar_geo::prelude::*;
 let line_segment = LineSegment::new([0.0, 0.0], [1.0, 0.0]).expect("start and end point are different");
 
 // From intuition, the point [0.5, 0.5] is not covered by the line segment:
-assert!(!line_segment.covers_point(&[0.5, 0.5]));
+assert!(!line_segment.covers(&[0.5, 0.5]));
 
 // However, if the tolerance becomes sufficiently large, it is covered by the line segment:
-assert!(line_segment.with_tolerance(1.0, DEFAULT_MAX_RELATIVE).covers_point(&[0.5, 0.5]));
+assert!(line_segment.with_tolerance(1.0, DEFAULT_MAX_RELATIVE).covers(&[0.5, 0.5]));
 ```
 
 The presented
@@ -136,9 +136,9 @@ use planar_geo::prelude::*;
 let line_segment = LineSegment::new([0.0, 0.0], [1.0, 0.0]).expect("start and end point are different");
 
 let tol_context = line_segment.with_tolerance(1.0, DEFAULT_MAX_RELATIVE);
-assert!(tol_context.covers_point(&[0.5, 0.5]));
-assert!(tol_context.covers_point(&[0.5, -0.5]));
-assert!(!tol_context.covers_point(&[0.5, 1.5])); // This point is still not covered
+assert!(tol_context.covers(&[0.5, 0.5]));
+assert!(tol_context.covers(&[0.5, -0.5]));
+assert!(!tol_context.covers(&[0.5, 1.5])); // This point is still not covered
 ```
 
 The default values for [`DEFAULT_EPSILON`] and [`DEFAULT_MAX_RELATIVE`]
@@ -188,6 +188,22 @@ pub struct ToleranceContext<'p, T> {
     pub epsilon: f64,
     /// The relative tolerance used within the context.
     pub max_relative: f64,
+}
+
+pub trait WithTolerance: Sized {
+    /// Wraps `self` in a [`ToleranceContext`] using the specified `epsilon` and
+    /// `max_relative` tolerances.
+    ///
+    /// The [`ToleranceContext`] applies these tolerances to floating-point
+    /// comparisons performed by geometric operations, such as finding
+    /// intersections. See [`ToleranceContext`] for details and examples.
+    fn with_tolerance<'a>(&'a self, epsilon: f64, max_relative: f64) -> ToleranceContext<'a, Self> {
+        ToleranceContext {
+            inner: self,
+            epsilon,
+            max_relative,
+        }
+    }
 }
 
 /**

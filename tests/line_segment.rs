@@ -253,23 +253,23 @@ fn test_angle_infinite() {
 fn test_covers_point() {
     {
         let line = LineSegment::new([1.0, 1.0], [0.0, 1.0]).unwrap();
-        assert!(line.covers_point(&[0.5, 1.0]));
+        assert!(line.covers(&[0.5, 1.0]));
     }
     {
         let line: Segment = LineSegment::new([1.0, 1.0], [0.0, 1.0]).unwrap().into();
-        assert!(line.covers_point(&[0.5, 1.0]));
+        assert!(line.covers(&[0.5, 1.0]));
     }
     {
         let line: Segment = LineSegment::new([0.0, 0.0], [1.0, 0.0]).unwrap().into();
-        assert!(line.covers_point(&[0.5, 0.0]));
+        assert!(line.covers(&[0.5, 0.0]));
     }
     {
         let line: Segment = LineSegment::new([0.0, 0.0], [1.0, 0.0]).unwrap().into();
-        assert!(line.covers_point(&[0.5, 0.0]));
+        assert!(line.covers(&[0.5, 0.0]));
     }
     {
         let line: Segment = LineSegment::new([0.5, 1.0], [1.0, 0.0]).unwrap().into();
-        assert!(line.covers_point(&[0.9000000000000001, 0.19999999999999984],));
+        assert!(line.covers(&[0.9000000000000001, 0.19999999999999984],));
     }
 }
 
@@ -278,8 +278,8 @@ fn test_line_segments_intersection() {
     {
         let line = Line::from_point_angle([0.11, 0.11], 0.0);
         let line_segment = LineSegment::new([0.1, 0.9], [0.1, 0.1]).unwrap();
-        assert_eq!(line.intersections_line_segment(&line_segment).len(), 1);
-        assert_eq!(line_segment.intersections_line(&line).len(), 1);
+        assert_eq!(line.intersections_primitive(&line_segment).len(), 1);
+        assert_eq!(line_segment.intersections_primitive(&line).len(), 1);
     }
     {
         // These two segments intersect
@@ -287,7 +287,7 @@ fn test_line_segments_intersection() {
         let line2 = LineSegment::new([1.0, 0.0], [0.0, 1.0]).unwrap();
         let intersections = line1
             .with_tolerance(0.0, 0.0)
-            .intersections_line_segment(&line2);
+            .intersections_primitive(&line2);
         assert_eq!(intersections.len(), 1);
         approx::assert_relative_eq!(PrimitiveIntersections::One([0.5, 0.5]), intersections);
 
@@ -295,14 +295,14 @@ fn test_line_segments_intersection() {
         let line3 = LineSegment::new([0.0, 1.0], [1.0, 2.0]).unwrap();
         let intersections = line1
             .with_tolerance(0.0, 0.0)
-            .intersections_line_segment(&line3);
+            .intersections_primitive(&line3);
         assert_eq!(intersections.len(), 0);
 
         // This segment doesn't intersect with line1 even though it is not parallel
         let line4 = LineSegment::new([0.0, 1.0], [1.0, 3.0]).unwrap();
         let intersection = line1
             .with_tolerance(0.0, 0.0)
-            .intersections_line_segment(&line4);
+            .intersections_primitive(&line4);
         assert_eq!(intersection.len(), 0);
     }
     {
@@ -311,7 +311,7 @@ fn test_line_segments_intersection() {
         let line2 = LineSegment::new([0.5, -0.5], [0.5, 1.5]).unwrap();
         let intersections = line1
             .with_tolerance(0.0, 0.0)
-            .intersections_line_segment(&line2);
+            .intersections_primitive(&line2);
         assert_eq!(intersections.len(), 1);
         approx::assert_relative_eq!(PrimitiveIntersections::One([0.5, 0.0]), intersections);
     }
@@ -321,7 +321,7 @@ fn test_line_segments_intersection() {
         let line2 = LineSegment::new([0.0, 0.0], [0.0, 3.0]).unwrap();
         let intersections = line1
             .with_tolerance(0.0, 0.0)
-            .intersections_line_segment(&line2);
+            .intersections_primitive(&line2);
         assert_eq!(intersections.len(), 2);
         approx::assert_relative_eq!(
             PrimitiveIntersections::Two([[0.0, 1.0], [0.0, 2.0]]),
@@ -334,7 +334,7 @@ fn test_line_segments_intersection() {
         let line2 = LineSegment::new([0.0, 1.0], [0.0, 3.0]).unwrap();
         let intersection = line1
             .with_tolerance(0.0, 0.0)
-            .intersections_line_segment(&line2);
+            .intersections_primitive(&line2);
         assert_eq!(intersection.len(), 2);
         approx::assert_relative_eq!(
             PrimitiveIntersections::Two([[0.0, 1.0], [0.0, 2.0]]),
@@ -347,7 +347,7 @@ fn test_line_segments_intersection() {
         let line2 = LineSegment::new([0.0, 1.0], [0.0, 2.0]).unwrap();
         let intersections = line1
             .with_tolerance(0.0, 0.0)
-            .intersections_line_segment(&line2);
+            .intersections_primitive(&line2);
         assert_eq!(intersections.len(), 1);
         approx::assert_relative_eq!(PrimitiveIntersections::One([0.0, 1.0]), intersections);
     }
@@ -358,7 +358,7 @@ fn test_line_segments_intersection() {
 
         let intersections = line_1
             .with_tolerance(0.0, 0.0)
-            .intersections_segment(&line_2);
+            .intersections_primitive(&line_2);
         assert_eq!(intersections.len(), 1);
         approx::assert_relative_eq!(PrimitiveIntersections::One([0.5, 0.0]), intersections);
     }
@@ -369,7 +369,7 @@ fn test_line_segments_intersection() {
 
         let results = line_1
             .with_tolerance(0.0, 0.0)
-            .intersections_segment(&line_2);
+            .intersections_primitive(&line_2);
         assert_eq!(results.len(), 0);
     }
     {
@@ -379,7 +379,7 @@ fn test_line_segments_intersection() {
 
         let results = line_1
             .with_tolerance(0.0, 0.0)
-            .intersections_segment(&line_2);
+            .intersections_primitive(&line_2);
         assert_eq!(results.len(), 2);
     }
     {
@@ -389,7 +389,7 @@ fn test_line_segments_intersection() {
 
         let results = line_1
             .with_tolerance(0.0, 0.0)
-            .intersections_segment(&line_2);
+            .intersections_primitive(&line_2);
         assert_eq!(results.len(), 0);
     }
     {
@@ -399,7 +399,7 @@ fn test_line_segments_intersection() {
 
         let results = line_1
             .with_tolerance(0.0, 0.0)
-            .intersections_segment(&line_2);
+            .intersections_primitive(&line_2);
         assert_eq!(results.len(), 1);
     }
     {
@@ -410,7 +410,7 @@ fn test_line_segments_intersection() {
 
         let results = line_1
             .with_tolerance(0.0, 0.0)
-            .intersections_segment(&line_2);
+            .intersections_primitive(&line_2);
         assert_eq!(results.len(), 0);
     }
     {
@@ -420,7 +420,7 @@ fn test_line_segments_intersection() {
 
         let results = line_1
             .with_tolerance(0.0, 0.0)
-            .intersections_segment(&line_2);
+            .intersections_primitive(&line_2);
         assert_eq!(results.len(), 2);
     }
     {
@@ -439,7 +439,7 @@ fn test_line_segments_intersection() {
         .into();
         let intersections = line_1
             .with_tolerance(0.0, 0.0)
-            .intersections_segment(&line_2);
+            .intersections_primitive(&line_2);
         approx::assert_relative_eq!(
             PrimitiveIntersections::One([0.004, 0.009078996041164352]),
             intersections
@@ -452,7 +452,7 @@ fn test_line_segments_intersection() {
         assert_eq!(
             line_1
                 .with_tolerance(0.0, 0.0)
-                .intersections_segment(&line_2)
+                .intersections_primitive(&line_2)
                 .len(),
             0
         );
@@ -464,7 +464,7 @@ fn test_line_segments_intersection() {
         assert_eq!(
             line_1
                 .with_tolerance(0.0, 0.0)
-                .intersections_segment(&line_2)
+                .intersections_primitive(&line_2)
                 .len(),
             0
         );
@@ -476,7 +476,7 @@ fn test_line_segments_intersection() {
         assert_eq!(
             line_1
                 .with_tolerance(0.0, 0.0)
-                .intersections_segment(&line_2)
+                .intersections_primitive(&line_2)
                 .len(),
             0
         );
@@ -486,7 +486,7 @@ fn test_line_segments_intersection() {
         let line_2 = LineSegment::new([0.0, 0.0], [1.0, 0.0]).unwrap();
         let actual = line_1
             .with_tolerance(0.0, 0.0)
-            .intersections_segment(&line_2)[0];
+            .intersections_primitive(&line_2)[0];
         assert_eq!(actual, [0.09999999999999998, 0.0]);
     }
     {
@@ -494,20 +494,24 @@ fn test_line_segments_intersection() {
         let line_2 = LineSegment::new([0.0, 1.0], [1.0, 1.0]).unwrap();
         let actual = line_1
             .with_tolerance(0.0, 0.0)
-            .intersections_segment(&line_2)[0];
+            .intersections_primitive(&line_2)[0];
         assert_eq!(actual, [0.0, 1.0]);
     }
     {
         let line1 = LineSegment::new([1.0, 0.0], [1.0, 1.0]).unwrap();
         let line2 = LineSegment::new([-10.0, 1.0], [10.0, 1.0]).unwrap();
-        let intersections = line1.with_tolerance(0.0, 0.0).intersections_segment(&line2);
+        let intersections = line1
+            .with_tolerance(0.0, 0.0)
+            .intersections_primitive(&line2);
         assert_eq!(intersections.len(), 1);
         approx::assert_relative_eq!(PrimitiveIntersections::One([1.0, 1.0]), intersections);
     }
     {
         let line1 = LineSegment::new([1.0, 1.0], [1.0, 0.0]).unwrap();
         let line2 = LineSegment::new([-10.0, 1.0], [10.0, 1.0]).unwrap();
-        let intersections = line1.with_tolerance(0.0, 0.0).intersections_segment(&line2);
+        let intersections = line1
+            .with_tolerance(0.0, 0.0)
+            .intersections_primitive(&line2);
         assert_eq!(intersections.len(), 1);
         approx::assert_relative_eq!(PrimitiveIntersections::One([1.0, 1.0]), intersections);
     }
@@ -515,7 +519,9 @@ fn test_line_segments_intersection() {
         // Regression test from the Delaunay triangulation
         let line1: Segment = LineSegment::new([6.0, 2.0], [7.0, -3.0]).unwrap().into();
         let line2: Segment = LineSegment::new([0.0, 0.0], [1.0, 3.0]).unwrap().into();
-        let intersections = line1.with_tolerance(0.0, 0.0).intersections_segment(&line2);
+        let intersections = line1
+            .with_tolerance(0.0, 0.0)
+            .intersections_primitive(&line2);
         assert_eq!(intersections.len(), 0);
     }
     {
@@ -533,7 +539,7 @@ fn test_line_segments_intersection() {
             LineSegment::new([2.84139601, -57.95412726], [469.59990601, -502.63851732]).unwrap();
         let actual = line_1
             .with_tolerance(0.0, 0.0)
-            .intersections_segment(&line_2)[0];
+            .intersections_primitive(&line_2)[0];
         assert_eq!(actual, [163.81867067, -211.31840378]);
     }
     {
@@ -554,7 +560,7 @@ fn test_line_segments_intersection() {
         .unwrap();
         let actual = line_1
             .with_tolerance(0.0, 0.0)
-            .intersections_segment(&line_2)[0];
+            .intersections_primitive(&line_2)[0];
         assert_eq!(actual, [-215.22279674875, -158.65425425385]);
     }
     {
@@ -568,7 +574,7 @@ fn test_line_segments_intersection() {
         assert_eq!(
             line_1
                 .with_tolerance(0.0, 0.0)
-                .intersections_segment(&line_2)
+                .intersections_primitive(&line_2)
                 .len(),
             0
         );
@@ -584,7 +590,7 @@ fn test_line_segments_intersection() {
         assert_eq!(
             line_1
                 .with_tolerance(0.0, 0.0)
-                .intersections_segment(&line_2)
+                .intersections_primitive(&line_2)
                 .len(),
             0
         );
@@ -606,7 +612,7 @@ fn test_line_segments_intersection() {
         .unwrap();
         let actual = line_1
             .with_tolerance(0.0, 0.0)
-            .intersections_segment(&line_2)[0];
+            .intersections_primitive(&line_2)[0];
         assert_eq!(actual, [305690.0434123494, 254176.46578338774]);
     }
     {
@@ -625,7 +631,7 @@ fn test_line_segments_intersection() {
         .unwrap();
         let actual = line_1
             .with_tolerance(0.0, 0.0)
-            .intersections_segment(&line_2)[0];
+            .intersections_primitive(&line_2)[0];
         assert_eq!(actual, [588748.2060416829, 4518933.945284994]);
     }
     {
@@ -644,7 +650,7 @@ fn test_line_segments_intersection() {
         .unwrap();
         let actual = line_1
             .with_tolerance(0.0, 0.0)
-            .intersections_segment(&line_2)[0];
+            .intersections_primitive(&line_2)[0];
         assert_eq!(actual, [588733.8306132929, 4518925.319423238]);
     }
     {
@@ -664,7 +670,7 @@ fn test_line_segments_intersection() {
         .unwrap();
         let actual = line_1
             .with_tolerance(0.0, 0.0)
-            .intersections_segment(&line_2)[0];
+            .intersections_primitive(&line_2)[0];
         assert_eq!(actual, [2087536.6062609926, 1187900.560566967]);
     }
     {
@@ -683,7 +689,7 @@ fn test_line_segments_intersection() {
         .unwrap();
         let actual = line_1
             .with_tolerance(0.0, 0.0)
-            .intersections_segment(&line_2)[0];
+            .intersections_primitive(&line_2)[0];
         assert_eq!(actual, [4348440.8493874, 5552599.27202212]);
     }
 }
@@ -693,12 +699,15 @@ fn self_intersection() {
     let ls = LineSegment::new([0.0, 0.0], [1.0, 0.0]).unwrap();
 
     // Self-intersection
-    assert_eq!(ls.intersections_segment(&ls), PrimitiveIntersections::Zero);
+    assert_eq!(
+        ls.intersections_primitive(&ls),
+        PrimitiveIntersections::Zero
+    );
 
     // Intersections with equal primitive
     let ls_cloned = ls.clone();
     assert_eq!(
-        ls.intersections_segment(&ls_cloned),
+        ls.intersections_primitive(&ls_cloned),
         PrimitiveIntersections::Two([[0.0, 0.0], [1.0, 0.0]])
     );
 }
@@ -709,7 +718,7 @@ fn test_intersection_line_line_segment() {
     let line = Line::from_point_angle([0.5, 0.5], 0.0);
 
     {
-        let intersection = ls.intersections_line(&line);
+        let intersection = ls.intersections_primitive(&line);
         approx::assert_abs_diff_eq!(intersection, PrimitiveIntersections::One([0.0, 0.5]));
     }
     {

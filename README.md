@@ -256,10 +256,10 @@ let pt1 = [2.3, 0.0];
 let pt2 = [2.0, 0.1];
 let pt3 = [1.0, 0.5];
 
-assert!(line_1.covers_point(&pt1));
-assert!(!line_1.covers_point(&pt2));
-assert!(line_2.covers_point(&pt2));
-assert!(arc.covers_point(&pt3));
+assert!(line_1.covers(&pt1));
+assert!(!line_1.covers(&pt2));
+assert!(line_2.covers(&pt2));
+assert!(arc.covers(&pt3));
 
 // Find intersections between the segments. The order doesn't matter, i.e.
 // line_1.intersections_primitive(&line_2) produces the same result as

@@ -13,6 +13,7 @@ usage.
 
 use crate::CentroidData;
 use crate::ToleranceContext;
+use crate::WithTolerance;
 use crate::composite::*;
 use crate::error::ShapeConstructorError;
 use crate::geometry::GeometryRef;
@@ -149,7 +150,7 @@ impl Shape {
 
         let outer = this.contour();
         for (first_hole_idx, first_hole) in this.holes().iter().enumerate() {
-            if let Err(e) = outer.contains_contour(&first_hole) {
+            if let Err(e) = outer.contains(first_hole) {
                 return Err(ShapeConstructorError::HoleOutsideContour {
                     input: this.0,
                     reason: e,
@@ -160,7 +161,7 @@ impl Shape {
             for (second_hole_idx, second_hole) in
                 this.holes()[(first_hole_idx + 1)..].iter().enumerate()
             {
-                if let Ok(reason) = first_hole.contains_contour(&second_hole) {
+                if let Ok(reason) = first_hole.contains(second_hole) {
                     return Err(ShapeConstructorError::HoleInsideHole {
                         input: this.0,
                         reason,
@@ -169,7 +170,7 @@ impl Shape {
                     });
                 }
 
-                if let Ok(reason) = second_hole.contains_contour(&first_hole) {
+                if let Ok(reason) = second_hole.contains(first_hole) {
                     return Err(ShapeConstructorError::HoleInsideHole {
                         input: this.0,
                         reason,
@@ -383,7 +384,7 @@ impl Shape {
 
         let outer = self.contour();
 
-        if let Err(e) = outer.contains_contour(&hole) {
+        if let Err(e) = outer.contains(&hole) {
             return Err(ShapeConstructorError::HoleOutsideContour {
                 input: hole,
                 reason: e,
@@ -392,7 +393,7 @@ impl Shape {
         }
 
         for (shape_hole_idx, shape_hole) in self.holes().iter().enumerate() {
-            if let Ok(reason) = hole.contains_contour(shape_hole) {
+            if let Ok(reason) = hole.contains(shape_hole) {
                 return Err(ShapeConstructorError::HoleInsideHole {
                     input: hole,
                     reason,
@@ -401,7 +402,7 @@ impl Shape {
                 });
             }
 
-            if let Ok(reason) = shape_hole.contains_contour(&hole) {
+            if let Ok(reason) = shape_hole.contains(&hole) {
                 return Err(ShapeConstructorError::HoleInsideHole {
                     input: hole,
                     reason,
@@ -485,27 +486,11 @@ impl Shape {
     ) -> planar_convex_hull::ConvexHullIter {
         return self.contour().convex_hull(polygonizer);
     }
-
-    /// Wraps `self` in a [`ToleranceContext`] using the specified `epsilon` and
-    /// `max_relative` tolerances.
-    ///
-    /// The [`ToleranceContext`] applies these tolerances to floating-point
-    /// comparisons performed by geometric operations, such as finding
-    /// intersections. See [`ToleranceContext`] for details and examples.
-    pub fn with_tolerance<'a>(
-        &'a self,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> ToleranceContext<'a, Self> {
-        ToleranceContext {
-            inner: self,
-            epsilon,
-            max_relative,
-        }
-    }
 }
 
 impl crate::composite::private::Sealed for Shape {}
+
+impl WithTolerance for Shape {}
 
 impl Composite for Shape {
     fn segment(&self, key: SegmentKey) -> Option<&crate::segment::Segment> {
@@ -541,81 +526,19 @@ impl Composite for Shape {
         });
     }
 
-    fn contains_point(&self, point: &[f64; 2]) -> Result<Contained, NotContained> {
-        self.contains_point_tol(point, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
-    }
-
-    fn contains_segment<'a, T: Into<SegmentRef<'a>>>(
-        &self,
-        segment: T,
-    ) -> Result<Contained, NotContained> {
-        self.contains_segment_tol(segment, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
-    }
-
-    fn contains_polysegment(&self, polysegment: &Polysegment) -> Result<Contained, NotContained> {
-        self.contains_polysegment_tol(polysegment, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
-    }
-
-    fn contains_contour(&self, contour: &Contour) -> Result<Contained, NotContained> {
-        self.contains_contour_tol(contour, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
-    }
-
-    fn contains_shape(&self, shape: &Shape) -> Result<Contained, NotContained> {
-        self.contains_shape_tol(shape, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
-    }
-
     fn contains<'a, T: Into<GeometryRef<'a>>>(&self, other: T) -> Result<Contained, NotContained> {
-        self.contains_tol(other, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
-    }
-
-    fn contains_any_segment<'a, T: Into<SegmentRef<'a>>>(
-        &self,
-        segment: T,
-    ) -> Result<Overlap, NoOverlap> {
-        self.contains_any_segment_tol(segment, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
-    }
-
-    fn contains_any_polysegment(&self, polysegment: &Polysegment) -> Result<Overlap, NoOverlap> {
-        self.contains_any_polysegment_tol(polysegment, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
-    }
-
-    fn contains_any_contour(&self, contour: &Contour) -> Result<Overlap, NoOverlap> {
-        self.contains_any_contour_tol(contour, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
-    }
-
-    fn contains_any_shape(&self, shape: &crate::prelude::Shape) -> Result<Overlap, NoOverlap> {
-        self.contains_any_shape_tol(shape, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+        self.with_tolerance(DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+            .contains(other)
     }
 
     fn contains_any<'a, T: Into<GeometryRef<'a>>>(&self, other: T) -> Result<Overlap, NoOverlap> {
-        self.contains_any_tol(other, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+        self.with_tolerance(DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+            .contains_any(other)
     }
 
-    fn covers_point(&self, point: &[f64; 2]) -> Result<Covered, NotCovered> {
-        self.covers_point_tol(point, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
-    }
-
-    fn covers_segment<'a, T: Into<SegmentRef<'a>>>(
-        &self,
-        segment: T,
-    ) -> Result<Covered, NotCovered> {
-        self.covers_segment_tol(segment, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
-    }
-
-    fn covers_polysegment(&self, polysegment: &Polysegment) -> Result<Covered, NotCovered> {
-        self.covers_polysegment_tol(polysegment, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
-    }
-
-    fn covers_contour(&self, contour: &Contour) -> Result<Covered, NotCovered> {
-        self.covers_contour_tol(contour, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
-    }
-
-    fn covers_shape(&self, shape: &Shape) -> Result<Covered, NotCovered> {
-        self.covers_shape_tol(shape, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
-    }
-
-    fn covers<'a, T: Into<GeometryRef<'a>>>(&'a self, other: T) -> Result<Covered, NotCovered> {
-        self.covers_tol(other, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+    fn covers<'a, T: Into<GeometryRef<'a>>>(&self, other: T) -> Result<Covered, NotCovered> {
+        self.with_tolerance(DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+            .covers(other)
     }
 
     fn intersections_polysegment<'a>(
@@ -747,60 +670,9 @@ impl<'c> Composite for ToleranceContext<'c, Shape> {
         self.inner.centroid()
     }
 
-    fn contains_point(&self, point: &[f64; 2]) -> Result<Contained, NotContained> {
-        self.inner
-            .contains_point_tol(point, self.epsilon, self.max_relative)
-    }
-
-    fn contains_segment<'a, T: Into<SegmentRef<'a>>>(
-        &self,
-        segment: T,
-    ) -> Result<Contained, NotContained> {
-        self.inner
-            .contains_segment_tol(segment, self.epsilon, self.max_relative)
-    }
-
-    fn contains_polysegment(&self, polysegment: &Polysegment) -> Result<Contained, NotContained> {
-        self.inner
-            .contains_polysegment_tol(polysegment, self.epsilon, self.max_relative)
-    }
-
-    fn contains_contour(&self, contour: &Contour) -> Result<Contained, NotContained> {
-        self.inner
-            .contains_contour_tol(contour, self.epsilon, self.max_relative)
-    }
-
-    fn contains_shape(&self, shape: &Shape) -> Result<Contained, NotContained> {
-        self.inner
-            .contains_shape_tol(shape, self.epsilon, self.max_relative)
-    }
-
     fn contains<'a, T: Into<GeometryRef<'a>>>(&self, other: T) -> Result<Contained, NotContained> {
         self.inner
             .contains_tol(other, self.epsilon, self.max_relative)
-    }
-
-    fn contains_any_segment<'a, T: Into<SegmentRef<'a>>>(
-        &self,
-        segment: T,
-    ) -> Result<Overlap, NoOverlap> {
-        self.inner
-            .contains_any_segment_tol(segment, self.epsilon, self.max_relative)
-    }
-
-    fn contains_any_polysegment(&self, polysegment: &Polysegment) -> Result<Overlap, NoOverlap> {
-        self.inner
-            .contains_any_polysegment_tol(polysegment, self.epsilon, self.max_relative)
-    }
-
-    fn contains_any_contour(&self, contour: &Contour) -> Result<Overlap, NoOverlap> {
-        self.inner
-            .contains_any_contour_tol(contour, self.epsilon, self.max_relative)
-    }
-
-    fn contains_any_shape(&self, shape: &crate::prelude::Shape) -> Result<Overlap, NoOverlap> {
-        self.inner
-            .contains_any_shape_tol(shape, self.epsilon, self.max_relative)
     }
 
     fn contains_any<'a, T: Into<GeometryRef<'a>>>(&self, other: T) -> Result<Overlap, NoOverlap> {
@@ -808,35 +680,7 @@ impl<'c> Composite for ToleranceContext<'c, Shape> {
             .contains_any_tol(other, self.epsilon, self.max_relative)
     }
 
-    fn covers_point(&self, point: &[f64; 2]) -> Result<Covered, NotCovered> {
-        self.inner
-            .covers_point_tol(point, self.epsilon, self.max_relative)
-    }
-
-    fn covers_segment<'a, T: Into<SegmentRef<'a>>>(
-        &self,
-        segment: T,
-    ) -> Result<Covered, NotCovered> {
-        self.inner
-            .covers_segment_tol(segment, self.epsilon, self.max_relative)
-    }
-
-    fn covers_polysegment(&self, polysegment: &Polysegment) -> Result<Covered, NotCovered> {
-        self.inner
-            .covers_polysegment_tol(polysegment, self.epsilon, self.max_relative)
-    }
-
-    fn covers_contour(&self, contour: &Contour) -> Result<Covered, NotCovered> {
-        self.inner
-            .covers_contour_tol(contour, self.epsilon, self.max_relative)
-    }
-
-    fn covers_shape(&self, shape: &Shape) -> Result<Covered, NotCovered> {
-        self.inner
-            .covers_shape_tol(shape, self.epsilon, self.max_relative)
-    }
-
-    fn covers<'a, T: Into<GeometryRef<'a>>>(&'a self, other: T) -> Result<Covered, NotCovered> {
+    fn covers<'a, T: Into<GeometryRef<'a>>>(&self, other: T) -> Result<Covered, NotCovered> {
         self.inner
             .covers_tol(other, self.epsilon, self.max_relative)
     }

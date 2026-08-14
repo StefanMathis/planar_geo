@@ -26,7 +26,7 @@ pub use crate::segment::arc_segment::*;
 pub use crate::segment::line_segment::*;
 pub use crate::segment::*;
 pub use crate::shape::Shape;
-pub use crate::{DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE};
+pub use crate::{DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE, WithTolerance};
 
 #[cfg(feature = "cairo")]
 pub use crate::draw::*;

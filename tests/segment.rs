@@ -9,20 +9,20 @@ fn test_covers() {
             .into();
         let quarter =
             ArcSegment::from_start_center_angle([0.0, 0.0], [0.0, 1.0], 0.5 * PI).unwrap();
-        assert!(s1.covers_arc_segment(&quarter));
+        assert!(s1.covers(&quarter));
 
         let s2: Segment = LineSegment::new([0.0, 0.0], [1.0, 1.0]).unwrap().into();
-        assert!(!s2.covers_arc_segment(&quarter));
+        assert!(!s2.covers(&quarter));
     }
     {
         let s1: Segment = LineSegment::new([0.0, 0.0], [1.0, 1.0]).unwrap().into();
         let ls_start_to_middle = LineSegment::new([0.0, 0.0], [0.5, 0.5]).unwrap();
-        assert!(s1.covers_line_segment(&ls_start_to_middle));
+        assert!(s1.covers(&ls_start_to_middle));
 
         let s2: Segment = ArcSegment::from_start_center_angle([0.0, 0.0], [0.0, 1.0], PI)
             .unwrap()
             .into();
-        assert!(!s2.covers_line_segment(&ls_start_to_middle));
+        assert!(!s2.covers(&ls_start_to_middle));
     }
 }
 

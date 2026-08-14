@@ -13,7 +13,7 @@ types are then based upon these.
  */
 
 use crate::{
-    DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE, ToleranceContext,
+    DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE, ToleranceContext, WithTolerance,
     composite::CompositeWithTol,
     geometry::GeometryRef,
     line::Line,
@@ -399,385 +399,19 @@ assert_eq!(
 ```
  */
 pub trait Primitive: private::Sealed + Sync {
-    /**
-    Returns `true` if `self` covers the given point.
-
-    Since floating point values are prone to rounding errors and precision
-    issues (i.e. the number 0.2 cannot be represented exactly as a floating
-    point number at all), the implementations for the different primitive types
-    check whether the point is covered within a tolerance band defined by the
-    absolute tolerance `epsilon` and the relative tolerance `max_relative`. See
-    the [crate-level documentation](crate).
-
-    # Examples
-
-    ```
-    use planar_geo::prelude::*;
-
-    let ls = LineSegment::new([0.0, 0.0], [1.0, -1.0]).unwrap();
-    let p1 = [0.5, -0.5];
-    let p2 = [0.5, 0.5];
-    let p3 = [1.5, 0.5];
-
-    // Default tolerances for "intuitive" behaviour
-    assert!(ls.covers_point(&p1));
-    assert!(!ls.covers_point(&p2));
-    assert!(!ls.covers_point(&p3));
-
-    // By increasing the absolute tolerance `epsilon`, the behaviour of the
-    // function is changed
-    assert!(ls.with_tolerance(10.0, DEFAULT_MAX_RELATIVE).covers_point(&p1));
-    assert!(ls.with_tolerance(10.0, DEFAULT_MAX_RELATIVE).covers_point(&p2));
-    assert!(ls.with_tolerance(10.0, DEFAULT_MAX_RELATIVE).covers_point(&p3));
-    ```
-     */
-    fn covers_point(&self, point: &[f64; 2]) -> bool;
-
-    /**
-    Returns if `self` covers the given [`ArcSegment`].
-
-    # Examples
-
-    ```
-    use std::f64::consts::PI;
-    use planar_geo::prelude::*;
-
-    let s1: Segment = ArcSegment::from_start_center_angle([0.0, 0.0], [0.0, 1.0], PI).unwrap().into();
-    let quarter = ArcSegment::from_start_center_angle([0.0, 0.0], [0.0, 1.0], 0.5*PI).unwrap();
-    assert!(s1.covers_arc_segment(&quarter));
-
-    let s2: Segment = LineSegment::new([0.0, 0.0], [1.0, 1.0]).unwrap().into();
-    assert!(!s2.covers_arc_segment(&quarter));
-    ```
-     */
-    fn covers_arc_segment(&self, arc_segment: &ArcSegment) -> bool;
-
-    /**
-    Returns if `self` covers the given [`LineSegment`].
-
-    # Examples
-
-    ```
-    use std::f64::consts::PI;
-    use planar_geo::prelude::*;
-
-    let s1: Segment = LineSegment::new([0.0, 0.0], [1.0, 1.0]).unwrap().into();
-    let ls_start_to_middle = LineSegment::new([0.0, 0.0], [0.5, 0.5]).unwrap();
-    assert!(s1.covers_line_segment(&ls_start_to_middle));
-
-    let s2: Segment = ArcSegment::from_start_center_angle([0.0, 0.0], [0.0, 1.0], PI).unwrap().into();
-    assert!(!s2.covers_line_segment(&ls_start_to_middle));
-    ```
-     */
-    fn covers_line_segment(&self, line_segment: &LineSegment) -> bool;
-
-    /**
-    Returns if `self` covers the given [`Line`].
-
-    Since a [`Line`] has infinite length, it can only be covered by another
-    [`Line`] which is identical. For any other [`Primitive`], this function
-    returns false.
-
-    # Examples
-
-    ```
-    use planar_geo::prelude::*;
-
-    let l1 = Line::from_point_angle([0.0, 0.0], 0.0);
-    let l2 = Line::from_point_angle([1.0, 0.0], 0.0);
-    let l3 = Line::from_point_angle([0.0, 0.0], 1.0);
-
-    // l1 and l2 are identical
-    assert!(l1.covers_line(&l2));
-    assert!(l2.covers_line(&l1));
-
-    // l3 is different
-    assert!(!l1.covers_line(&l3));
-    ```
-    */
-    fn covers_line(&self, line: &Line) -> bool;
-
-    /**
-    Returns the intersections between `self` and a point `[f64; 2]`
-
-    This function wraps the given point in [`PrimitiveIntersections::One`] if
-    [`Primitive::covers_point`] returned `true` and returns
-    [`PrimitiveIntersections::Zero`] otherwise.
-
-    This method is mainly used to implement
-    [`Primitive::intersections_primitive`], consider using that method instead.
-
-    # Examples
-
-    ```
-    use planar_geo::prelude::*;
-
-    let ls = LineSegment::new([0.0, 0.0], [1.0, -1.0]).unwrap();
-    let p1 = [0.5, -0.5];
-    let p2 = [0.5, 0.5];
-    let p3 = [1.5, 0.5];
-
-    // Default tolerances for "intuitive" behaviour
-    assert_eq!(ls.intersections_point(&p1), PrimitiveIntersections::One(p1));
-    assert_eq!(ls.intersections_point(&p2), PrimitiveIntersections::Zero);
-    assert_eq!(ls.intersections_point(&p3), PrimitiveIntersections::Zero);
-
-    // By increasing the absolute tolerance `epsilon`, the behaviour of the
-    // function is changed
-    assert_eq!(ls.with_tolerance(10.0, DEFAULT_MAX_RELATIVE).intersections_point(&p1), PrimitiveIntersections::One(p1));
-    assert_eq!(ls.with_tolerance(10.0, DEFAULT_MAX_RELATIVE).intersections_point(&p2), PrimitiveIntersections::One(p2));
-    assert_eq!(ls.with_tolerance(10.0, DEFAULT_MAX_RELATIVE).intersections_point(&p3), PrimitiveIntersections::One(p3));
-    ```
-     */
-    fn intersections_point(&self, point: &[f64; 2]) -> PrimitiveIntersections;
-
-    /**
-    Returns if `self` covers `other` (which can be any geometric type).
-
-    Internally, this function converts `self` and `other` to [`GeometryRef`]s
-    and then matches them to select the specific `covers_` function for the
-    pairing (e.g. [`Primitive::covers_line`] if `other` is a [`Line`]). To
-    avoid matching for maximum performance, consider using the specific method
-    directly.
-     */
     fn covers<'a, T>(&self, other: T) -> bool
     where
         Self: Sized,
         T: Into<GeometryRef<'a>>;
 
-    /**
-    Returns the intersections between `self` and a [`Line`].
-
-    This is a straightforward calculation, but there are two degenerate cases
-    which need to be treated separately:
-    - Intersection between two [`Line`]s which are identical
-    - Intersection between a [`Line`] and [`LineSegment`] where the latter
-    is contained in the former.
-    In both cases, the returned result is [`PrimitiveIntersections::Zero`] (see
-    examples).
-
-    This method is mainly used to implement
-    [`Primitive::intersections_primitive`], consider using that method instead.
-
-    # Examples
-
-    ```
-    use planar_geo::prelude::*;
-
-    let line_1 = Line::from_point_angle([0.0, 0.0], 1.0);
-    let line_2 = Line::from_point_angle([0.0, 0.0], 0.0);
-    let ls = LineSegment::new([0.0, 0.0], [1.0, 0.0]).unwrap();
-
-    // Non-degenerate cases
-    assert_eq!(
-        line_2.intersections_line(&line_1),
-        PrimitiveIntersections::One([0.0, 0.0])
-    );
-    assert_eq!(
-        ls.intersections_line(&line_1),
-        PrimitiveIntersections::One([0.0, 0.0])
-    );
-
-    // Degenerate cases
-    assert_eq!(
-        line_1.intersections_line(&line_1),
-        PrimitiveIntersections::Zero
-    );
-    assert_eq!(
-        ls.intersections_line(&line_2),
-        PrimitiveIntersections::Zero
-    );
-    ```
-     */
-    fn intersections_line(&self, line: &Line) -> PrimitiveIntersections;
-
-    /**
-    Returns the intersections between `self` and a [`LineSegment`].
-
-    This is a straightforward calculation, but there are two degenerate cases
-    which need to be treated separately:
-    - Intersection between a [`Line`] and [`LineSegment`] where the latter
-    is contained in the former.
-    - Intersection between two [`LineSegment`]s which overlap.
-    In the former case, the result is defined to be
-    [`PrimitiveIntersections::Zero`]. In the latter case, the "common endpoints"
-    are returned (see examples).
-
-    This method is mainly used to implement
-    [`Primitive::intersections_primitive`], consider using that method instead.
-
-    # Examples
-
-    ```
-    use planar_geo::prelude::*;
-
-    let ls1 = LineSegment::new([0.0, 0.0], [2.0, 0.0]).unwrap();
-    let ls2 = LineSegment::new([0.5, 0.5], [0.5, -0.5]).unwrap();
-    let ls3 = LineSegment::new([1.0, 0.0], [1.5, 0.0]).unwrap();
-    let ls4 = LineSegment::new([1.0, 0.0], [3.0, 0.0]).unwrap();
-
-    // Non-degenerate case
-    assert_eq!(
-        ls1.intersections_line_segment(&ls2),
-        PrimitiveIntersections::One([0.5, 0.0])
-    );
-
-    // Degenerate cases
-    assert_eq!(
-        ls1.intersections_line_segment(&ls3),
-        PrimitiveIntersections::Two([[1.0, 0.0], [1.5, 0.0]])
-    );
-    assert_eq!(
-        ls1.intersections_line_segment(&ls4),
-        PrimitiveIntersections::Two([[1.0, 0.0], [2.0, 0.0]])
-    );
-    ```
-     */
-    fn intersections_line_segment(&self, line_segment: &LineSegment) -> PrimitiveIntersections;
-
-    /**
-    Returns the intersections between `self` and an [`ArcSegment`].
-
-    Similar to the intersection of two [`LineSegment`]s which overlap (see
-    discussion in the docstring of [`Primitive::intersections_line_segment`]),
-    this function has to deal with the case of two overlapping [`ArcSegment`]s.
-    As with the [`LineSegment`] case, the "common endpoints" are returned (see
-    examples).
-
-    This method is mainly used to implement
-    [`Primitive::intersections_primitive`], consider using that method instead.
-
-    # Examples
-
-    ```
-    use std::f64::consts::PI;
-    use planar_geo::prelude::*;
-
-    let arc1 = ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 2.0, 0.0, PI).unwrap();;
-    let line = Line::from_point_angle([0.0, 0.0], 0.5 * PI);
-    let arc2 = ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 2.0, 0.5*PI, PI).unwrap();;
-
-    // Regular intersection
-    approx::assert_abs_diff_eq!(
-        line.intersections_arc_segment(&arc1),
-        PrimitiveIntersections::One([0.0, 2.0]), epsilon = DEFAULT_EPSILON
-    );
-
-    // Degenerate case
-    approx::assert_abs_diff_eq!(
-        arc1.intersections_arc_segment(&arc2),
-        PrimitiveIntersections::Two([[0.0, 2.0], [-2.0, 0.0]]), epsilon = DEFAULT_EPSILON
-    );
-    ```
-    */
-    fn intersections_arc_segment(&self, arc_segment: &ArcSegment) -> PrimitiveIntersections;
-
-    /**
-    Returns the intersection between `self` and a [`Segment`].
-
-    Since [`Segment`] is an enum of either [`LineSegment`] or [`ArcSegment`],
-    this function behaves in the same way as
-     [`Primitive::intersections_line_segment`] or
-    [`Primitive::intersections_arc_segment`] respectively (especially for
-    degenerate cases, see the function docstrings).
-
-    This method is mainly used to implement
-    [`Primitive::intersections_primitive`], consider using that method instead.
-
-    # Examples
-
-    ```
-    use planar_geo::prelude::*;
-
-    let ls: Segment = LineSegment::new([0.0, 0.0], [2.0, 0.0]).unwrap().into();
-    let arc: Segment = ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 1.0, -1.0, 1.0).unwrap().into();
-
-    assert_eq!(
-        ls.intersections_segment(&arc),
-        PrimitiveIntersections::One([1.0, 0.0])
-    );
-    ```
-     */
-    fn intersections_segment<'a, T>(&self, segment: T) -> PrimitiveIntersections
-    where
-        T: Into<SegmentRef<'a>>;
-
-    /**
-    Returns the intersection between `self` and another type implementing
-    [`Primitive`].
-
-    This is a generalized interface to all the special intersection functions.
-    For example, if `other` is a [`LineSegment`], the implementation of this
-    function boils down to:
-
-    ```ignore
-    impl Primitive for LineSegment {
-        // Implementations of the other methods ...
-
-        fn intersections_primitive<T: Primitive>(
-            &self,
-            other: &T,
-            epsilon: f64,
-           max_relative: f64,
-        ) -> PrimitiveIntersections {
-            other.intersections_line_segment(self, epsilon, max_relative)
-        }
-    }
-    ```
-
-    It is recommended to use this function instead of the specialized methods
-    such as [`Primitive::intersections_line_segment`] for primitive intersection
-    to simplify the usage of this trait.
-     */
     fn intersections_primitive<'a, T: Primitive>(&self, other: &'a T) -> PrimitiveIntersections
     where
         &'a T: Into<GeometryRef<'a>>,
         Self: Sized;
 
-    /**
-    Returns the intersections between a [`Primitive`] and any other geometric
-    type.
-
-    This method is based on
-    [`GeometryRef::intersections`](GeometryRef::intersections).
-    It can handle any geometric type ([`Primitive`] or
-    [`Composite`](crate::composite::Composite)) defined in this crate, but it
-    needs to allocate a vector for the results. For intersections between two
-    primitives, [`Primitive::intersections_primitive`] is therefore to be
-     preferred. If `other` is a [`Composite`](crate::composite::Composite), the
-    [`Composite::intersections_primitive`](crate::composite::Composite::intersections_primitive)
-    method offers a non-allocating (lazy) alternative.
-
-    The main advantage of this method is its genericity. If allocating a vector
-    for the results is not an issue, consider using this method instead of the
-    specialized variants mentioned above to simplify the interface to this
-    trait.
-
-    # Examples
-
-    ```
-    use std::f64::consts::PI;
-    use planar_geo::prelude::*;
-
-    let arc1 = ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 2.0, 0.0, PI).unwrap();;
-    let arc2 = ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 2.0, 0.5*PI, PI).unwrap();;
-
-    let intersections = arc1.intersections(&arc2);
-    assert_eq!(intersections.len(), 2);
-    approx::assert_abs_diff_eq!(intersections[0].point, [-2.0, 0.0], epsilon = DEFAULT_EPSILON);
-    approx::assert_abs_diff_eq!(intersections[1].point, [0.0, 2.0], epsilon = DEFAULT_EPSILON);
-
-    // Comparison to specialized function:
-    approx::assert_abs_diff_eq!(
-        arc1.intersections_primitive(&arc2),
-        PrimitiveIntersections::Two([[0.0, 2.0], [-2.0, 0.0]]), epsilon = DEFAULT_EPSILON
-    );
-    ```
-     */
     fn intersections<'a, T>(&self, other: T) -> Vec<crate::composite::Intersection>
     where
         Self: Sized,
-        for<'b> &'b Self: Into<GeometryRef<'b>>,
         T: Into<GeometryRef<'a>>;
 }
 
@@ -968,52 +602,16 @@ impl<'p, C: PrimitiveWithTol> private::Sealed for ToleranceContext<'p, C> {}
 
 impl private::Sealed for [f64; 2] {}
 
+impl WithTolerance for [f64; 2] {}
+
 impl Primitive for [f64; 2] {
-    fn covers_point(&self, point: &[f64; 2]) -> bool {
-        self.covers_point_tol(point, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
-    }
-
-    fn covers_arc_segment(&self, arc_segment: &ArcSegment) -> bool {
-        self.covers_arc_segment_tol(arc_segment, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
-    }
-
-    fn covers_line_segment(&self, line_segment: &LineSegment) -> bool {
-        self.covers_line_segment_tol(line_segment, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
-    }
-
-    fn covers_line(&self, line: &Line) -> bool {
-        self.covers_line_tol(line, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
-    }
-
     fn covers<'a, T>(&self, other: T) -> bool
     where
         Self: Sized,
         T: Into<GeometryRef<'a>>,
     {
-        self.covers_tol(other, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
-    }
-
-    fn intersections_point(&self, point: &[f64; 2]) -> PrimitiveIntersections {
-        self.intersections_point_tol(point, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
-    }
-
-    fn intersections_line(&self, line: &Line) -> PrimitiveIntersections {
-        self.intersections_line_tol(line, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
-    }
-
-    fn intersections_line_segment(&self, line_segment: &LineSegment) -> PrimitiveIntersections {
-        self.intersections_line_segment_tol(line_segment, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
-    }
-
-    fn intersections_arc_segment(&self, arc_segment: &ArcSegment) -> PrimitiveIntersections {
-        self.intersections_arc_segment_tol(arc_segment, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
-    }
-
-    fn intersections_segment<'a, T>(&self, segment: T) -> PrimitiveIntersections
-    where
-        T: Into<SegmentRef<'a>>,
-    {
-        self.intersections_segment_tol(segment, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+        self.with_tolerance(DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+            .covers(other)
     }
 
     fn intersections_primitive<'a, T: Primitive>(&self, other: &'a T) -> PrimitiveIntersections
@@ -1021,27 +619,8 @@ impl Primitive for [f64; 2] {
         &'a T: Into<GeometryRef<'a>>,
         Self: Sized,
     {
-        let geo_ref: GeometryRef = other.into();
-        match geo_ref {
-            GeometryRef::Point(pt) => {
-                pt.intersections_point_tol(self, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
-            }
-            GeometryRef::ArcSegment(arc_segment) => {
-                arc_segment.intersections_point_tol(self, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
-            }
-            GeometryRef::LineSegment(line_segment) => {
-                line_segment.intersections_point_tol(self, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
-            }
-            GeometryRef::Line(line) => {
-                line.intersections_point_tol(self, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
-            }
-            GeometryRef::Segment(segment) => {
-                segment.intersections_point_tol(self, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
-            }
-            _ => unreachable!(
-                "since other is a Primitive and Primitive is sealed, it cannot be another type"
-            ),
-        }
+        self.with_tolerance(DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+            .intersections_primitive(other)
     }
 
     fn intersections<'a, T>(&self, other: T) -> Vec<crate::composite::Intersection>
@@ -1050,72 +629,12 @@ impl Primitive for [f64; 2] {
         for<'b> &'b Self: Into<GeometryRef<'b>>,
         T: Into<GeometryRef<'a>>,
     {
-        let geo_ref: GeometryRef<'_> = other.into();
-        match geo_ref {
-            GeometryRef::Point(pt) => pt
-                .intersections_point_tol(self, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
-                .into_iter()
-                .map(From::from)
-                .collect(),
-            GeometryRef::ArcSegment(arc_segment) => arc_segment
-                .intersections_point_tol(self, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
-                .into_iter()
-                .map(From::from)
-                .collect(),
-            GeometryRef::LineSegment(line_segment) => line_segment
-                .intersections_point_tol(self, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
-                .into_iter()
-                .map(From::from)
-                .collect(),
-            GeometryRef::Line(line) => line
-                .intersections_point_tol(self, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
-                .into_iter()
-                .map(From::from)
-                .collect(),
-            GeometryRef::Segment(segment) => segment
-                .intersections_point_tol(self, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
-                .into_iter()
-                .map(From::from)
-                .collect(),
-            GeometryRef::BoundingBox(bounding_box) => {
-                let c = crate::contour::Contour::from(bounding_box);
-                c.intersections_point_par_tol(self, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
-                    .collect()
-            }
-            GeometryRef::Polysegment(polysegment) => polysegment
-                .intersections_point_par_tol(self, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
-                .collect(),
-            GeometryRef::Contour(contour) => contour
-                .intersections_point_par_tol(self, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
-                .collect(),
-            GeometryRef::Shape(shape) => shape
-                .intersections_point_par_tol(self, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
-                .collect(),
-        }
+        self.with_tolerance(DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE)
+            .intersections(other)
     }
 }
 
 impl<'c> Primitive for ToleranceContext<'c, [f64; 2]> {
-    fn covers_point(&self, point: &[f64; 2]) -> bool {
-        self.inner
-            .covers_point_tol(point, self.epsilon, self.max_relative)
-    }
-
-    fn covers_arc_segment(&self, arc_segment: &ArcSegment) -> bool {
-        self.inner
-            .covers_arc_segment_tol(arc_segment, self.epsilon, self.max_relative)
-    }
-
-    fn covers_line_segment(&self, line_segment: &LineSegment) -> bool {
-        self.inner
-            .covers_line_segment_tol(line_segment, self.epsilon, self.max_relative)
-    }
-
-    fn covers_line(&self, line: &Line) -> bool {
-        self.inner
-            .covers_line_tol(line, self.epsilon, self.max_relative)
-    }
-
     fn covers<'a, T>(&self, other: T) -> bool
     where
         Self: Sized,
@@ -1123,34 +642,6 @@ impl<'c> Primitive for ToleranceContext<'c, [f64; 2]> {
     {
         self.inner
             .covers_tol(other, self.epsilon, self.max_relative)
-    }
-
-    fn intersections_point(&self, point: &[f64; 2]) -> PrimitiveIntersections {
-        self.inner
-            .intersections_point_tol(point, self.epsilon, self.max_relative)
-    }
-
-    fn intersections_line(&self, line: &Line) -> PrimitiveIntersections {
-        self.inner
-            .intersections_line_tol(line, self.epsilon, self.max_relative)
-    }
-
-    fn intersections_line_segment(&self, line_segment: &LineSegment) -> PrimitiveIntersections {
-        self.inner
-            .intersections_line_segment_tol(line_segment, self.epsilon, self.max_relative)
-    }
-
-    fn intersections_arc_segment(&self, arc_segment: &ArcSegment) -> PrimitiveIntersections {
-        self.inner
-            .intersections_arc_segment_tol(arc_segment, self.epsilon, self.max_relative)
-    }
-
-    fn intersections_segment<'a, T>(&self, segment: T) -> PrimitiveIntersections
-    where
-        T: Into<SegmentRef<'a>>,
-    {
-        self.inner
-            .intersections_segment_tol(segment, self.epsilon, self.max_relative)
     }
 
     fn intersections_primitive<'a, T: Primitive>(&self, other: &'a T) -> PrimitiveIntersections
@@ -1184,7 +675,6 @@ impl<'c> Primitive for ToleranceContext<'c, [f64; 2]> {
     fn intersections<'a, T>(&self, other: T) -> Vec<crate::composite::Intersection>
     where
         Self: Sized,
-        for<'b> &'b Self: Into<GeometryRef<'b>>,
         T: Into<GeometryRef<'a>>,
     {
         let geo_ref: GeometryRef<'_> = other.into();

@@ -14,7 +14,6 @@ fn test_covers_point() {
             [1.0000000000000002, 0.49999999999999944],
         )
         .unwrap();
-        assert!(arc.with_tolerance(0.0, 0.0).covers_point(&[0.5, 0.0]));
         assert!(arc.with_tolerance(0.0, 0.0).covers(&[0.5, 0.0]));
 
         let center = [0.0, 1.0];
@@ -33,9 +32,9 @@ fn test_covers_point() {
         let p1 = [1.0, 1.0];
         let p2 = [0.0, 0.0];
         let p3 = [1.5, 0.5];
-        assert!(arc.covers_point(&p1));
-        assert!(arc.covers_point(&p2));
-        assert!(!arc.covers_point(&p3));
+        assert!(arc.covers(&p1));
+        assert!(arc.covers(&p2));
+        assert!(!arc.covers(&p3));
     }
     {
         let pt1 = [-0.9233365375660403, 9.999999999996123e-6];
@@ -44,12 +43,12 @@ fn test_covers_point() {
         let arc = ArcSegment::from_start_middle_stop(pt1, pt2, pt3).unwrap();
 
         // Due to floating point rounding errors, some points are not "exactly" included
-        assert!(!arc.with_tolerance(0.0, 0.0).covers_point(&pt1));
-        assert!(!arc.with_tolerance(0.0, 0.0).covers_point(&pt2));
-        assert!(!arc.with_tolerance(0.0, 0.0).covers_point(&pt3));
-        assert!(arc.covers_point(&pt1));
-        assert!(arc.covers_point(&pt2));
-        assert!(arc.covers_point(&pt3));
+        assert!(!arc.with_tolerance(0.0, 0.0).covers(&pt1));
+        assert!(!arc.with_tolerance(0.0, 0.0).covers(&pt2));
+        assert!(!arc.with_tolerance(0.0, 0.0).covers(&pt3));
+        assert!(arc.covers(&pt1));
+        assert!(arc.covers(&pt2));
+        assert!(arc.covers(&pt3));
 
         // Generic methods
         assert!(arc.covers(&pt1));
@@ -65,8 +64,8 @@ fn test_covers_point() {
     {
         let arc = ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 1.0, 0.0, FRAC_PI_2)
             .unwrap();
-        assert!(arc.covers_point(&[0.99498743710662, 0.1]));
-        assert!(!arc.covers_point(&[-0.99498743710662, 0.1]));
+        assert!(arc.covers(&[0.99498743710662, 0.1]));
+        assert!(!arc.covers(&[-0.99498743710662, 0.1]));
     }
 }
 
@@ -205,13 +204,13 @@ fn test_arc_arc_intersection() {
 
         // Regular intersection
         assert_abs_diff_eq!(
-            line.intersections_arc_segment(&arc1),
+            line.intersections_primitive(&arc1),
             PrimitiveIntersections::One([0.0, 2.0])
         );
 
         // Degenerate case
         assert_abs_diff_eq!(
-            arc1.intersections_arc_segment(&arc2),
+            arc1.intersections_primitive(&arc2),
             PrimitiveIntersections::Two([[0.0, 2.0], [-2.0, 0.0]]),
             epsilon = DEFAULT_EPSILON
         );
@@ -233,11 +232,11 @@ fn test_arc_arc_intersection() {
         )
         .unwrap();
         assert_eq!(
-            arc1.intersections_arc_segment(&arc2),
+            arc1.intersections_primitive(&arc2),
             PrimitiveIntersections::Zero
         );
         assert_eq!(
-            arc2.intersections_arc_segment(&arc1),
+            arc2.intersections_primitive(&arc1),
             PrimitiveIntersections::Zero
         );
         assert_eq!(

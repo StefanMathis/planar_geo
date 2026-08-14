@@ -157,24 +157,6 @@ impl Geometry {
         }
     }
 
-    /// Wraps `self` in a [`ToleranceContext`] using the specified `epsilon` and
-    /// `max_relative` tolerances.
-    ///
-    /// The [`ToleranceContext`] applies these tolerances to floating-point
-    /// comparisons performed by geometric operations, such as finding
-    /// intersections. See [`ToleranceContext`] for details and examples.
-    pub fn with_tolerance<'a>(
-        &'a self,
-        epsilon: f64,
-        max_relative: f64,
-    ) -> ToleranceContext<'a, Self> {
-        ToleranceContext {
-            inner: self,
-            epsilon,
-            max_relative,
-        }
-    }
-
     /**
     Returns all intersections between `self` and `other`.
 
@@ -419,20 +401,6 @@ impl<'a> GeometryRef<'a> {
             GeometryRef::Polysegment(polysegment) => polysegment.segment(key),
             GeometryRef::Contour(contour) => contour.segment(key),
             GeometryRef::Shape(shape) => shape.segment(key),
-        }
-    }
-
-    /// Wraps `self` in a [`ToleranceContext`] using the specified `epsilon` and
-    /// `max_relative` tolerances.
-    ///
-    /// The [`ToleranceContext`] applies these tolerances to floating-point
-    /// comparisons performed by geometric operations, such as finding
-    /// intersections. See [`ToleranceContext`] for details and examples.
-    pub fn with_tolerance(&'a self, epsilon: f64, max_relative: f64) -> ToleranceContext<'a, Self> {
-        ToleranceContext {
-            inner: self,
-            epsilon,
-            max_relative,
         }
     }
 
@@ -1325,20 +1293,6 @@ impl<'a> GeometryCow<'a> {
             GeometryCow::Polysegment(polysegment) => polysegment.segment(key),
             GeometryCow::Contour(contour) => contour.segment(key),
             GeometryCow::Shape(shape) => shape.segment(key),
-        }
-    }
-
-    /// Wraps `self` in a [`ToleranceContext`] using the specified `epsilon` and
-    /// `max_relative` tolerances.
-    ///
-    /// The [`ToleranceContext`] applies these tolerances to floating-point
-    /// comparisons performed by geometric operations, such as finding
-    /// intersections. See [`ToleranceContext`] for details and examples.
-    pub fn with_tolerance(&'a self, epsilon: f64, max_relative: f64) -> ToleranceContext<'a, Self> {
-        ToleranceContext {
-            inner: self,
-            epsilon,
-            max_relative,
         }
     }
 

@@ -691,25 +691,25 @@ fn test_straight_line_polysegment() {
     assert!(
         polysegment
             .with_tolerance(0.0, 0.0)
-            .covers_point(&[0.5, 0.0])
+            .covers(&[0.5, 0.0])
             .is_ok()
     );
     assert!(
         polysegment
             .with_tolerance(0.0, 0.0)
-            .covers_point(&[0.5, 0.1])
+            .covers(&[0.5, 0.1])
             .is_err()
     );
     assert!(
         polysegment
             .with_tolerance(0.11, 0.0)
-            .covers_point(&[0.5, 0.1])
+            .covers(&[0.5, 0.1])
             .is_ok()
     );
     assert!(
         polysegment
             .with_tolerance(0.11, 0.0)
-            .covers_point(&[0.5, 0.2])
+            .covers(&[0.5, 0.2])
             .is_err()
     );
 
@@ -717,25 +717,25 @@ fn test_straight_line_polysegment() {
     assert!(
         polysegment
             .with_tolerance(0.0, 0.0)
-            .covers_point(&[1.0, 0.5])
+            .covers(&[1.0, 0.5])
             .is_ok()
     );
     assert!(
         polysegment
             .with_tolerance(0.0, 0.0)
-            .covers_point(&[1.1, 0.5])
+            .covers(&[1.1, 0.5])
             .is_err()
     );
     assert!(
         polysegment
             .with_tolerance(0.11, 0.0)
-            .covers_point(&[1.1, 0.5])
+            .covers(&[1.1, 0.5])
             .is_ok()
     );
     assert!(
         polysegment
             .with_tolerance(0.11, 0.0)
-            .covers_point(&[1.2, 0.5])
+            .covers(&[1.2, 0.5])
             .is_err()
     );
 
@@ -743,25 +743,25 @@ fn test_straight_line_polysegment() {
     assert!(
         polysegment
             .with_tolerance(0.0, 0.0)
-            .covers_point(&[1.0, 0.0])
+            .covers(&[1.0, 0.0])
             .is_ok()
     );
     assert!(
         polysegment
             .with_tolerance(0.0, 0.0)
-            .covers_point(&[0.98, 0.02])
+            .covers(&[0.98, 0.02])
             .is_err()
     );
     assert!(
         polysegment
             .with_tolerance(0.11, 0.0)
-            .covers_point(&[0.98, 0.02])
+            .covers(&[0.98, 0.02])
             .is_ok()
     );
     assert!(
         polysegment
             .with_tolerance(0.11, 0.0)
-            .covers_point(&[1.1, -0.1])
+            .covers(&[1.1, -0.1])
             .is_err()
     );
 }
@@ -865,78 +865,78 @@ fn covers_segment() {
         // Contains line segment
         assert!(
             polyseg
-                .covers_segment(&LineSegment::new([1.0, 0.0], [2.0, 0.0]).unwrap())
+                .covers(&LineSegment::new([1.0, 0.0], [2.0, 0.0]).unwrap())
                 .is_ok()
         );
         assert!(
             polyseg
-                .covers_segment(&LineSegment::new([2.0, 0.0], [1.0, 0.0]).unwrap())
-                .is_ok()
-        );
-
-        assert!(
-            polyseg
-                .covers_segment(&LineSegment::new([1.5, 0.0], [2.5, 0.0]).unwrap())
-                .is_ok()
-        );
-        assert!(
-            polyseg
-                .covers_segment(&LineSegment::new([2.5, 0.0], [1.5, 0.0]).unwrap())
+                .covers(&LineSegment::new([2.0, 0.0], [1.0, 0.0]).unwrap())
                 .is_ok()
         );
 
         assert!(
             polyseg
-                .covers_segment(&LineSegment::new([1.0, 0.0], [4.0, 0.0]).unwrap())
+                .covers(&LineSegment::new([1.5, 0.0], [2.5, 0.0]).unwrap())
                 .is_ok()
         );
         assert!(
             polyseg
-                .covers_segment(&LineSegment::new([4.0, 0.0], [1.0, 0.0]).unwrap())
-                .is_ok()
-        );
-
-        assert!(
-            polyseg
-                .covers_segment(&LineSegment::new([2.1, 0.0], [3.9, 0.0]).unwrap())
-                .is_ok()
-        );
-        assert!(
-            polyseg
-                .covers_segment(&LineSegment::new([3.9, 0.0], [2.1, 0.0]).unwrap())
+                .covers(&LineSegment::new([2.5, 0.0], [1.5, 0.0]).unwrap())
                 .is_ok()
         );
 
         assert!(
             polyseg
-                .covers_segment(&LineSegment::new([1.0, 0.2], [2.0, 0.0]).unwrap())
+                .covers(&LineSegment::new([1.0, 0.0], [4.0, 0.0]).unwrap())
+                .is_ok()
+        );
+        assert!(
+            polyseg
+                .covers(&LineSegment::new([4.0, 0.0], [1.0, 0.0]).unwrap())
+                .is_ok()
+        );
+
+        assert!(
+            polyseg
+                .covers(&LineSegment::new([2.1, 0.0], [3.9, 0.0]).unwrap())
+                .is_ok()
+        );
+        assert!(
+            polyseg
+                .covers(&LineSegment::new([3.9, 0.0], [2.1, 0.0]).unwrap())
+                .is_ok()
+        );
+
+        assert!(
+            polyseg
+                .covers(&LineSegment::new([1.0, 0.2], [2.0, 0.0]).unwrap())
                 .is_err()
         );
         assert!(
             polyseg
-                .covers_segment(&LineSegment::new([1.0, 0.2], [2.0, 0.2]).unwrap())
+                .covers(&LineSegment::new([1.0, 0.2], [2.0, 0.2]).unwrap())
                 .is_err()
         );
 
         assert!(
             polyseg
-                .covers_segment(&LineSegment::new([4.0, 4.0], [4.0, 0.0]).unwrap())
+                .covers(&LineSegment::new([4.0, 4.0], [4.0, 0.0]).unwrap())
                 .is_ok()
         );
         assert!(
             polyseg
-                .covers_segment(&LineSegment::new([4.0, 0.0], [4.0, 4.0]).unwrap())
+                .covers(&LineSegment::new([4.0, 0.0], [4.0, 4.0]).unwrap())
                 .is_ok()
         );
 
         assert!(
             polyseg
-                .covers_segment(&LineSegment::new([4.0, 4.0], [4.0, 3.0]).unwrap())
+                .covers(&LineSegment::new([4.0, 4.0], [4.0, 3.0]).unwrap())
                 .is_ok()
         );
         assert!(
             polyseg
-                .covers_segment(&LineSegment::new([4.0, 3.0], [4.0, 4.0]).unwrap())
+                .covers(&LineSegment::new([4.0, 3.0], [4.0, 4.0]).unwrap())
                 .is_ok()
         );
     }
@@ -944,12 +944,12 @@ fn covers_segment() {
         // Contains arc segment
         let quarter_arc =
             ArcSegment::from_start_center_angle([-1.0, 0.0], [0.0, 0.0], 0.5 * -PI).unwrap();
-        assert!(polyseg.covers_segment(&quarter_arc).is_ok());
+        assert!(polyseg.covers(&quarter_arc).is_ok());
 
         let quarter_arc_shifted =
             ArcSegment::from_center_radius_start_sweep_angle([0.0, 0.0], 1.0, 0.75 * PI, -0.5 * PI)
                 .unwrap();
-        assert!(polyseg.covers_segment(&quarter_arc_shifted).is_ok());
+        assert!(polyseg.covers(&quarter_arc_shifted).is_ok());
     }
 }
 
@@ -959,23 +959,23 @@ fn covers_segment_circle() {
     let polyseg = Polysegment::from(circle);
 
     let arc = ArcSegment::from_start_center_angle([-1.0, 0.0], [0.0, 0.0], 0.5 * -PI).unwrap();
-    assert!(polyseg.covers_segment(&arc).is_ok());
+    assert!(polyseg.covers(&arc).is_ok());
 
     let arc = ArcSegment::from_start_center_angle([1.0, 0.0], [0.0, 0.0], 1.5 * -PI).unwrap();
-    assert!(polyseg.covers_segment(&arc).is_ok());
+    assert!(polyseg.covers(&arc).is_ok());
 
     let arc = ArcSegment::from_start_center_angle([1.0, 0.0], [0.0, 0.0], 1.5 * PI).unwrap();
-    assert!(polyseg.covers_segment(&arc).is_ok());
+    assert!(polyseg.covers(&arc).is_ok());
 
     let arc = ArcSegment::from_center_radius_start_stop_angle([0.0, 0.0], 1.0, -1.0, 1.0).unwrap();
-    assert!(polyseg.covers_segment(&arc).is_ok());
+    assert!(polyseg.covers(&arc).is_ok());
 
     let arc = ArcSegment::from_center_radius_start_stop_angle([0.0, 0.0], 1.0, 1.0, -1.0).unwrap();
-    assert!(polyseg.covers_segment(&arc).is_ok());
+    assert!(polyseg.covers(&arc).is_ok());
 
     let arc = ArcSegment::from_center_radius_start_stop_angle([0.0, 0.0], 2.0, 1.0, -1.0).unwrap();
-    assert!(polyseg.covers_segment(&arc).is_err());
+    assert!(polyseg.covers(&arc).is_err());
 
     let arc = ArcSegment::from_center_radius_start_stop_angle([0.5, 0.0], 1.0, 1.0, -1.0).unwrap();
-    assert!(polyseg.covers_segment(&arc).is_err());
+    assert!(polyseg.covers(&arc).is_err());
 }
