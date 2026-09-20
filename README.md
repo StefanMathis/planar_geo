@@ -406,7 +406,7 @@ any images and will miss the items hidden behind feature flags.
 
 ## Additional resources
 
-Some algorithms deserve a more throughout documentation than is possible in a
+Some algorithms deserve a more thorough documentation than is possible in a
 Rust function docstring. Therefore, the `docs` folder contains standalone
 documents with detailed algorithm descriptions.
 

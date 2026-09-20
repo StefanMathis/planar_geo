@@ -35,7 +35,7 @@ A special feature of [`Drawable`] compared to [`DrawableRef`] and
 [`DrawableCow`] is the fact that it owns its [`Drawable::geometry`]. Therefore,
 it implements [`Transformation`].
  */
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Drawable {
     /// Underlying geometry object.
     pub geometry: Geometry,
@@ -109,7 +109,7 @@ It provides the [`Drawable::draw`] method for drawing itself onto a
 [`cairo::Context`]. See the [module level documentation](crate::draw::drawable)
 for more.
  */
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct DrawableRef<'a> {
     /// Underlying geometry object.
     pub geometry: GeometryRef<'a>,
@@ -196,7 +196,7 @@ It provides the [`DrawableCow::draw`] method for drawing itself onto a
 [`cairo::Context`]. See the [module level documentation](crate::draw::drawable)
 for more.
  */
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct DrawableCow<'a> {
     /// Underlying geometry object.
     pub geometry: GeometryCow<'a>,

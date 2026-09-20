@@ -178,8 +178,8 @@ method).
 
 As stated in the [`approxim`] documentation: "Floating point is hard!".
 The following links, taken directly from the [`approxim`] crate
-documentation, provide more informatio regarding the behaviour of floating point
-numbers, particularly when comparing them:
+documentation, provide more information regarding the behaviour of floating
+point numbers, particularly when comparing them:
 - [Comparing Floating Point Inners, 2012 Edition](https://randomascii.wordpress.com/2012/02/25/comparing-floating-point-numbers-2012-edition/)
 - [The Floating Point Guide - Comparison](https://floating-point-gui.de/errors/comparison/)
 - [What Every Computer Scientist Should Know About Floating-Point Arithmetic](https://docs.oracle.com/cd/E19957-01/806-3568/ncg_goldberg.html)
