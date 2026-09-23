@@ -110,7 +110,7 @@ fn test_text_placement() {
 }
 
 #[test]
-fn anchor_offset_scaling() {
+fn test_anchor_offset_scaling() {
     fn create_fn() -> Box<dyn FnOnce(&cairo::Context) -> Result<(), cairo::Error>> {
         let mut style = Style::default();
         style.line_color = Color::new(1.0, 0.5, 0.5, 1.0);
@@ -180,6 +180,72 @@ fn anchor_offset_scaling() {
         view.compare_or_create(
             std::path::Path::new("tests/img/anchor_offset_scale_2.png"),
             create_fn(),
+            0.95
+        )
+        .is_ok()
+    );
+}
+
+#[test]
+fn test_compare_text_vs_drawable_from_text() {
+    let txt = Text {
+        text: "My text".into(),
+        anchor: Anchor::TopLeft,
+        fixed_anchor_offset: [0.0, 0.0],
+        scaled_anchor_offset: [0.25, 0.25],
+        color: Color::new(0.0, 0.0, 0.0, 1.0),
+        font_size: 30.0,
+        angle: 0.0,
+    };
+
+    let view =
+        Viewport::from_bounding_box(&BoundingBox::new(0.0, 0.5, 0.0, 0.5), SideLength::Long(600));
+
+    // Draw a box as reference
+    let rect = Contour::rectangle([0.1, 0.1], [0.4, 0.4]);
+    let mut rect_style = Style::default();
+    rect_style.background_color = Color {
+        r: 1.0,
+        g: 0.1,
+        b: 0.1,
+        a: 1.0,
+    };
+
+    // Draw text directly
+    assert!(
+        view.compare_or_create(
+            std::path::Path::new("tests/img/compare_text_vs_drawable_from_text.png"),
+            |cr| {
+                // Set the background to white
+                cr.set_source_rgb(1.0, 1.0, 1.0);
+                cr.paint()?;
+
+                rect.draw(&Style::default(), cr)?;
+
+                // Draw the text directly
+                txt.draw(cr)
+            },
+            0.95
+        )
+        .is_ok()
+    );
+
+    // Draw text after conversion into a drawable
+    let drawable = Drawable::from(txt);
+
+    assert!(
+        view.compare_or_create(
+            std::path::Path::new("tests/img/compare_text_vs_drawable_from_text.png"),
+            |cr| {
+                // Set the background to white
+                cr.set_source_rgb(1.0, 1.0, 1.0);
+                cr.paint()?;
+
+                rect.draw(&Style::default(), cr)?;
+
+                // Draw the text directly
+                drawable.draw(cr)
+            },
             0.95
         )
         .is_ok()

@@ -22,7 +22,11 @@ For these types, the `draw` method simply returns `Ok(())`
 use bounding_box::{BoundingBox, ToBoundingBox};
 
 use super::Style;
-use crate::{Transformation, geometry::*};
+use crate::{
+    Transformation,
+    draw::{Color, Text},
+    geometry::*,
+};
 
 /**
 A wrapper around a [`Geometry`] and its corresponding [`Style`].
@@ -98,6 +102,31 @@ where
         return Drawable {
             geometry: value.0.into(),
             style: value.1,
+        };
+    }
+}
+
+impl From<Text> for Drawable {
+    fn from(value: Text) -> Self {
+        let invisible = Color {
+            r: 0.0,
+            g: 0.0,
+            b: 0.0,
+            a: 0.0,
+        };
+        let style = Style {
+            line_color: invisible,
+            background_color: invisible,
+            line_width: 0.0,
+            line_style: super::LineStyle::None,
+            line_cap: super::LineCap::Butt,
+            line_join: super::LineJoin::Round,
+            text: Some(Box::new(value)),
+        };
+
+        return Drawable {
+            geometry: [0.0, 0.0].into(),
+            style,
         };
     }
 }

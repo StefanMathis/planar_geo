@@ -5,23 +5,23 @@ planar_geo
 docs/main.md and (if available docs/end.md). Do not modify this file, instead
 modify the components. -->
 
-[`ArcSegment`]: https://docs.rs/planar_geo/0.6.0/planar_geo/segment/arc_segment/struct.ArcSegment.html
-[`LineSegment`]: https://docs.rs/planar_geo/0.6.0/planar_geo/segment/line_segment/struct.LineSegment.html
-[`Segment`]: https://docs.rs/planar_geo/0.6.0/planar_geo/segment/enum.Segment.html
-[`Polysegment`]: https://docs.rs/planar_geo/0.6.0/planar_geo/polysegment/struct.Polysegment.html
-[`Contour`]: https://docs.rs/planar_geo/0.6.0/planar_geo/contour/struct.Contour.html
-[`Shape`]: https://docs.rs/planar_geo/0.6.0/planar_geo/shape/struct.Shape.html
-[`Primitive`]: https://docs.rs/planar_geo/0.6.0/planar_geo/primitive/trait.Primitive.html
-[`Composite`]: https://docs.rs/planar_geo/0.6.0/planar_geo/composite/trait.Composite.html
-[`Transformation`]: https://docs.rs/planar_geo/0.6.0/planar_geo/trait.Transformation.html
-[`Geometry`]: https://docs.rs/planar_geo/0.6.0/planar_geo/geometry/enum.Geometry.html
-[`intersections`]: https://docs.rs/planar_geo/0.6.0/planar_geo/geometry/enum.GeometryRef.html#method.intersections
-[`DEFAULT_EPSILON`]: https://docs.rs/planar_geo/0.6.0/planar_geo/constant.DEFAULT_EPSILON.html
-[`DEFAULT_MAX_RELATIVE`]: https://docs.rs/planar_geo/0.6.0/planar_geo/constant.DEFAULT_MAX_RELATIVE.html
-[`ToleranceContext`]: https://docs.rs/planar_geo/0.6.0/planar_geo/struct.ToleranceContext.html
-[`with_tolerance`]: https://docs.rs/planar_geo/0.6.0/planar_geo/trait.WithTolerance.html#method.with_tolerance
-[crate_index]: https://docs.rs/planar_geo/0.6.0/planar_geo/.
-[draw]: https://docs.rs/planar_geo/0.6.0/planar_geo/draw/index.html.
+[`ArcSegment`]: https://docs.rs/planar_geo/0.6.1/planar_geo/segment/arc_segment/struct.ArcSegment.html
+[`LineSegment`]: https://docs.rs/planar_geo/0.6.1/planar_geo/segment/line_segment/struct.LineSegment.html
+[`Segment`]: https://docs.rs/planar_geo/0.6.1/planar_geo/segment/enum.Segment.html
+[`Polysegment`]: https://docs.rs/planar_geo/0.6.1/planar_geo/polysegment/struct.Polysegment.html
+[`Contour`]: https://docs.rs/planar_geo/0.6.1/planar_geo/contour/struct.Contour.html
+[`Shape`]: https://docs.rs/planar_geo/0.6.1/planar_geo/shape/struct.Shape.html
+[`Primitive`]: https://docs.rs/planar_geo/0.6.1/planar_geo/primitive/trait.Primitive.html
+[`Composite`]: https://docs.rs/planar_geo/0.6.1/planar_geo/composite/trait.Composite.html
+[`Transformation`]: https://docs.rs/planar_geo/0.6.1/planar_geo/trait.Transformation.html
+[`Geometry`]: https://docs.rs/planar_geo/0.6.1/planar_geo/geometry/enum.Geometry.html
+[`intersections`]: https://docs.rs/planar_geo/0.6.1/planar_geo/geometry/enum.GeometryRef.html#method.intersections
+[`DEFAULT_EPSILON`]: https://docs.rs/planar_geo/0.6.1/planar_geo/constant.DEFAULT_EPSILON.html
+[`DEFAULT_MAX_RELATIVE`]: https://docs.rs/planar_geo/0.6.1/planar_geo/constant.DEFAULT_MAX_RELATIVE.html
+[`ToleranceContext`]: https://docs.rs/planar_geo/0.6.1/planar_geo/struct.ToleranceContext.html
+[`with_tolerance`]: https://docs.rs/planar_geo/0.6.1/planar_geo/trait.WithTolerance.html#method.with_tolerance
+[crate_index]: https://docs.rs/planar_geo/0.6.1/planar_geo/.
+[draw]: https://docs.rs/planar_geo/0.6.1/planar_geo/draw/index.html.
 [`Context`]: https://gtk-rs.org/gtk-rs-core/stable/latest/docs/cairo/struct.Context.html
 [cairo]: https://gtk-rs.org/gtk-rs-core/stable/latest/docs/cairo
 [approxim]: https://docs.rs/approxim/latest/approxim/
@@ -36,7 +36,7 @@ modify the components. -->
 A computational geometry library that treats circular arcs as first-class
 geometric primitives rather than approximating them with straight line segments.
 
-The full API documentation is available at https://docs.rs/planar_geo/0.6.0/planar_geo.
+The full API documentation is available at https://docs.rs/planar_geo/0.6.1/planar_geo.
 > **Feedback welcome!**  
 > Found a bug, missing docs, or have a feature request?  
 > Please open an issue on [GitHub](https://github.com/StefanMathis/planar_geo.git).

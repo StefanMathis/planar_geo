@@ -731,6 +731,10 @@ the contour). If a [`Text`] is drawn on its own, the offset is applied to the
 origin of the [`cairo::Context`] coordinates. See docstring of [`Anchor`] for
 an example.
 
+A [`Text`] is convertible into a [`Drawable`](crate::draw::Drawable) via
+[`From`]. Hence, it can be displayed either with its own method [`Text::draw`]
+or via the [`Drawable::draw`](crate::draw::Drawable::draw) method.
+
 # Image 1
 */
 #[doc = ""]
