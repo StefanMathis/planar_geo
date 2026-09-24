@@ -205,9 +205,9 @@ fn test_compare_text_vs_drawable_from_text() {
     let rect = Contour::rectangle([0.1, 0.1], [0.4, 0.4]);
     let mut rect_style = Style::default();
     rect_style.background_color = Color {
-        r: 1.0,
-        g: 0.1,
-        b: 0.1,
+        r: 0.9,
+        g: 0.9,
+        b: 0.9,
         a: 1.0,
     };
 
@@ -220,7 +220,7 @@ fn test_compare_text_vs_drawable_from_text() {
                 cr.set_source_rgb(1.0, 1.0, 1.0);
                 cr.paint()?;
 
-                rect.draw(&Style::default(), cr)?;
+                rect.draw(&rect_style, cr)?;
 
                 // Draw the text directly
                 txt.draw(cr)
@@ -241,7 +241,7 @@ fn test_compare_text_vs_drawable_from_text() {
                 cr.set_source_rgb(1.0, 1.0, 1.0);
                 cr.paint()?;
 
-                rect.draw(&Style::default(), cr)?;
+                rect.draw(&rect_style, cr)?;
 
                 // Draw the text directly
                 drawable.draw(cr)
