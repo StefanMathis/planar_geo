@@ -167,7 +167,12 @@ impl<'a> DrawableRef<'a> {
      */
     pub fn draw(&self, context: &cairo::Context) -> Result<(), cairo::Error> {
         match self.geometry {
-            GeometryRef::Point(_) => Ok(()), // Points cannot be drawn
+            GeometryRef::Point(_) => {
+                if let Some(text) = self.style.text.as_ref() {
+                    text.draw(context)?;
+                }
+                Ok(())
+            } // Points cannot be drawn
             GeometryRef::BoundingBox(elem) => {
                 crate::contour::Contour::from(elem).draw(&self.style, context)
             }

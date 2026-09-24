@@ -225,7 +225,7 @@ fn test_compare_text_vs_drawable_from_text() {
                 // Draw the text directly
                 txt.draw(cr)
             },
-            0.95
+            0.99
         )
         .is_ok()
     );
@@ -246,7 +246,7 @@ fn test_compare_text_vs_drawable_from_text() {
                 // Draw the text directly
                 drawable.draw(cr)
             },
-            0.95
+            0.99
         )
         .is_ok()
     );
