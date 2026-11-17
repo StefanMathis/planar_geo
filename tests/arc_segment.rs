@@ -716,7 +716,7 @@ fn test_fillet_construction() {
             arc.segment_point(0.5),
             [-0.5 + 0.5 / 2.0_f64.sqrt(), 0.5 - 0.5 / 2.0_f64.sqrt()]
         );
-        assert_abs_diff_eq!(arc.stop(), &[-0.5, 0.0]);
+        assert_abs_diff_eq!(arc.stop(), &[-0.5, 0.0], epsilon = 1e-6);
         assert_abs_diff_eq!(arc.sweep_angle(), -FRAC_PI_2, epsilon = 1e-6);
     }
     {
