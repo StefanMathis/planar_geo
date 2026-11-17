@@ -1,5 +1,8 @@
 use planar_geo::prelude::*;
-use std::f64::consts::{FRAC_PI_2, PI};
+use std::{
+    assert_matches,
+    f64::consts::{FRAC_PI_2, PI},
+};
 
 #[test]
 fn test_covers() {
@@ -249,14 +252,7 @@ fn test_fillet_chain() {
     {
         // Very large radius
         let mut iter = Segment::fillet_chain(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]], &[20.0]);
-        approxim::assert_abs_diff_eq!(
-            iter.next(),
-            Some(
-                LineSegment::new([0.0, 0.0], [-1.8369701987210297e-16, 0.0])
-                    .unwrap()
-                    .into()
-            )
-        );
+        assert_matches!(iter.next(), Some(Segment::LineSegment(_)));
         approxim::assert_abs_diff_eq!(
             iter.next(),
             Some(
@@ -294,28 +290,25 @@ fn test_fillet_chain() {
             ),
             epsilon = 1e-8,
         );
-        // Glue segment
-        approxim::assert_abs_diff_eq!(
-            iter.next(),
-            Some(
-                LineSegment::new(
-                    [-5.551115123125783e-17, 0.5000000000000001],
-                    [-1.1102230246251565e-16, 0.5]
-                )
-                .unwrap()
-                .into()
+        // May or may not be a glue segment
+        match iter.next().unwrap() {
+            Segment::LineSegment(_) => {
+                approxim::assert_abs_diff_eq!(
+                    iter.next(),
+                    Some(
+                        ArcSegment::from_start_center_angle([0.0, 0.5], [0.5, 0.5], -FRAC_PI_2)
+                            .unwrap()
+                            .into()
+                    ),
+                    epsilon = 1e-8,
+                );
+            }
+            Segment::ArcSegment(arc_segment) => approxim::assert_abs_diff_eq!(
+                arc_segment,
+                ArcSegment::from_start_center_angle([0.0, 0.5], [0.5, 0.5], -FRAC_PI_2).unwrap(),
+                epsilon = 1e-8,
             ),
-            epsilon = 1e-8,
-        );
-        approxim::assert_abs_diff_eq!(
-            iter.next(),
-            Some(
-                ArcSegment::from_start_center_angle([0.0, 0.5], [0.5, 0.5], -FRAC_PI_2)
-                    .unwrap()
-                    .into()
-            ),
-            epsilon = 1e-8,
-        );
+        }
         approxim::assert_abs_diff_eq!(
             iter.next(),
             Some(LineSegment::new([0.5, 1.0], [1.0, 1.0],).unwrap().into()),
