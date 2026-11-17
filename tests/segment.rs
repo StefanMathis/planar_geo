@@ -90,15 +90,25 @@ fn test_fillet_chain() {
             ),
             epsilon = 1e-8,
         );
-        approxim::assert_abs_diff_eq!(
-            iter.next(),
-            Some(
-                ArcSegment::from_start_center_angle([1.0, 0.5], [0.5, 0.5], FRAC_PI_2)
-                    .unwrap()
-                    .into()
+
+        match iter.next().unwrap() {
+            Segment::LineSegment(_) => {
+                approxim::assert_abs_diff_eq!(
+                    iter.next(),
+                    Some(
+                        ArcSegment::from_start_center_angle([1.0, 0.5], [0.5, 0.5], FRAC_PI_2)
+                            .unwrap()
+                            .into()
+                    ),
+                    epsilon = 1e-8,
+                );
+            }
+            Segment::ArcSegment(arc_segment) => approxim::assert_abs_diff_eq!(
+                arc_segment,
+                ArcSegment::from_start_center_angle([1.0, 0.5], [0.5, 0.5], FRAC_PI_2).unwrap(),
+                epsilon = 1e-8,
             ),
-            epsilon = 1e-8,
-        );
+        }
         approxim::assert_abs_diff_eq!(
             iter.next(),
             Some(LineSegment::new([0.5, 1.0], [0.0, 1.0]).unwrap().into()),
