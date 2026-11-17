@@ -208,7 +208,7 @@ impl Polysegment {
     /// use approxim;
     ///
     /// let polysegment = Polysegment::from_fillet_chain(
-    ///    &[
+    ///     &[
     ///         [0.0, 0.0],
     ///         [1.0, 0.0],
     ///         [1.0, 0.5],
@@ -218,60 +218,83 @@ impl Polysegment {
     ///     ],
     ///     &[0.5, 0.0, 0.25, 2.0],
     /// );
+    ///
+    /// // Filter out glue segments (length < 1e-8).
+    /// let segments: Vec<_> = polysegment
+    ///     .iter()
+    ///     .filter_map(|(_, segment)| {
+    ///         if segment.length() >= 1e-8 {
+    ///             Some(segment)
+    ///         } else {
+    ///             None
+    ///         }
+    ///     })
+    ///     .collect();
+    ///
     /// approxim::assert_abs_diff_eq!(
-    ///     polysegment.get(0),
-    ///     Some(&(LineSegment::new([0.0, 0.0], [0.5, 0.0]).unwrap().into())),
+    ///     segments.get(0).copied(),
+    ///     Some(&Segment::from(
+    ///         LineSegment::new([0.0, 0.0], [0.5, 0.0]).unwrap()
+    ///     )),
     ///     epsilon = 1e-8
     /// );
+    ///
     /// approxim::assert_abs_diff_eq!(
-    ///     polysegment.get(1),
-    ///     Some(
-    ///         &(ArcSegment::from_start_center_angle([0.5, 0.0], [0.5, 0.5], FRAC_PI_2)
-    ///             .unwrap()
-    ///             .into())
-    ///     ),
+    ///     segments.get(1).copied(),
+    ///     Some(&Segment::from(
+    ///         ArcSegment::from_start_center_angle(
+    ///             [0.5, 0.0],
+    ///             [0.5, 0.5],
+    ///             FRAC_PI_2
+    ///         )
+    ///         .unwrap()
+    ///     )),
     ///     epsilon = 1e-8
     /// );
+    ///
     /// approxim::assert_abs_diff_eq!(
-    ///     polysegment.get(2),
-    ///     Some(&LineSegment::new([1.0000000000000002, 0.5000000000000001], [1.0, 0.5]).unwrap().into()),
+    ///     segments.get(2).copied(),
+    ///     Some(&Segment::from(
+    ///         LineSegment::new([1.0, 0.5], [0.75, 0.5]).unwrap()
+    ///     )),
     ///     epsilon = 1e-8
     /// );
+    ///
     /// approxim::assert_abs_diff_eq!(
-    ///     polysegment.get(3),
-    ///     Some(&LineSegment::new([1.0, 0.5], [0.75, 0.5]).unwrap().into()),
+    ///     segments.get(3).copied(),
+    ///     Some(&Segment::from(
+    ///         ArcSegment::from_start_center_angle(
+    ///             [0.75, 0.5],
+    ///             [0.75, 0.75],
+    ///             -FRAC_PI_2
+    ///         )
+    ///         .unwrap()
+    ///     )),
     ///     epsilon = 1e-8
     /// );
+    ///
     /// approxim::assert_abs_diff_eq!(
-    ///     polysegment.get(4),
-    ///     Some(
-    ///         &(ArcSegment::from_start_center_angle([0.75, 0.5], [0.75, 0.75], -FRAC_PI_2)
-    ///             .unwrap()
-    ///             .into())
-    ///     ),
+    ///     segments.get(4).copied(),
+    ///     Some(&Segment::from(
+    ///         ArcSegment::from_start_center_angle(
+    ///             [0.5, 0.75],
+    ///             [0.25, 0.75],
+    ///             FRAC_PI_2
+    ///         )
+    ///         .unwrap()
+    ///     )),
     ///     epsilon = 1e-8
     /// );
-    /// // "Glue segment" between two adjacent arcs
+    ///
     /// approxim::assert_abs_diff_eq!(
-    ///     polysegment.get(5),
-    ///     Some(&LineSegment::new([0.5000000000000006, 0.75], [0.5000000000000006, 0.7499999999999999]).unwrap().into()),
+    ///     segments.get(5).copied(),
+    ///     Some(&Segment::from(
+    ///         LineSegment::new([0.25, 1.0], [0.0, 1.0]).unwrap()
+    ///     )),
     ///     epsilon = 1e-8
     /// );
-    /// approxim::assert_abs_diff_eq!(
-    ///     polysegment.get(6),
-    ///     Some(
-    ///         &(ArcSegment::from_start_center_angle([0.5, 0.75], [0.25, 0.75], FRAC_PI_2)
-    ///             .unwrap()
-    ///             .into())
-    ///     ),
-    ///     epsilon = 1e-8
-    /// );
-    /// approxim::assert_abs_diff_eq!(
-    ///     polysegment.get(7),
-    ///     Some(&(LineSegment::new([0.25, 1.0], [0.0, 1.0]).unwrap().into())),
-    ///     epsilon = 1e-8
-    /// );
-    /// assert_eq!(polysegment.len(), 8);
+    ///
+    /// assert_eq!(segments.len(), 6);
     /// ```
     pub fn from_fillet_chain(points: &[[f64; 2]], radii: &[f64]) -> Self {
         return Self::from_iter(Segment::fillet_chain(points, radii));

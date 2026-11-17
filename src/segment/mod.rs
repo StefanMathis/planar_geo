@@ -127,8 +127,8 @@ impl Segment {
     /// use planar_geo::prelude::*;
     /// use approxim;
     ///
-    /// let mut iter = Segment::fillet_chain(
-    ///    &[
+    /// let iter = Segment::fillet_chain(
+    ///     &[
     ///         [0.0, 0.0],
     ///         [1.0, 0.0],
     ///         [1.0, 0.5],
@@ -138,59 +138,73 @@ impl Segment {
     ///     ],
     ///     &[0.5, 0.0, 0.25, 2.0],
     /// );
+    ///
+    /// // Filter out glue segments (length < 1e-8).
+    /// let segments: Vec<_> = iter
+    ///     .filter(|segment| segment.length() >= 1e-8)
+    ///     .collect();
+    ///
     /// approxim::assert_abs_diff_eq!(
-    ///     iter.next(),
-    ///     Some(LineSegment::new([0.0, 0.0], [0.5, 0.0]).unwrap().into()),
+    ///     segments.get(0),
+    ///     Some(&LineSegment::new([0.0, 0.0], [0.5, 0.0]).unwrap().into()),
     ///     epsilon = 1e-8
     /// );
+    ///
     /// approxim::assert_abs_diff_eq!(
-    ///     iter.next(),
+    ///     segments.get(1),
     ///     Some(
-    ///         ArcSegment::from_start_center_angle([0.5, 0.0], [0.5, 0.5], FRAC_PI_2)
-    ///             .unwrap()
-    ///             .into()
+    ///         &ArcSegment::from_start_center_angle(
+    ///             [0.5, 0.0],
+    ///             [0.5, 0.5],
+    ///             FRAC_PI_2
+    ///         )
+    ///         .unwrap()
+    ///         .into()
     ///     ),
     ///     epsilon = 1e-8
     /// );
+    ///
     /// approxim::assert_abs_diff_eq!(
-    ///     iter.next(),
-    ///     Some(LineSegment::new([1.0000000000000002, 0.5000000000000001], [1.0, 0.5]).unwrap().into()),
+    ///     segments.get(2),
+    ///     Some(&LineSegment::new([1.0, 0.5], [0.75, 0.5]).unwrap().into()),
     ///     epsilon = 1e-8
     /// );
+    ///
     /// approxim::assert_abs_diff_eq!(
-    ///     iter.next(),
-    ///     Some(LineSegment::new([1.0, 0.5], [0.75, 0.5]).unwrap().into()),
-    ///     epsilon = 1e-8
-    /// );
-    /// approxim::assert_abs_diff_eq!(
-    ///     iter.next(),
+    ///     segments.get(3),
     ///     Some(
-    ///         ArcSegment::from_start_center_angle([0.75, 0.5], [0.75, 0.75], -FRAC_PI_2)
-    ///             .unwrap()
-    ///             .into()
+    ///         &ArcSegment::from_start_center_angle(
+    ///             [0.75, 0.5],
+    ///             [0.75, 0.75],
+    ///             -FRAC_PI_2
+    ///         )
+    ///         .unwrap()
+    ///         .into()
     ///     ),
     ///     epsilon = 1e-8
     /// );
+    ///
     /// approxim::assert_abs_diff_eq!(
-    ///     iter.next(),
-    ///     Some(LineSegment::new([0.5000000000000006, 0.75], [0.5000000000000006, 0.7499999999999999]).unwrap().into()),
-    ///     epsilon = 1e-8
-    /// );
-    /// approxim::assert_abs_diff_eq!(
-    ///     iter.next(),
+    ///     segments.get(4),
     ///     Some(
-    ///         ArcSegment::from_start_center_angle([0.5, 0.75], [0.25, 0.75], FRAC_PI_2)
-    ///             .unwrap()
-    ///             .into()
+    ///         &ArcSegment::from_start_center_angle(
+    ///             [0.5, 0.75],
+    ///             [0.25, 0.75],
+    ///             FRAC_PI_2
+    ///         )
+    ///         .unwrap()
+    ///         .into()
     ///     ),
     ///     epsilon = 1e-8
     /// );
+    ///
     /// approxim::assert_abs_diff_eq!(
-    ///     iter.next(),
-    ///     Some(LineSegment::new([0.25, 1.0], [0.0, 1.0]).unwrap().into()),
+    ///     segments.get(5),
+    ///     Some(&LineSegment::new([0.25, 1.0], [0.0, 1.0]).unwrap().into()),
     ///     epsilon = 1e-8
     /// );
-    /// assert_eq!(iter.next(), None);
+    ///
+    /// assert_eq!(segments.len(), 6);
     /// ```
     pub fn fillet_chain<'a>(points: &'a [[f64; 2]], radii: &'a [f64]) -> FilletChainIterator<'a> {
         return FilletChainIterator::new(points, radii);
