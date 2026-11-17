@@ -26,8 +26,8 @@ serde = ["dep:serde", "dep:deserialize_untagged_verbose_error", "bounding_box/se
 cairo = ["dep:cairo-rs"]
 doc-images = ["dep:embed-doc-image"]
 
-[dev-dependencies]
-cairo_viewport = { version = "^0.3", features = ["image-compare"] }
+[target.'cfg(target_os = "linux")'.dev-dependencies]
+cairo_viewport = { version = "0.3", features = ["image-compare"] }
 
 [package.metadata.docs.rs]
 features = ["serde", "cairo", "doc-images"]
