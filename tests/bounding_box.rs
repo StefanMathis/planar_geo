@@ -105,19 +105,19 @@ fn test_intersects() {
     assert!(bb1.intersects(&bb2));
 
     let bb1 = BoundingBox::new(0.0, 1.0, 0.0, 1.0);
-    let bb2 = BoundingBox::new(0.2, 0.8, std::f64::NEG_INFINITY, 0.5);
+    let bb2 = BoundingBox::new(0.2, 0.8, f64::NEG_INFINITY, 0.5);
     assert!(bb1.intersects(&bb2));
 
     let bb1 = BoundingBox::new(0.0, 1.0, 0.0, 1.0);
-    let bb2 = BoundingBox::new(0.2, 0.8, 0.5, std::f64::INFINITY);
+    let bb2 = BoundingBox::new(0.2, 0.8, 0.5, f64::INFINITY);
     assert!(bb1.intersects(&bb2));
 
     let bb1 = BoundingBox::new(0.0, 1.0, 0.0, 1.0);
-    let bb2 = BoundingBox::new(0.2, 0.8, std::f64::NEG_INFINITY, std::f64::INFINITY);
+    let bb2 = BoundingBox::new(0.2, 0.8, f64::NEG_INFINITY, f64::INFINITY);
     assert!(bb1.intersects(&bb2));
 
     let bb1 = BoundingBox::new(0.0, 1.0, 0.0, 1.0);
-    let bb2 = BoundingBox::new(std::f64::NEG_INFINITY, std::f64::INFINITY, 0.2, 0.8);
+    let bb2 = BoundingBox::new(f64::NEG_INFINITY, f64::INFINITY, 0.2, 0.8);
     assert!(bb1.intersects(&bb2));
 
     let bb1 = BoundingBox::new(0.0, 1.0, 0.0, 1.0);

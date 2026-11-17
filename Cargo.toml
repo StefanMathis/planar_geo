@@ -29,8 +29,47 @@ doc-images = ["dep:embed-doc-image"]
 
 [dev-dependencies]
 cairo_viewport = { version = "^0.3", features = ["image-compare"] }
-planar_geo = { path = ".", features = ["serde", "cairo"] }
 
 [package.metadata.docs.rs]
 features = ["serde", "cairo", "doc-images"]
 rustdoc-args = ["--cfg", "docsrs"]
+
+[[example]]
+name = "arc_segments"
+required-features = ["cairo"]
+
+[[example]]
+name = "fillet_chain"
+required-features = ["cairo"]
+
+[[example]]
+name = "geometric_types"
+required-features = ["cairo"]
+
+[[example]]
+name = "grid_and_coordinate_system"
+required-features = ["cairo"]
+
+[[example]]
+name = "intersection_composites"
+required-features = ["cairo"]
+
+[[example]]
+name = "intersection_segments"
+required-features = ["cairo"]
+
+[[example]]
+name = "polygonizer_comparison"
+required-features = ["cairo"]
+
+[[example]]
+name = "shape"
+required-features = ["cairo"]
+
+[[example]]
+name = "touching"
+required-features = ["cairo"]
+
+[[example]]
+name = "type_overview"
+required-features = ["cairo"]

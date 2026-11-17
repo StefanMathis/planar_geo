@@ -1,7 +1,4 @@
-use std::f64::{
-    INFINITY, NEG_INFINITY,
-    consts::{FRAC_PI_2, PI},
-};
+use std::f64::consts::{FRAC_PI_2, PI};
 
 use planar_geo::prelude::*;
 
@@ -242,10 +239,18 @@ fn test_segment_point() {
 
 #[test]
 fn test_angle_infinite() {
-    let line = LineSegment::new([NEG_INFINITY, NEG_INFINITY], [INFINITY, INFINITY]).unwrap();
+    let line = LineSegment::new(
+        [f64::NEG_INFINITY, f64::NEG_INFINITY],
+        [f64::INFINITY, f64::INFINITY],
+    )
+    .unwrap();
     approxim::assert_abs_diff_eq!(line.angle(), 0.25 * PI);
 
-    let line = LineSegment::new([INFINITY, INFINITY], [NEG_INFINITY, NEG_INFINITY]).unwrap();
+    let line = LineSegment::new(
+        [f64::INFINITY, f64::INFINITY],
+        [f64::NEG_INFINITY, f64::NEG_INFINITY],
+    )
+    .unwrap();
     approxim::assert_abs_diff_eq!(line.angle(), -0.75 * PI);
 }
 

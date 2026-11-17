@@ -12,8 +12,6 @@ as a tool for calculations, for example when determining intersections.
 See the docstring of [`Line`] for more information.
  */
 
-use std::f64::{INFINITY, NEG_INFINITY};
-
 use approxim::relative_eq;
 use bounding_box::{BoundingBox, ToBoundingBox};
 
@@ -209,13 +207,18 @@ impl ToBoundingBox for Line {
         if self.a == 0.0 {
             // Horizontal line
             let y = self.c / self.b;
-            return BoundingBox::new(NEG_INFINITY, INFINITY, y, y);
+            return BoundingBox::new(f64::NEG_INFINITY, f64::INFINITY, y, y);
         } else if self.b == 0.0 {
             // Vertical line
             let x = self.c / self.a;
-            return BoundingBox::new(x, x, NEG_INFINITY, INFINITY);
+            return BoundingBox::new(x, x, f64::NEG_INFINITY, f64::INFINITY);
         } else {
-            return BoundingBox::new(NEG_INFINITY, INFINITY, NEG_INFINITY, INFINITY);
+            return BoundingBox::new(
+                f64::NEG_INFINITY,
+                f64::INFINITY,
+                f64::NEG_INFINITY,
+                f64::INFINITY,
+            );
         }
     }
 }

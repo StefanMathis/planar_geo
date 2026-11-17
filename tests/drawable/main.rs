@@ -1,6 +1,12 @@
+#[cfg(feature = "cairo")]
 pub mod arrows;
+#[cfg(feature = "cairo")]
 pub mod conversion;
+#[cfg(feature = "cairo")]
 pub mod geometry_types;
+#[cfg(feature = "cairo")]
 pub mod grid_and_coordinate_system;
+#[cfg(feature = "cairo")]
 pub mod intersection;
+#[cfg(feature = "cairo")]
 pub mod text_placement;

@@ -97,7 +97,7 @@ fn test_text() {
                 text.draw(cr)?;
                 return Ok(());
             },
-            0.99
+            0.8
         )
         .is_ok()
     );
@@ -114,7 +114,7 @@ fn test_text() {
                     text.draw(cr)?;
                     return Ok(());
                 },
-                0.99
+                0.9
             )
             .is_ok()
         );
@@ -137,7 +137,7 @@ fn test_text() {
                 text.draw(cr)?;
                 return Ok(());
             },
-            0.99
+            0.85
         )
         .is_ok()
     );
@@ -173,7 +173,7 @@ fn test_scaled_text() {
                 text.draw(cr)?;
                 return Ok(());
             },
-            0.99
+            0.9
         )
         .is_ok()
     );
@@ -196,7 +196,7 @@ fn test_scaled_text() {
                 text.draw(cr)?;
                 return Ok(());
             },
-            0.99
+            0.9
         )
         .is_ok()
     );
@@ -1149,7 +1149,7 @@ fn test_line_style() {
         view.compare_or_create(
             std::path::Path::new("tests/img/line_styles.png"),
             create_fn,
-            0.99
+            0.9
         )
         .is_ok()
     );

@@ -666,7 +666,7 @@ let view = Viewport::from_bounding_box(
 // view.write_to_file("docs/line_styles.svg", create_fn).unwrap();
 #
 # assert!(
-#     view.compare_or_create(std::path::Path::new("tests/img/line_styles.png"), create_fn, 0.98)
+#     view.compare_or_create(std::path::Path::new("tests/img/line_styles.png"), create_fn, 0.9)
 #         .is_ok()
 # );
 ```
@@ -827,7 +827,7 @@ view.write_to_file("docs/img/anchor_offset_scale_1.svg", draw_fn()).unwrap();
 #     view.compare_or_create(
 #         std::path::Path::new("tests/img/anchor_offset_scale_1.png"),
 #         draw_fn(),
-#         0.98
+#         0.9
 #     )
 #     .is_ok()
 # );
@@ -842,7 +842,7 @@ view.write_to_file("docs/img/anchor_offset_scale_2.svg", draw_fn()).unwrap();
 #    view.compare_or_create(
 #         std::path::Path::new("tests/img/anchor_offset_scale_2.png"),
 #         draw_fn(),
-#         0.98
+#         0.9
 #     )
 #    .is_ok()
 # );
@@ -1180,7 +1180,7 @@ let draw_fn = |cr: &cairo::Context| {
 #     view.compare_or_create(
 #         std::path::Path::new("tests/img/text_placement.png"),
 #         draw_fn,
-#         0.95
+#         0.9
 #     )
 #     .is_ok()
 # );

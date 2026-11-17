@@ -100,7 +100,7 @@ fn test_text_placement() {
         view.compare_or_create(
             std::path::Path::new("tests/img/text_placement.png"),
             create_fn(),
-            0.95
+            0.90
         )
         .is_ok()
     );

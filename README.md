@@ -32,6 +32,7 @@ modify the components. -->
 [type_overview.svg]: https://raw.githubusercontent.com/StefanMathis/planar_geo/refs/heads/main/docs/img/type_overview.svg
 
 [![Documentation](https://docs.rs/planar_geo/badge.svg)](https://docs.rs/planar_geo)
+[![CI](https://github.com/StefanMathis/planar_geo/actions/workflows/ci.yml/badge.svg)](https://github.com/StefanMathis/planar_geo/actions/workflows/ci.yml)
 
 A computational geometry library that treats circular arcs as first-class
 geometric primitives rather than approximating them with straight line segments.

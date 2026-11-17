@@ -14,8 +14,6 @@ itself; see its documentation for details on construction, invariants, and
 usage.
 */
 
-use std::f64::INFINITY;
-
 use crate::{
     CentroidData, DEFAULT_EPSILON, DEFAULT_MAX_RELATIVE, Rotation2, ToleranceContext,
     Transformation, WithTolerance,
@@ -232,7 +230,7 @@ impl LineSegment {
      */
     pub fn slope(&self) -> f64 {
         if self.stop[0] == self.start[0] {
-            return INFINITY * (self.stop[1] - self.start[1]).signum();
+            return f64::INFINITY * (self.stop[1] - self.start[1]).signum();
         } else {
             return (self.stop[1] - self.start[1]) / (self.stop[0] - self.start[0]);
         }
@@ -993,7 +991,12 @@ impl PrimitiveWithTol for LineSegment {
             // Calculate the (squared) distance between the segment and the given point
             let pt = [v[0] + t * (w[0] - v[0]), v[1] + t * (w[1] - v[1])];
             let dist = ((pt[0] - p[0]).powi(2) + (pt[1] - p[1]).powi(2)).sqrt();
-            return approxim::relative_eq!(dist, 0.0, epsilon = epsilon, max_relative = max_relative);
+            return approxim::relative_eq!(
+                dist,
+                0.0,
+                epsilon = epsilon,
+                max_relative = max_relative
+            );
         }
     }
 
