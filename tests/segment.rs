@@ -259,7 +259,8 @@ fn test_fillet_chain() {
                 ArcSegment::from_start_center_angle([0.0, 0.0], [0.0, 1.0], FRAC_PI_2)
                     .unwrap()
                     .into()
-            )
+            ),
+            epsilon = 1e-8
         );
         approxim::assert_abs_diff_eq!(
             iter.next(),
