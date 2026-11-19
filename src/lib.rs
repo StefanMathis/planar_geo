@@ -385,48 +385,39 @@ impl Transformation for BoundingBox {
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct CentroidData {
     pub(crate) area: f64,
-    pub(crate) x: f64,
-    pub(crate) y: f64,
+    pub(crate) moment_x: f64,
+    pub(crate) moment_y: f64,
 }
 
 impl CentroidData {
-    /**
-    Calculates the common centroid of `self` and `other`.
-     */
-    pub(crate) fn union(&self, other: &Self) -> Self {
-        let area = self.area + other.area;
-        if area == 0.0 {
-            let x = 0.0;
-            let y = 0.0;
-            return Self { area, x, y };
+    pub(crate) fn centroid(&self) -> Option<[f64; 2]> {
+        if self.area == 0.0 {
+            None
         } else {
-            let x = (self.area * self.x + other.area * other.x) / area;
-            let y = (self.area * self.y + other.area * other.y) / area;
-            return Self { area, x, y };
+            Some([self.moment_x / self.area, self.moment_y / self.area])
         }
     }
 
-    /**
-    Calculates the common centroid of `self` and `other`, but subtract `other`
-    from `self` (i.e. the original contour of `other` is subtracted from `self`)
-     */
+    pub(crate) fn union(&self, other: &Self) -> Self {
+        Self {
+            area: self.area + other.area,
+            moment_x: self.moment_x + other.moment_x,
+            moment_y: self.moment_y + other.moment_y,
+        }
+    }
+
     pub(crate) fn subtract(&self, other: &Self) -> Self {
-        let area = self.area - other.area;
-        if area == 0.0 {
-            let x = 0.0;
-            let y = 0.0;
-            return Self { area, x, y };
-        } else {
-            let x = (self.area * self.x - other.area * other.x) / area;
-            let y = (self.area * self.y - other.area * other.y) / area;
-            return Self { area, x, y };
+        Self {
+            area: self.area - other.area,
+            moment_x: self.moment_x - other.moment_x,
+            moment_y: self.moment_y - other.moment_y,
         }
     }
 }
 
 impl From<CentroidData> for [f64; 2] {
     fn from(value: CentroidData) -> Self {
-        return [value.x, value.y];
+        return value.centroid().unwrap_or([0.0, 0.0]);
     }
 }
 

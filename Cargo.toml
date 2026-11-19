@@ -1,6 +1,6 @@
 [package]
 name = "planar_geo"
-version = "0.6.2"
+version = "0.6.3"
 edition = "2024"
 description = "A computational geometry library that treats circular arcs as first-class geometric primitives rather than approximating them with straight line segments."
 readme = "README.md"
@@ -12,7 +12,7 @@ cairo-rs = {version = "0.22", optional = true}
 bounding_box = { version = "0.6", features = ["approx"]}
 rayon = "1.5"
 serde = { version = "1", features = ["derive"], optional = true }
-deserialize_untagged_verbose_error = { version = "^0.1.5", optional = true }
+deserialize_untagged_verbose_error = { version = "^0.1.8", optional = true }
 geometry-predicates = "0.3"
 approxim = { version = "0.6", features = ["array_impl"] }
 compare_variables = { version = "^0.3.0" }

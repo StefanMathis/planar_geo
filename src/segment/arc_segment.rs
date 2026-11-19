@@ -1691,49 +1691,53 @@ impl approxim::UlpsEq for ArcSegment {
 
 impl From<&ArcSegment> for CentroidData {
     fn from(value: &ArcSegment) -> Self {
-        let inv_3 = 1.0 / 3.0;
-
         let center = value.center();
         let angle = value.sweep_angle();
         let radius = value.radius();
 
-        // centroid and area for shape 1
-        let x = (value.start()[0] + value.stop()[0]) * inv_3;
-        let y = (value.start()[1] + value.stop()[1]) * inv_3;
+        // Shape 1: Triangle formed by the origin and the arc endpoints
         let area = 0.5 * (value.start()[0] * value.stop()[1] - value.stop()[0] * value.start()[1]);
-        let data_shape_1 = CentroidData { area, x, y };
 
-        // centroid and area for shape 2
-        // Centroid of a circular segment is calculated by moving the segment so that:
-        // a) Center equals origin
-        // b) circular segment is symmetric around the y-axis
-        // Calculate the centroid and reverse the operation.
-        let half_angle = 0.5 * angle;
-        let area = half_angle * radius.powi(2);
-        let centroid_transformed = [2.0 / 3.0 * radius * half_angle.sin() / half_angle, 0.0];
-
-        let middle_angle = value.start_angle() + 0.5 * value.sweep_angle();
-        let t = Rotation2::new(middle_angle);
-        let mut centroid_movec_back = t * centroid_transformed;
-        centroid_movec_back.translate([center[0], center[1]]);
-
-        let data_shape_2 = Self {
+        let data_shape_1 = CentroidData {
             area,
-            x: centroid_movec_back[0],
-            y: centroid_movec_back[1],
+            moment_x: area * (value.start()[0] + value.stop()[0]) / 3.0,
+            moment_y: area * (value.start()[1] + value.stop()[1]) / 3.0,
         };
 
-        // centroid and area for shape 3
-        let x = (value.start()[0] + value.stop()[0] + center[0]) * inv_3;
-        let y = (value.start()[1] + value.stop()[1] + center[1]) * inv_3;
+        // Shape 2: Circular sector
+        let half_angle = 0.5 * angle;
+        let area = half_angle * radius.powi(2);
+
+        let centroid_transformed = [(2.0 / 3.0) * radius * half_angle.sin() / half_angle, 0.0];
+
+        let middle_angle = value.start_angle() + half_angle;
+        let t = Rotation2::new(middle_angle);
+
+        let mut centroid_moved_back = t * centroid_transformed;
+        centroid_moved_back.translate([center[0], center[1]]);
+
+        let data_shape_2 = CentroidData {
+            area,
+            moment_x: area * centroid_moved_back[0],
+            moment_y: area * centroid_moved_back[1],
+        };
+
+        // Shape 3: Triangle formed by the arc endpoints and circle center
+        let x = (value.start()[0] + value.stop()[0] + center[0]) / 3.0;
+        let y = (value.start()[1] + value.stop()[1] + center[1]) / 3.0;
+
         let area = 0.5
             * ((value.stop()[0] - value.start()[0]) * (center[1] - value.start()[1])
                 - (center[0] - value.start()[0]) * (value.stop()[1] - value.start()[1]));
 
-        let data_shape_3 = Self { area, x, y };
+        let data_shape_3 = CentroidData {
+            area,
+            moment_x: area * x,
+            moment_y: area * y,
+        };
 
         // Apply A = A1 + A2 - A3
-        return data_shape_1.union(&data_shape_2).subtract(&data_shape_3);
+        data_shape_1.union(&data_shape_2).subtract(&data_shape_3)
     }
 }
 

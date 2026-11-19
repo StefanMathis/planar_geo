@@ -2064,8 +2064,8 @@ impl From<&Polysegment> for crate::CentroidData {
             .reduce(
                 || Self {
                     area: 0.0,
-                    x: 0.0,
-                    y: 0.0,
+                    moment_x: 0.0,
+                    moment_y: 0.0,
                 },
                 |prev, curr| prev.union(&curr),
             );

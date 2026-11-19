@@ -931,6 +931,12 @@ fn test_centroid() {
         let contour = Contour::rectangle([1.0, -3.0], [2.0, 1.0]);
         assert_abs_diff_eq!(&contour.centroid(), &[1.5, -1.0], epsilon = DEFAULT_EPSILON,);
 
+        let contour = Contour::rectangle([0.0, 0.0005], [0.006666666666666668, 0.001]);
+        assert_abs_diff_eq!(&contour.centroid(), &[0.003333, 0.00075], epsilon = 1e-6);
+
+        let contour = Contour::rectangle([0.0, -0.0005], [0.006666666666666668, -0.001]);
+        assert_abs_diff_eq!(&contour.centroid(), &[0.003333, -0.00075], epsilon = 1e-6);
+
         // Circle
         let center = [0.0, 0.0];
         let contour = Contour::circle(center, 20.0);

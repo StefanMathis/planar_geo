@@ -868,10 +868,14 @@ impl approxim::UlpsEq for LineSegment {
 impl From<&LineSegment> for CentroidData {
     fn from(value: &LineSegment) -> Self {
         // Apply the formula for a triangle with one vertex being (0,0)
-        let x = (value.start()[0] + value.stop()[0]) / 3.0;
-        let y = (value.start()[1] + value.stop()[1]) / 3.0;
         let area = 0.5 * (value.start()[0] * value.stop()[1] - value.stop()[0] * value.start()[1]);
-        return Self { area, x, y };
+        let moment_x = area * (value.start()[0] + value.stop()[0]) / 3.0;
+        let moment_y = area * (value.start()[1] + value.stop()[1]) / 3.0;
+        return Self {
+            area,
+            moment_x,
+            moment_y,
+        };
     }
 }
 
